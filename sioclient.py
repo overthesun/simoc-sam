@@ -1,4 +1,6 @@
+import sys
 import asyncio
+
 import socketio
 
 sio = socketio.AsyncClient()
@@ -19,8 +21,10 @@ async def send_data(data):
 async def disconnect():
     print('Server disconnected')
 
-async def main():
-    await sio.connect('http://localhost:8081')
+async def main(port=None):
+    if port is None:
+        port = '5000'
+    await sio.connect(f'http://localhost:{port}')
 
     await sio.emit('msg', '1st test message')
     await sio.emit('get_data', '5')
@@ -32,4 +36,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    port = sys.argv[1] if len(sys.argv) > 1 else None
+    asyncio.run(main(port))

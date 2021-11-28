@@ -3,6 +3,20 @@ This repository contains a Docker container that include a sample
 socketio server and client that will be the foundation of the socketio
 server used in SAM.
 
+
+## Installation and dependencies
+
+If you are running everything inside the container (see below),
+you only need to have Docker installed.
+
+If you are running the Python client or server outside the container,
+you need to install the `aiohttp` (only used by the server) and
+`python-socketio` (used by both) packages using:
+```sh
+python3 -m pip install python-socketio aiohttp
+```
+
+
 ## Docker container usage
 To build the Docker image using the `Dockerfile` included in the repo, run:
 
@@ -32,3 +46,21 @@ docker run -it -p 8081:8080 -v `pwd`:/sioserver sioserver
 ```
 After this you can edit the client and just reload the page to see the changes.
 If you modify the server you will have to restart it.
+
+
+## Connecting to the server
+The repository includes two socketio clients:
+* A JS one in `index.html`
+* A standalone Python one (`sioclient.py`)
+
+To access the JS client simply open http://0.0.0.0:8080/ in the browser,
+with the server running inside or outside the Docker container.
+
+To run the Python client run `python3 sioclient.py <port>`.  You can run
+the server inside the container and the Python client inside or outside.
+
+Regardless of the setup you choose, you must ensure that you are using the
+correct port either in the URL (for the JS client) or as a command line
+argument (for the Python client).  By default the server will serve on
+port `8080`, unless you specified a different port with e.g. `-p 8081:8080`
+while running the server inside the container.
