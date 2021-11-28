@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Socketio Test Server</title>
+<script src="https://cdn.socket.io/4.4.0/socket.io.min.js"
+        integrity="sha384-1fOn6VtTq3PWwfsOrk45LnYcGosJwzMHv+Xh/Jx5303FVOXzEnw0EpLv30mtjmlj"
+        crossorigin="anonymous"></script>
+<script>
+// see https://socket.io/docs/v4/client-initialization/
+var socket = null
+
+document.addEventListener("DOMContentLoaded", function(event) {
+    const textarea = document.getElementById('logbox')
+    const msgbox = document.getElementById('msgbox')
+    const numbox = document.getElementById('numbox')
+    textarea.value = 'Status log:\n'
+    msgbox.value = 'test'
+    numbox.value = '10'
+    window.setInterval(function() {
+        const title = ' Socketio Test Server'
+        if (socket?.connected) {
+            document.title = '🟢' + title
+        }
+        else {
+            document.title = '🔴' + title
+        }
+    }, 1000);
+})
+
+function init_socket() {
+    console.log('Initializing socket...')
+    socket = io()
+    socket.on('connect', () => log_event('Connected to server'))
+    socket.on('disconnect', () => {
+        log_event('Server disconnected')
+        socket.disconnect()  // don't try to reconnect
+        socket = null
+    })
+    socket.on('log', log_event)
+    socket.on('send_data', log_event)
+}
+
+function connect() {
+    if (socket === null) {
+        init_socket()
+    }
+    log_event('Connecting...')
+    socket.connect()
+}
+
+function disconnect() {
+    log_event('Disconnecting...')
+    socket.disconnect()
+    socket = null
+}
+
+function send_msg() {
+    if (socket === null) {
+        connect()
+    }
+    const msg = document.getElementById('msgbox').value
+    log_event(`Sending msg: ${msg}`)
+    socket.emit('msg', msg)
+}
+
+function get_data() {
+    if (socket === null) {
+        connect()
+    }
+    const n =  document.getElementById('numbox').value
+    log_event(`Requesting ${n} random numbers`)
+    socket.emit('get_data', n)
+}
+
+function log_event(event) {
+    console.log(event)
+    const textarea = document.getElementById('logbox')
+    textarea.value += event + '\n'
+    textarea.scrollTop = textarea.scrollHeight
+}
+</script>
+
+<style>
+body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, 4em) 24em;
+    color: #eee;
+    background: linear-gradient(90deg, #111 0%, #333 50%, #111 100%);
+    padding: 6em 25% 0;
+}
+div {
+    margin: 0 auto;
+    text-align: center;
+}
+button, input {
+    font-size: 1.5em;
+}
+textarea {
+    grid-column-start: 1;
+    grid-column-end: 3;
+    color: #0e0;
+    background-color: #111;
+    padding: 1em;
+}
+</style>
+
+</head>
+
+
+<body>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <input type="text" placeholder="Enter message" id="msgbox">
+        <button onclick="send_msg()">Send message</button>
+        <input type="number" min="0" max="10" id="numbox">
+        <button onclick="get_data()">Get random nums</button>
+        <textarea rows="20" readonly id="logbox"></textarea>
+</body>
+
+</html>
