@@ -68,11 +68,25 @@ while running the server inside the container.
 
 ## TL;DR
 
-This is a summary of the commands you need to run everything:
+This is a summary of the commands you need to run everything.
 
+Initial setup (only needed once):
 ```sh
-# build the image (only needed once)
+# build the image
 docker build . -t sioserver
+# install dependencies
+python3 -m pip install python-socketio aiohttp
+# install tmux (if using tmux.sh)
+sudo apt install tmux
+```
+
+Start everything at once using `tmux`:
+```sh
+./tmux.sh
+```
+
+Start server/sensor(s)/client(s) separately:
+```sh
 # start the Docker container and the socketio server
 docker run -it -p 8081:8080 -v `pwd`:/sioserver sioserver
 # start the sensor (on a new terminal tab on the host machine)
