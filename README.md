@@ -64,3 +64,26 @@ correct port either in the URL (for the JS client) or as a command line
 argument (for the Python client).  By default the server will serve on
 port `8080`, unless you specified a different port with e.g. `-p 8081:8080`
 while running the server inside the container.
+
+
+## TL;DR
+
+This is a summary of the commands you need to run everything:
+
+```sh
+# build the image (only needed once)
+docker build . -t sioserver
+# start the Docker container and the socketio server
+docker run -it -p 8081:8080 -v `pwd`:/sioserver sioserver
+# start the sensor (on a new terminal tab on the host machine)
+python3 mocksensor.py 8081
+# start the client (on a new terminal tab on the host machine)
+python3 sioclient.py 8081
+
+```
+
+You will see the `mocksensor` producing data and the server receiving and
+broadcasting them to all the connected clients.  You can open
+http://0.0.0.0:8081/ to access the web client too.  You can also run
+multiple sensors and clients at once.  If you restart the server, the
+sensors and Python clients should reconnect automatically.
