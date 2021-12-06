@@ -32,11 +32,26 @@ document.addEventListener("DOMContentLoaded", function(event) {
 function init_socket() {
     console.log('Initializing socket...')
     socket = io()
-    socket.on('connect', () => log_event('Connected to server'))
+    socket.on('connect', () => {
+        log_event('Connected to server')
+        log_event('Registering client')
+        socket.emit('register-client')
+    })
     socket.on('disconnect', () => {
         log_event('Server disconnected')
         socket.disconnect()  // don't try to reconnect
         socket = null
+    })
+    socket.on('hab-info', (info) => {
+        log_event(`Habitat info: ${JSON.stringify(info)}`)
+        log_event('Requesting step data')
+        socket.emit('send-step-data')
+    })
+    socket.on('step-batch',  (batch) => {
+        log_event(`Received a batch of ${batch.length} step from the server:`)
+        batch.forEach((step) => {
+            log_event(`  ${step.step_num}: CO2: ${step.co2_ppm}ppm; Temperature: ${step.temp}°; Humidity: ${step.hum_perc}%`)
+        })
     })
     socket.on('log', log_event)
     socket.on('send_data', log_event)
