@@ -4,11 +4,22 @@ import asyncio
 
 import socketio
 
-
-STEP_INTERVAL = 1  # how many seconds between readings
+STEP_INTERVAL = 1  # how many seconds between readings for fake mode
 BATCH_SIZE = 10  # how many steps in a batch
 
 sio = socketio.AsyncClient()
+
+def get_fake_data(co2_ppm, temp, hum_perc):
+    """ Generate fake sensor data """
+    # add/remove random increment/decrements
+    co2_ppm += random.randint(1, 500) * random.choice([-1, 0, +1])
+    temp += random.random() * random.choice([-1, 0, +1])
+    hum_perc += random.randint(1, 10) * random.choice([-1, 0, +1])
+    # clip values to be within range
+    co2_ppm = max(250, min(co2_ppm, 5000))
+    temp = max(15, min(temp, 25))
+    hum_perc = max(0, min(hum_perc, 100))
+    return dict(co2=co2_ppm, temp=temp, humidity=hum_perc)
 
 @sio.event
 async def connect():
@@ -22,34 +33,44 @@ async def disconnect():
 
 @sio.on('send-data')
 async def send_data():
-    """Generate fake sensor data and send them to the server in batches."""
+    """Generate sensor data and send them to the server in batches."""
     print('Server requested sensor data')
     step_num = 0
-    co2_ppm = 1000
-    temp = 20
-    hum_perc = 50
-    print('Starting to read data from the (mock) sensor')
+    co2_ppm = 1000.0
+    temp = 20.0
+    hum_perc = 50.0
+    if is_live_mode: 
+        sensor = senseutil.Sensor()
+        sensor_type = "live"
+    else:
+        sensor_type = "mock"
+    print(f'Starting to read data from the {sensor_type} sensor')
     # endless loop that reads sensor data
     while True:
         batch = []
         for step in range(BATCH_SIZE):
-            # add/remove random increment/decrements
-            co2_ppm += random.randint(1, 500) * random.choice([-1, 0, +1])
-            temp += random.random() * random.choice([-1, 0, +1])
-            hum_perc += random.randint(1, 10) * random.choice([-1, 0, +1])
-            # clip values to be within range
-            co2_ppm = max(250, min(co2_ppm, 5000))
-            temp = max(15, min(temp, 25))
-            hum_perc = max(0, min(hum_perc, 100))
-
-            print(f'{step_num}: CO2: {co2_ppm:4}ppm; Temperature: '
-                  f'{temp:2.1f}°; Humidity: {hum_perc:2}%')
-            # add sensor data to the batch
-            batch.append(dict(step_num=step_num, co2_ppm=co2_ppm,
-                              temp=temp, hum_perc=hum_perc))
-            step_num += 1
-            # wait for the next sensor reading
-            await asyncio.sleep(STEP_INTERVAL)
+            try:
+                if is_live_mode:  # Get live data from a real sensor
+                    interval_data = senseutil.get_interval_data(sensor.scd,
+                                                                step_num)
+                else:  # Get fake semi-random data
+                    interval_data = get_fake_data(co2_ppm, temp, hum_perc)
+                # Retrieve data from dict
+                co2_ppm = interval_data["co2"]
+                temp = interval_data["temp"]
+                hum_perc = interval_data["humidity"]
+                
+                #prnt the data to the screen
+                print(f'{step_num}: CO2: {co2_ppm:5.0f}ppm; Temperature: '
+                      f'{temp:2.2f}°; Humidity: {hum_perc:2.2f}%')
+                # add sensor data to the batch
+                batch.append(dict(step_num=step_num, co2_ppm=co2_ppm,
+                                  temp=temp, hum_perc=hum_perc))
+                step_num += 1
+                # wait for the next sensor reading
+                await asyncio.sleep(STEP_INTERVAL)
+            except RuntimeError as e:  # Ignore sensor error and retry step
+                print(e)
         if not sio.connected:
             print('Not connected to server, stop reading/sending data')
             return  # TODO: this will reset the step_num
@@ -69,4 +90,9 @@ async def main(port=None):
 
 if __name__ == '__main__':
     port = sys.argv[1] if len(sys.argv) > 1 else None
+    is_live_mode = sys.argv[2] if len(sys.argv) > 2 else False
+    if is_live_mode == "live":
+        import senseutil
+        STEP_INTERVAL = 3  # SCD-30 only has data available every ~ 2.2-2.6s
+        is_live_mode = True
     asyncio.run(main(port))

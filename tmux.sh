@@ -8,14 +8,14 @@ tmux new-session -s $SNAME -d -x "$(tput cols)" -y "$(tput lines)"
 tmux send-keys -t $SNAME "docker run -it -p $SIOPORT:8080 -v `pwd`:/sioserver sioserver" Enter
 # create 4 more panes and run the sensors and clients
 tmux split-window -h -p 65
-tmux send-keys -t $SNAME 'sleep 5' Enter "python3 mocksensor.py $SIOPORT" Enter
+tmux send-keys -t $SNAME 'sleep 5' Enter "python3 sensor.py $SIOPORT" Enter
 tmux split-window -v
 tmux send-keys -t $SNAME 'sleep 12' Enter "python3 sioclient.py $SIOPORT" Enter
 tmux split-window -h -p 50
 tmux send-keys -t $SNAME 'sleep 17' Enter "python3 sioclient.py $SIOPORT" Enter
 tmux select-pane -t 1
 tmux split-window -h -p 50
-tmux send-keys -t $SNAME 'sleep 10' Enter "python3 mocksensor.py $SIOPORT" Enter
+tmux send-keys -t $SNAME 'sleep 10' Enter "python3 sensor.py $SIOPORT" Enter
 # focus on the server pane
 tmux select-pane -t 0
 # enable mouse input
