@@ -10,7 +10,7 @@ SENSORS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
-sio = socketio.AsyncServer()
+sio = socketio.AsyncServer(cors_allowed_origins='http://localhost:8080')
 app = web.Application()
 sio.attach(app)
 
