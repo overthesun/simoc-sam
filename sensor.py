@@ -1,7 +1,7 @@
 import sys
 import random
 import asyncio
-
+import argparse
 import socketio
 
 STEP_INTERVAL = 1  # how many seconds between readings for fake mode
@@ -19,6 +19,8 @@ def get_fake_data(co2_ppm, temp, hum_perc):
     co2_ppm = max(250, min(co2_ppm, 5000))
     temp = max(15, min(temp, 25))
     hum_perc = max(0, min(hum_perc, 100))
+    # convert to float since server expects float
+    co2_ppm, temp, hum_perc = float(co2_ppm), float(temp), float(hum_perc)
     return dict(co2=co2_ppm, temp=temp, humidity=hum_perc)
 
 @sio.event
@@ -39,7 +41,7 @@ async def send_data():
     co2_ppm = 1000.0
     temp = 20.0
     hum_perc = 50.0
-    if is_live_mode: 
+    if live_mode: 
         sensor = senseutil.Sensor()
         sensor_type = "live"
     else:
@@ -50,7 +52,7 @@ async def send_data():
         batch = []
         for step in range(BATCH_SIZE):
             try:
-                if is_live_mode:  # Get live data from a real sensor
+                if live_mode:  # Get live data from a real sensor
                     interval_data = senseutil.get_interval_data(sensor.scd,
                                                                 step_num)
                 else:  # Get fake semi-random data
@@ -89,10 +91,17 @@ async def main(port=None):
 
 
 if __name__ == '__main__':
-    port = sys.argv[1] if len(sys.argv) > 1 else None
-    is_live_mode = sys.argv[2] if len(sys.argv) > 2 else False
-    if is_live_mode == "live":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('port', nargs='?', default=None, help=
+                   " enter the port as the first positional argument" ,type=int)
+    parser.add_argument('--live', help="flag to make sensor live", 
+                        action='store_true')
+    args = parser.parse_args()
+    port = str(args.port)
+    live_mode = args.live
+    if live_mode:
         import senseutil
         STEP_INTERVAL = 3  # SCD-30 only has data available every ~ 2.2-2.6s
-        is_live_mode = True
+    else: 
+        live_mode = False
     asyncio.run(main(port))

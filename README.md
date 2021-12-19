@@ -94,7 +94,7 @@ python3 sensor.py 8081
 # start the client (on a new terminal tab on the host machine)
 python3 sioclient.py 8081
 # To start a live sensor (on a new terminal tab on the host machine)
-python3 sensor.py 8081 live
+python3 sensor.py 8081 --live
 
 ```
 

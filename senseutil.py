@@ -49,7 +49,6 @@ def sensor_loop():
         # Check for new data, available every 2 seconds
         try:
             if scd.data_available:  # If fresh data is available, get it
-                error_count = 0
                 interval_data = get_interval_data(scd, time_elapsed)
                 print(interval_data)
         except RuntimeError as e:
