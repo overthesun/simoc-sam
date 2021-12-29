@@ -92,16 +92,14 @@ async def main(port=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('port', nargs='?', default=None, help=
-                   " enter the port as the first positional argument" ,type=int)
-    parser.add_argument('--live', help="flag to make sensor live", 
-                        action='store_true')
+    port_help = "The port used to connect to the server."
+    parser.add_argument('port', nargs='?', default=None, help=port_help ,type=int)
+    live_help = "Read data from a live sensor"
+    parser.add_argument('--live', help=live_help, action='store_true')
     args = parser.parse_args()
     port = str(args.port)
     live_mode = args.live
     if live_mode:
         import senseutil
         STEP_INTERVAL = 3  # SCD-30 only has data available every ~ 2.2-2.6s
-    else: 
-        live_mode = False
     asyncio.run(main(port))
