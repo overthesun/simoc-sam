@@ -50,7 +50,7 @@ function init_socket() {
     socket.on('step-batch',  (batch) => {
         log_event(`Received a batch of ${batch.length} step from the server:`)
         batch.forEach((step) => {
-            log_event(`  ${step.step_num}: CO2: ${step.co2_ppm}ppm; Temperature: ${step.temp}°; Humidity: ${step.hum_perc}%`)
+            log_event(`  ${step.step_num}: CO2: ${step.co2_ppm.toFixed(1)}ppm; Temperature: ${step.temp.toFixed(2)}°; Humidity: ${step.hum_perc.toFixed(2)}%`)
         })
     })
     socket.on('log', log_event)

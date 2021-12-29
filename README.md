@@ -89,10 +89,12 @@ Start server/sensor(s)/client(s) separately:
 ```sh
 # start the Docker container and the socketio server
 docker run -it -p 8081:8080 -v `pwd`:/sioserver sioserver
-# start the sensor (on a new terminal tab on the host machine)
-python3 mocksensor.py 8081
+# start the fake sensor (on a new terminal tab on the host machine)
+python3 sensor.py 8081
 # start the client (on a new terminal tab on the host machine)
 python3 sioclient.py 8081
+# To start a live sensor (on a new terminal tab on the host machine)
+python3 sensor.py 8081 --live
 
 ```
 

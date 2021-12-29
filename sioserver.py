@@ -10,7 +10,8 @@ SENSORS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
-sio = socketio.AsyncServer(cors_allowed_origins='http://localhost:8080')
+sio = socketio.AsyncServer(
+        cors_allowed_origins=['http://localhost:8080','http://localhost:8081'])
 app = web.Application()
 sio.attach(app)
 
@@ -69,8 +70,8 @@ async def sensor_batch(sid, batch):
     """Handle batches of sensor data and broadcast them to the clients."""
     print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
     for step in batch:
-        print('  {step_num}: CO2: {co2_ppm:4}ppm; Temperature: {temp:2.1f}°; '
-              'Humidity: {hum_perc:2}%'.format_map(step))
+        print('  {step_num}: CO2: {co2_ppm:6.0f}ppm; Temperature: {temp:2.2f}°; '
+              'Humidity: {hum_perc:2.2}%'.format_map(step))
     if SUBSCRIBERS:
         # TODO: set up a room for the clients and broadcast to the room
         print(f'Broadcasting step data batch to {len(SUBSCRIBERS)} clients')
