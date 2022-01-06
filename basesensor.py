@@ -15,6 +15,14 @@ class BaseSensor(ABC):
         # the total number of values read through iter_readings
         self.reading_num = 0
 
+    def __enter__(self):
+        # use this to initialize the sensor and return self
+        return self
+
+    def __exit__(self, type, value, traceback):
+        # use this to clean up
+        return False  # let exceptions propagate
+
     def get_timestamp(self):
         """Return the current timestamp as a string."""
         return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -134,6 +142,6 @@ class MockSensor(BaseSensor):
 
 if __name__ == '__main__':
     port = sys.argv[1] if len(sys.argv) > 1 else 8000
-    sensor = MockSensor(verbose=True)
-    siowrapper = SIOWrapper(sensor, verbose=True)
-    asyncio.run(siowrapper.start(port))
+    with MockSensor(verbose=True) as sensor:
+        siowrapper = SIOWrapper(sensor, verbose=True)
+        asyncio.run(siowrapper.start(port))

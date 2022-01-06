@@ -17,6 +17,10 @@ def test_abstract_method():
     with pytest.raises(TypeError):
         s = BrokenSensorSubclass()
 
+def test_context_manager():
+    with MySensor() as sensor:
+        assert isinstance(sensor, MySensor)
+
 def test_iter_readings():
     sensor = MySensor()
     # check that iter_readings() yields values returned by read_sensor_data()
