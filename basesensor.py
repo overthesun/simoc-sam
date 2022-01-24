@@ -94,12 +94,12 @@ class SIOWrapper:
         """Called when the sensor disconnects from the server."""
         self.print('Server disconnected')
 
-    async def send_data(self):
+    async def send_data(self, n=0):
         """Called when the server requests data, runs in an endless loop."""
         self.print('Server requested data')
         # set the delay to 0 because iter_readings uses blocking time.sleep
         # and replace it with a non-blocking asyncio.sleep in the for loop
-        for reading in self.sensor.iter_readings(delay=0):
+        for reading in self.sensor.iter_readings(delay=0, n=n):
             self.batch.append(reading)
             if len(self.batch) >= self.batch_size:
                 if not self.sio.connected:
