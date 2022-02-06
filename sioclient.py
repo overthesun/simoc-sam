@@ -3,6 +3,9 @@ import asyncio
 
 import socketio
 
+from utils import format_reading
+
+
 sio = socketio.AsyncClient()
 
 
@@ -31,10 +34,9 @@ async def hab_info(data):
 @sio.on('step-batch')
 async def step_batch(batch):
     """Handle batches of step data received by the server."""
-    print(f'Received a batch of {len(batch)} step from the server:')
-    for step in batch:
-        print('  {step_num}: CO2: {co2_ppm:4}ppm; Temperature: {temp:2.1f}°; '
-              'Humidity: {hum_perc:2}%'.format_map(step))
+    print(f'Received a batch of {len(batch)} readings from the server:')
+    for reading in batch:
+        print(format_reading(reading))
 
 # main
 
