@@ -8,11 +8,10 @@ from basesensor import BaseSensor, SIOWrapper
 class MockSensor(BaseSensor):
     """A mock server that generates random CO2/temperature/humidity data."""
     def __init__(self, *, base_co2=500, base_temp=20, base_hum=50, verbose=False):
-        super().__init__()
+        super().__init__(verbose=verbose)
         self.co2_ppm = base_co2
         self.temp = base_temp
         self.hum_perc = base_hum
-        self.verbose = verbose
 
     def read_sensor_data(self):
         # add/remove random values to/from the previous ones

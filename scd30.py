@@ -22,22 +22,25 @@ from basesensor import BaseSensor, SIOWrapper
 
 class SCD30(BaseSensor):
     """Represent a SCD-30 sensors connected through a MCP2221."""
-    def __init__(self):
+    def __init__(self, *, verbose=False):
         """Initialize the sensor."""
-        super().__init__()
+        super().__init__(verbose=verbose)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
 
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
         co2_ppm = self.scd.CO2
-        temperature = self.scd.temperature  # in °C
-        rel_humidity = self.scd.relative_humidity
-        return dict(co2=co2_ppm, temp=temperature, rel_hum=rel_humidity)
+        temp = self.scd.temperature  # in °C
+        rel_hum = self.scd.relative_humidity
+        if self.verbose:
+            print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: '
+                  f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
+        return dict(co2=co2_ppm, temp=temp, rel_hum=rel_hum)
 
 
 if __name__ == '__main__':
     port = sys.argv[1] if len(sys.argv) > 1 else 8000
-    with SCD30() as sensor:
+    with SCD30(verbose=True) as sensor:
         siowrapper = SIOWrapper(sensor, verbose=True)
         asyncio.run(siowrapper.start(port))

@@ -9,7 +9,8 @@ import socketio
 
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
-    def __init__(self):
+    def __init__(self, *, verbose=False):
+        self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
 
@@ -24,6 +25,9 @@ class BaseSensor(ABC):
     def get_timestamp(self):
         """Return the current timestamp as a string."""
         return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+
+    # TODO: add a method that returns sensor_info, including the
+    # value it returns and labels and units for each value
 
     @abstractmethod
     def read_sensor_data(self):
