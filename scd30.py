@@ -1,65 +1,43 @@
-# This script is used to gather data from the SCD-30 sensor attached to
-# the MCP-2221. This is a minimal script with most features stripped out so that
-# developers can more easily troubleshoot issues with running it containerized.
+# Implement the driver for the SCD-30 CO2/temperature/humidity sensor,
+# connected through an MCP2221.
 
-# Normal Packages
 import os
 import sys
-os.environ['BLINKA_MCP2221'] = '1'
-import time
+import asyncio
 
-# Special packages
+# set these before import board
+os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
+os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'  # avoid resetting the sensor
+
 try:
     import busio
 except RuntimeError:
-    print("Script failed during busio import. "
-          "Probably the sensor is not plugged in.")
-    sys.exit()
-import adafruit_scd30
+    sys.exit("Failed to import 'busio', is the sensor plugged in?")
+
 import board  # For MCP-2221
+import adafruit_scd30
 
-class Sensor:
+from basesensor import BaseSensor, SIOWrapper
+
+
+class SCD30(BaseSensor):
+    """Represent a SCD-30 sensors connected through a MCP2221."""
     def __init__(self):
-        self.scd=initialize_sensor()
+        """Initialize the sensor."""
+        super().__init__()
+        i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
+        self.scd = adafruit_scd30.SCD30(i2c)
 
-def initialize_sensor():
-    """Initialize the sensor."""
-
-    i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
-    scd = adafruit_scd30.SCD30(i2c)
-    return scd
-
-def get_interval_data(scd, time_elapsed):
-    ''' This function gets the data from the sensor directly and packages it
-         with the time that the sensor data was retrieved from the sensor. '''
-    cO2_ppm = scd.CO2
-    temperature = scd.temperature  # in *C
-    rel_humidity = scd.relative_humidity
-    interval_data = dict(seconds=time_elapsed, co2=cO2_ppm,
-                         temp=temperature, humidity=rel_humidity)
-    return interval_data
+    def read_sensor_data(self):
+        """Return sensor data (CO2, temperature, humidity) as a dict."""
+        co2_ppm = self.scd.CO2
+        temperature = self.scd.temperature  # in °C
+        rel_humidity = self.scd.relative_humidity
+        return dict(co2=co2_ppm, temp=temperature, rel_hum=rel_humidity)
 
 
-# This method is only if this script is called on its own.
-def sensor_loop():
-    start_time = time.time()
-    while True:
-        current_time = time.time()
-        time_elapsed = current_time - start_time
-        # Check for new data, available every 2 seconds
-        try:
-            if scd.data_available:  # If fresh data is available, get it
-                interval_data = get_interval_data(scd, time_elapsed)
-                print(interval_data)
-        except RuntimeError as e:
-            # Occasionally sensor does not want to respond but skipping it is
-            # usually OKAY.
-            print(e)  # Print the error
-        # Without this line, your system fans will kick up and not be happy.
-        time.sleep(scd.measurement_interval/4)
-
-# If called directly, start sensor loop
 if __name__ == '__main__':
-    # Start the sensor script here
-    scd = initialize_sensor()
-    sensor_loop()
+    port = sys.argv[1] if len(sys.argv) > 1 else 8000
+    with SCD30() as sensor:
+        siowrapper = SIOWrapper(sensor, verbose=True)
+        asyncio.run(siowrapper.start(port))
