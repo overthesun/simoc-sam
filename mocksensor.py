@@ -1,8 +1,7 @@
-import sys
 import random
-import asyncio
 
-from basesensor import BaseSensor, SIOWrapper
+from basesensor import BaseSensor
+from utils import start_sensor
 
 
 class MockSensor(BaseSensor):
@@ -29,7 +28,4 @@ class MockSensor(BaseSensor):
 
 
 if __name__ == '__main__':
-    port = sys.argv[1] if len(sys.argv) > 1 else 8000
-    with MockSensor(verbose=True) as sensor:
-        siowrapper = SIOWrapper(sensor, verbose=True)
-        asyncio.run(siowrapper.start(port))
+    start_sensor(MockSensor)

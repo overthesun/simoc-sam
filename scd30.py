@@ -3,7 +3,6 @@
 
 import os
 import sys
-import asyncio
 
 # set these before import board
 os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
@@ -17,7 +16,8 @@ except RuntimeError:
 import board  # For MCP-2221
 import adafruit_scd30
 
-from basesensor import BaseSensor, SIOWrapper
+from basesensor import BaseSensor
+from utils import start_sensor
 
 
 class SCD30(BaseSensor):
@@ -40,7 +40,4 @@ class SCD30(BaseSensor):
 
 
 if __name__ == '__main__':
-    port = sys.argv[1] if len(sys.argv) > 1 else 8000
-    with SCD30(verbose=True) as sensor:
-        siowrapper = SIOWrapper(sensor, verbose=True)
-        asyncio.run(siowrapper.start(port))
+    start_sensor(SCD30)
