@@ -103,3 +103,18 @@ broadcasting them to all the connected clients.  You can open
 http://0.0.0.0:8081/ to access the web client too.  You can also run
 multiple sensors and clients at once.  If you restart the server, the
 sensors and Python clients should reconnect automatically.
+
+
+## Testing
+
+Install dependencies:
+
+```sh
+sudo pip install -U pytest pytest-asyncio
+```
+
+Run tests:
+
+```sh
+pytest -v
+```

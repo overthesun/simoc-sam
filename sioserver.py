@@ -5,6 +5,9 @@ import socketio
 
 from aiohttp import web
 
+from utils import format_reading
+
+
 HAB_INFO = dict(humans=4, volume=272)
 SENSORS = set()
 CLIENTS = set()
@@ -69,9 +72,8 @@ async def send_step_data(sid):
 async def sensor_batch(sid, batch):
     """Handle batches of sensor data and broadcast them to the clients."""
     print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
-    for step in batch:
-        print('  {step_num}: CO2: {co2_ppm:6.0f}ppm; Temperature: {temp:2.2f}°; '
-              'Humidity: {hum_perc:2.2}%'.format_map(step))
+    for reading in batch:
+        print(format_reading(reading))
     if SUBSCRIBERS:
         # TODO: set up a room for the clients and broadcast to the room
         print(f'Broadcasting step data batch to {len(SUBSCRIBERS)} clients')
