@@ -81,6 +81,11 @@ sudo apt install tmux
 ```
 
 Start everything at once using `tmux`:
+# Note on raspberry pi you may need to run
+ `chmod +x tmux.sh` 
+    and
+ `sed -i -e 's/\r$//' tmux.sh`
+# before tmux.sh will run
 ```sh
 ./tmux.sh
 ```
