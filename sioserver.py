@@ -9,7 +9,6 @@ from utils import format_reading
 
 
 HAB_INFO = dict(humans=4, volume=272)
-SENSOR_TYPES = dict()
 SENSOR_INFO = dict()
 SENSORS = set()
 CLIENTS = set()
@@ -50,9 +49,7 @@ async def register_sensor(sid, sensor_info):
     print('New sensor connected:', sid)
     print('Sensor info:', sensor_info)
     SENSORS.add(sid)
-    sensor_type = sensor_info['sensor_type']
-    SENSOR_TYPES[sid] = sensor_type
-    SENSOR_INFO[sensor_type] = sensor_info
+    SENSOR_INFO[sid] = sensor_info
     # TODO: send sensor-info to clients when a new
     # sensor is added once we set up a room
     print('Requesting sensor data from', sid)
@@ -82,7 +79,7 @@ async def send_step_data(sid):
 async def sensor_batch(sid, batch):
     """Handle batches of sensor data and broadcast them to the clients."""
     print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
-    sensor_info = SENSOR_INFO[SENSOR_TYPES[sid]]
+    sensor_info = SENSOR_INFO[sid]
     for reading in batch:
         print(format_reading(reading, sensor_info=sensor_info))
     if SUBSCRIBERS:
