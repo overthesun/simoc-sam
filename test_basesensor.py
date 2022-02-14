@@ -93,7 +93,9 @@ async def test_siowrapper(sensor):
     sio_ac.connect.assert_awaited_with('http://localhost:8080')
     # check that sensor registers itself on connect
     await siowrapper.connect()
-    sio_ac.emit.assert_awaited_with('register-sensor')
+    sensor_info = {'sensor_type': 'TestSensor', 'sensor_name': None,
+                   'reading_info': INFO}
+    sio_ac.emit.assert_awaited_with('register-sensor', sensor_info)
     # request 25 readings and check that at least a batch has been sent
     await siowrapper.send_data(n=25)
     sio_ac.emit.assert_awaited_with('sensor-batch', ANY)
