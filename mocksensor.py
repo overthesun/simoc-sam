@@ -5,9 +5,16 @@ from utils import start_sensor
 
 
 class MockSensor(BaseSensor):
+    sensor_type = 'Mock'
+    reading_info = {
+        'co2': dict(label='CO2', unit='ppm'),
+        'temp': dict(label='Temperature', unit='°C'),
+        'rel_hum': dict(label='Relative Humidity', unit='%'),
+    }
     """A mock server that generates random CO2/temperature/humidity data."""
-    def __init__(self, *, base_co2=500, base_temp=20, base_hum=50, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, *, base_co2=500, base_temp=20, base_hum=50,
+                 name='MockSensor', verbose=False):
+        super().__init__(name=name, verbose=verbose)
         self.co2_ppm = base_co2
         self.temp = base_temp
         self.rel_hum = base_hum

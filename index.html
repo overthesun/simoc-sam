@@ -10,6 +10,7 @@
 <script>
 // see https://socket.io/docs/v4/client-initialization/
 var socket = null
+const SENSORS_INFO = {}
 
 document.addEventListener("DOMContentLoaded", function(event) {
     const textarea = document.getElementById('logbox')
@@ -43,14 +44,19 @@ function init_socket() {
         socket = null
     })
     socket.on('hab-info', (info) => {
-        log_event(`Habitat info: ${JSON.stringify(info)}`)
+        log_event(`Habitat info: ${JSON.stringify(info, null, '\t')}`)
         log_event('Requesting step data')
         socket.emit('send-step-data')
     })
+    socket.on('sensor-info', (info) => {
+        log_event(`Sensor info: ${JSON.stringify(info, null, '\t')}`)
+        Object.assign(SENSORS_INFO, info)
+    })
     socket.on('step-batch',  (batch) => {
-        log_event(`Received a batch of ${batch.length} step from the server:`)
+        //log_event(`Received a batch of ${batch.length} step from the server:`)
         batch.forEach((step) => {
-            log_event(`  ${step.step_num}: CO2: ${step.co2_ppm.toFixed(1)}ppm; Temperature: ${step.temp.toFixed(2)}°; Humidity: ${step.hum_perc.toFixed(2)}%`)
+            log_event(format_reading(step))
+            // log_event(`  ${step.step_num}: CO2: ${step.co2_ppm.toFixed(1)}ppm; Temperature: ${step.temp.toFixed(2)}°; Humidity: ${step.hum_perc.toFixed(2)}%`)
         })
     })
     socket.on('log', log_event)
@@ -95,6 +101,24 @@ function log_event(event) {
     textarea.value += event + '\n'
     textarea.scrollTop = textarea.scrollHeight
 }
+function format_reading(reading) {
+    // TODO get info from the right sensor
+    let {step_num, timestamp, ...data} = reading
+    timestamp = timestamp.split('.')[0] // remove millisec
+    const reading_info = Object.values(SENSORS_INFO)[0].reading_info
+    let result = []
+    Object.entries(data).forEach(([key, value]) => {
+        let v = (typeof value === 'number') ? value.toFixed(2) : value
+        let label = key
+        let unit = ''
+        if (reading_info) {
+            label = reading_info[key]['label']
+            unit = ` ${reading_info[key]['unit']}`
+        }
+        result.push(`${label}: ${v}${unit}`)
+    })
+    return ` ${step_num}|${timestamp}  ` + result.join('; ')
+}
 </script>
 
 <style>
@@ -104,7 +128,7 @@ body {
     grid-template-rows: repeat(3, 4em) 24em;
     color: #eee;
     background: linear-gradient(90deg, #111 0%, #333 50%, #111 100%);
-    padding: 6em 25% 0;
+    padding: 6em 20% 0;
 }
 div {
     margin: 0 auto;

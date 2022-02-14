@@ -9,7 +9,22 @@ import socketio
 
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
-    def __init__(self, *, verbose=False):
+    @property
+    @abstractmethod
+    def sensor_type(self):
+        """The sensor type (e.g. model name)."""
+        # override this with a regular class attr in the subclasses
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def reading_info(self):
+        """Information about the values returned by read_sensor_data."""
+        # override this with a regular class attr in the subclasses
+        raise NotImplementedError()
+
+    def __init__(self, *, name=None, verbose=False):
+        self.sensor_name = name
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
@@ -26,13 +41,18 @@ class BaseSensor(ABC):
         """Return the current timestamp as a string."""
         return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-    # TODO: add a method that returns sensor_info, including the
-    # value it returns and labels and units for each value
+    def sensor_info(self):
+        """Return information about the sensor and the value it returns."""
+        return {
+            'sensor_type': self.sensor_type,
+            'sensor_name': self.sensor_name,
+            'reading_info': self.reading_info,
+        }
 
     @abstractmethod
     def read_sensor_data(self):
         """Read sensor data and return them as a dict."""
-        return NotImplemented
+        raise NotImplementedError()
 
     def iter_readings(self, *, delay, n=0,
                       add_timestamp=True, add_stepnum=True):
@@ -92,7 +112,8 @@ class SIOWrapper:
         """Called when the sensor connects to the server."""
         self.print('Connected to server')
         self.print('Registering sensor')
-        await self.sio.emit('register-sensor')
+        sensor_info = self.sensor.sensor_info()
+        await self.sio.emit('register-sensor', sensor_info)
 
     async def disconnect(self):
         """Called when the sensor disconnects from the server."""
