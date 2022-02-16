@@ -20,3 +20,4 @@ WORKDIR /sioserver
 
 ENTRYPOINT [ "/bin/python3" ]
 CMD ["sioserver.py"]
+
