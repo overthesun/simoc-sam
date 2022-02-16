@@ -18,10 +18,12 @@ python3 -m pip install python-socketio aiohttp
 
 
 ## Docker container usage
-To build the Docker image using the `Dockerfile` included in the repo, run:
-
+To build the Docker image, run setup.sh. It will automatically determine if
+you are running a raspberry pi or not and run the appropriate docker build
+for armhf (rpi) or amd64:
 ```sh
-docker build . -t sioserver
+chmod 777 setup.sh
+./setup.sh
 ```
 
 You can then start the container with:
