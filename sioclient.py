@@ -8,6 +8,7 @@ from utils import format_reading
 
 sio = socketio.AsyncClient()
 
+SENSOR_INFO = {}
 
 # default events
 
@@ -31,12 +32,20 @@ async def hab_info(data):
     print('Requesting step data')
     await sio.emit('send-step-data')
 
+@sio.on('sensor-info')
+async def sensor_info(data):
+    """Handle sensor info sent by the server."""
+    print('Received sensor info:', data)
+    SENSOR_INFO.update(data)
+
 @sio.on('step-batch')
 async def step_batch(batch):
     """Handle batches of step data received by the server."""
     print(f'Received a batch of {len(batch)} readings from the server:')
+    # TODO get info from the right sensor
+    sensor_info = list(SENSOR_INFO.values())[0]
     for reading in batch:
-        print(format_reading(reading))
+        print(format_reading(reading, sensor_info=sensor_info))
 
 # main
 
