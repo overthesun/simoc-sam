@@ -125,4 +125,3 @@ Run tests:
 ```sh
 pytest -v
 ```
-
