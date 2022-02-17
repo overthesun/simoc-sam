@@ -9,6 +9,16 @@ RUN apt-get update && \
     curl \
     wget
 
+# Additional dependencies, conditionally installed, for ARMhf (especially Raspberry Pi)
+Run if [ $(dpkg --print-architecture) = 'armhf' ]; then \
+        echo "Installing additonal dependencies for ARMhf Architecture"; \
+        apt-get install -y --no-install-recommends --upgrade \
+        gcc-arm-linux-gnueabihf \
+        python3-dev; \
+    else \
+        echo "Architecture is not ARMhf, so additional dependencies not needed."; \
+    fi
+
 # if we need more modules use a requirements.txt file
 RUN python3 -m pip install python-socketio aiohttp
 
