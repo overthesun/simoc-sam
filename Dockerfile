@@ -7,7 +7,12 @@ RUN apt-get update && \
     python3-pip \
     python3-setuptools \
     curl \
-    wget
+    wget && \
+    if [ $(dpkg --print-architecture) = 'armhf' ]; then \
+        apt-get install -y --no-install-recommends --upgrade \
+        gcc-arm-linux-gnueabihf \
+        python3-dev; \
+    fi
 
 # if we need more modules use a requirements.txt file
 RUN python3 -m pip install python-socketio aiohttp
