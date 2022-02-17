@@ -7,16 +7,11 @@ RUN apt-get update && \
     python3-pip \
     python3-setuptools \
     curl \
-    wget
-
-# Additional dependencies, conditionally installed, for ARMhf (especially Raspberry Pi)
-Run if [ $(dpkg --print-architecture) = 'armhf' ]; then \
-        echo "Installing additonal dependencies for ARMhf Architecture"; \
+    wget && \
+    if [ $(dpkg --print-architecture) = 'armhf' ]; then \
         apt-get install -y --no-install-recommends --upgrade \
         gcc-arm-linux-gnueabihf \
         python3-dev; \
-    else \
-        echo "Architecture is not ARMhf, so additional dependencies not needed."; \
     fi
 
 # if we need more modules use a requirements.txt file
