@@ -14,7 +14,7 @@ CLIENTS = set()
 SUBSCRIBERS = set()
 
 sio = socketio.AsyncServer(
-        cors_allowed_origins=['http://localhost:8080','http://localhost:8081','http://localhost:8080/client'])
+        cors_allowed_origins=['http://localhost:8080','http://localhost:8081','http://localhost:8080/client','http://localhost:8080/sensor'])
 app = web.Application()
 sio.attach(app)
 
@@ -47,14 +47,14 @@ def disconnect(sid):
 
 # new clients events
 
-@sio.on('register-sensor')
+@sio.on('register-sensor', namespace='/sensor')
 async def register_sensor(sid):
     """Handle new sensors and request sensor data."""
     print('New sensor connected:', sid)
     SENSORS.add(sid)
     print('Requesting sensor data from', sid)
     # request data from the sensor
-    await sio.emit('send-data', to=sid)
+    await sio.emit('send-data', to=sid, namespace='/sensor')
 
 @sio.on('register-client', namespace='/client')
 async def register_client(sid):
@@ -74,7 +74,7 @@ async def send_step_data(sid):
     SUBSCRIBERS.add(sid)
     await client_nsp.emit('message', 'Hello World!')
 
-@sio.on('sensor-batch')
+@sio.on('sensor-batch', namespace='/sensor')
 async def sensor_batch(sid, batch):
     """Handle batches of sensor data and broadcast them to the clients."""
     print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
