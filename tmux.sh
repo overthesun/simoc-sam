@@ -5,7 +5,7 @@ SIOPORT=8081
 # create a new session and set the num of cols/lines
 tmux new-session -s $SNAME -d -x "$(tput cols)" -y "$(tput lines)"
 # start the server in the first pane
-tmux send-keys -t $SNAME "docker run -it -p $SIOPORT:8080 -v `pwd`:/sioserver sioserver" Enter
+tmux send-keys -t $SNAME "docker run --rm -it -p $SIOPORT:8080 -v `pwd`:/sioserver sioserver" Enter
 # create 4 more panes and run the sensors and clients
 tmux split-window -h -p 65
 tmux send-keys -t $SNAME 'sleep 5' Enter "python3 scd30.py -v --port $SIOPORT" Enter

@@ -8,7 +8,14 @@ from basesensor import BaseSensor, SIOWrapper
 
 
 READING = dict(co2=100, hum=50, temp=25)
+INFO = {
+    'co2': dict(label='CO2', unit='ppm'),
+    'temp': dict(label='Temperature', unit='°C'),
+    'rel_hum': dict(label='Relative Humidity', unit='%'),
+}
 class MySensor(BaseSensor):
+    sensor_type = 'TestSensor'
+    reading_info = INFO
     def read_sensor_data(self):
         return dict(READING)
 
@@ -26,6 +33,11 @@ def test_abstract_method():
 def test_context_manager():
     with MySensor() as sensor:
         assert isinstance(sensor, MySensor)
+
+def test_name_type():
+    with MySensor(name='HAL 9000') as sensor:
+        assert sensor.sensor_type == 'TestSensor'
+        assert sensor.sensor_name == 'HAL 9000'
 
 def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
@@ -81,7 +93,9 @@ async def test_siowrapper(sensor):
     sio_ac.connect.assert_awaited_with('http://localhost:8080')
     # check that sensor registers itself on connect
     await siowrapper.connect()
-    sio_ac.emit.assert_awaited_with('register-sensor')
+    sensor_info = {'sensor_type': 'TestSensor', 'sensor_name': None,
+                   'reading_info': INFO}
+    sio_ac.emit.assert_awaited_with('register-sensor', sensor_info)
     # request 25 readings and check that at least a batch has been sent
     await siowrapper.send_data(n=25)
     sio_ac.emit.assert_awaited_with('sensor-batch', ANY)

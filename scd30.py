@@ -21,10 +21,16 @@ from utils import start_sensor
 
 
 class SCD30(BaseSensor):
+    sensor_type = 'SCD-30'
+    reading_info = {
+        'co2': dict(label='CO2', unit='ppm'),
+        'temp': dict(label='Temperature', unit='°C'),
+        'rel_hum': dict(label='Relative Humidity', unit='%'),
+    }
     """Represent a SCD-30 sensors connected through a MCP2221."""
-    def __init__(self, *, verbose=False):
+    def __init__(self, *, name='SCD-30', verbose=False):
         """Initialize the sensor."""
-        super().__init__(verbose=verbose)
+        super().__init__(name=name, verbose=verbose)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
 

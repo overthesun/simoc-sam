@@ -26,7 +26,7 @@ docker build . -t sioserver
 
 You can then start the container with:
 ```sh
-docker run -it -p 8080:8080 sioserver
+docker run --rm -it -p 8080:8080 sioserver
 ```
 
 Once the container is running you can access the test client at
@@ -42,7 +42,7 @@ changes you do to these files won't be reflected unless you rebuild the image.
 
 To avoid that, you can override the content of the `/sioserver` by using:
 ```sh
-docker run -it -p 8081:8080 -v `pwd`:/sioserver sioserver
+docker run --rm -it -p 8081:8080 -v `pwd`:/sioserver sioserver
 ```
 After this you can edit the client and just reload the page to see the changes.
 If you modify the server you will have to restart it.
@@ -88,13 +88,13 @@ Start everything at once using `tmux`:
 Start server/sensor(s)/client(s) separately:
 ```sh
 # start the Docker container and the socketio server
-docker run -it -p 8081:8080 -v `pwd`:/sioserver sioserver
+docker run --rm -it -p 8081:8080 -v `pwd`:/sioserver sioserver
 # start the fake sensor (on a new terminal tab on the host machine)
-python3 sensor.py 8081
+python3 mocksensor.py -v --port 8081
 # start the client (on a new terminal tab on the host machine)
 python3 sioclient.py 8081
-# To start a live sensor (on a new terminal tab on the host machine)
-python3 sensor.py 8081 --live
+# start a live sensor (on a new terminal tab on the host machine)
+python3 scd30.py -v --port 8081
 
 ```
 

@@ -6,16 +6,21 @@ from datetime import datetime
 from basesensor import SIOWrapper
 
 
-def format_reading(reading, *, time_fmt='%H:%M:%S'):
+def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     """Format a sensor reading and return it as a string."""
-    r = dict(reading)
+    r = dict(reading)  # make a copy
     step_num = r.pop('step_num')
     dt = datetime.strptime(r.pop('timestamp'), '%Y-%m-%d %H:%M:%S.%f')
     timestamp = dt.strftime(time_fmt)
+    reading_info = sensor_info['reading_info'] if sensor_info else None
     result = []
     for key, value in r.items():
         v = f'{value:.2f}' if isinstance(value, float) else str(value)
-        result.append(f'{key}: {v}')
+        label, unit = key, ''
+        if reading_info:
+            label = reading_info[key]['label']
+            unit = ' ' + reading_info[key]['unit']
+        result.append(f'{label}: {v}{unit}')
     return f' {step_num:3}|{timestamp}  {"; ".join(result)}'
 
 
