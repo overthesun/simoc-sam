@@ -14,9 +14,14 @@ CLIENTS = set()
 SUBSCRIBERS = set()
 
 sio = socketio.AsyncServer(
-        cors_allowed_origins=['http://localhost:8080','http://localhost:8081'])
+        cors_allowed_origins=['http://localhost:8080','http://localhost:8081','http://localhost:8080/client'])
 app = web.Application()
 sio.attach(app)
+
+client_nsp = socketio.AsyncNamespace('/client')
+sio.register_namespace(client_nsp)
+sensor_nsp = socketio.AsyncNamespace('/sensor')
+sio.register_namespace(sensor_nsp)
 
 async def index(request):
     """Serve the client-side application."""
@@ -51,22 +56,23 @@ async def register_sensor(sid):
     # request data from the sensor
     await sio.emit('send-data', to=sid)
 
-@sio.on('register-client')
+@sio.on('register-client', namespace='/client')
 async def register_client(sid):
     """Handle new clients and send habitat info."""
     print('New client connected:', sid)
     CLIENTS.add(sid)
     print('Sending client habitat info:', HAB_INFO)
-    await sio.emit('hab-info', HAB_INFO, to=sid)
+    await sio.emit('hab-info', HAB_INFO, to=sid, namespace='/client')
 
 
 # data-related events
 
-@sio.on('send-step-data')
+@sio.on('send-step-data', namespace='/client')
 async def send_step_data(sid):
     """Handle client requests to send step data."""
     print('Start sending step data to', sid)
     SUBSCRIBERS.add(sid)
+    await client_nsp.emit('message', 'Hello World!')
 
 @sio.on('sensor-batch')
 async def sensor_batch(sid, batch):
@@ -78,7 +84,7 @@ async def sensor_batch(sid, batch):
         # TODO: set up a room for the clients and broadcast to the room
         print(f'Broadcasting step data batch to {len(SUBSCRIBERS)} clients')
         for client_id in SUBSCRIBERS:
-            await sio.emit('step-batch', batch, to=client_id)
+            await sio.emit('step-batch', batch, to=client_id, namespace='/client')
 
 
 # test events (obsolete)
