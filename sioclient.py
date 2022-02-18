@@ -7,7 +7,7 @@ from utils import format_reading
 
 
 sio = socketio.AsyncClient()
-client_nsp = socketio.AsyncClientNamespace('/client')
+client_ns = socketio.AsyncClientNamespace('/client')
 
 # default events
 
@@ -15,7 +15,8 @@ client_nsp = socketio.AsyncClientNamespace('/client')
 async def connect():
     print('Connected to server')
     print('Registering client')
-    await client_nsp.emit('register-client')
+    sio.register_namespace(client_ns)
+    await client_ns.emit('register-client')
 
 @sio.event
 async def disconnect():
@@ -25,11 +26,11 @@ async def disconnect():
 # step-data-related events
 
 @sio.on('hab-info', namespace='/client')
-async def on_hab_info(data):
+async def hab_info(data):
     """Handle habitat info sent by the server and request step data."""
     print('Received habitat info:', data)
     print('Requesting step data')
-    await client_nsp.emit('send-step-data')
+    await client_ns.emit('send-step-data')
 
 @sio.on('step-batch', namespace='/client')
 async def on_step_batch(batch):
@@ -50,7 +51,6 @@ async def main(port=None):
     if port is None:
         port = '5000'
     # connect to the server and wait
-    sio.register_namespace(client_nsp)
     await sio.connect(f'http://localhost:{port}')
     await sio.wait()
 

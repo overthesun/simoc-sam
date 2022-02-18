@@ -14,14 +14,16 @@ CLIENTS = set()
 SUBSCRIBERS = set()
 
 sio = socketio.AsyncServer(
-        cors_allowed_origins=['http://localhost:8080','http://localhost:8081','http://localhost:8080/client','http://localhost:8080/sensor'])
+        cors_allowed_origins=['http://localhost:8080','http://localhost:8081',
+                              'http://localhost:8080/client',
+                              'http://localhost:8080/sensor'])
 app = web.Application()
 sio.attach(app)
 
-client_nsp = socketio.AsyncNamespace('/client')
-sio.register_namespace(client_nsp)
-sensor_nsp = socketio.AsyncNamespace('/sensor')
-sio.register_namespace(sensor_nsp)
+client_ns = socketio.AsyncNamespace('/client')
+sio.register_namespace(client_ns)
+sensor_ns = socketio.AsyncNamespace('/sensor')
+sio.register_namespace(sensor_ns)
 
 async def index(request):
     """Serve the client-side application."""
@@ -72,7 +74,7 @@ async def send_step_data(sid):
     """Handle client requests to send step data."""
     print('Start sending step data to', sid)
     SUBSCRIBERS.add(sid)
-    await client_nsp.emit('message', 'Hello World!')
+    await client_ns.emit('message', 'Hello World!')
 
 @sio.on('sensor-batch', namespace='/sensor')
 async def sensor_batch(sid, batch):
