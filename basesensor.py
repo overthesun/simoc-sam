@@ -83,6 +83,8 @@ class BaseSensor(ABC):
 
 
 class SIOWrapper:
+    sensor_ns = socketio.AsyncClientNamespace('/sensor')
+
     def __init__(self, sensor, *, read_delay=1, batch_size=10, verbose=False):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
@@ -112,8 +114,9 @@ class SIOWrapper:
         """Called when the sensor connects to the server."""
         self.print('Connected to server')
         self.print('Registering sensor')
+        self.sio.register_namespace(self.sensor_ns)
         sensor_info = self.sensor.sensor_info()
-        await self.sio.emit('register-sensor', sensor_info)
+        await self.sensor_ns.emit('register-sensor', sensor_info)
 
     async def disconnect(self):
         """Called when the sensor disconnects from the server."""
@@ -128,11 +131,11 @@ class SIOWrapper:
             self.batch.append(reading)
             if len(self.batch) >= self.batch_size:
                 if not self.sio.connected:
-                    self.print('Not longer connected to a server, '
+                    self.print('No longer connected to a server, '
                                'stop reading/sending data')
                     return
                 self.print(f'Sending a {len(self.batch)}-readings batch')
-                await self.sio.emit('sensor-batch', self.batch)
+                await self.sensor_ns.emit('sensor-batch', self.batch)
                 self.batch = []
             # wait for the next sensor reading
             await asyncio.sleep(self.read_delay)

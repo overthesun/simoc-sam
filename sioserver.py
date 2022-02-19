@@ -69,7 +69,7 @@ async def register_client(sid):
     print('New client connected:', sid)
     CLIENTS.add(sid)
     print('Sending habitat info to client:', HAB_INFO)
-    await sio.emit('hab-info', HAB_INFO, to=sid, namespace = 'client')
+    await sio.emit('hab-info', HAB_INFO, to=sid, namespace='client')
     print('Sending sensor info to client:', SENSOR_INFO)
     await sio.emit('sensor-info', SENSOR_INFO, to=sid, namespace='/client')
 
