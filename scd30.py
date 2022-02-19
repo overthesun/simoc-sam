@@ -3,17 +3,21 @@
 
 import os
 import sys
+import utils
 
-# set these before import board
-os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
-os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'  # avoid resetting the sensor
+
+if utils.check_for_MCP2221():
+    # set these before import board
+    os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
+    os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'  # avoid resetting the sensor
+
+import board
 
 try:
     import busio
 except RuntimeError:
     sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
-import board  # For MCP-2221
 import adafruit_scd30
 
 from basesensor import BaseSensor
