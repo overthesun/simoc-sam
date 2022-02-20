@@ -95,6 +95,8 @@ python3 mocksensor.py -v --port 8081
 python3 sioclient.py 8081
 # start a live sensor (on a new terminal tab on the host machine)
 python3 scd30.py -v --port 8081
+python3 bme688.py -v --port 8081
+python3 sgp30.py -v --port 8081
 
 ```
 

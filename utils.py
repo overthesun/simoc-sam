@@ -6,20 +6,12 @@ from datetime import datetime
 from basesensor import SIOWrapper
 
 
-def get_usb_devices():
-    # Code from: https://stackoverflow.com/questions/8110310/simple-way-to-query-connected-usb-devices-info-in-python
-    import re
-    import subprocess
-    device_re = re.compile(b"Bus\s+(?P<bus>\d+)\s+Device\s+(?P<device>\d+).+ID\s(?P<id>\w+:\w+)\s(?P<tag>.+)$", re.I)
-    df = subprocess.check_output("lsusb")
-    return str(df)
-
 def check_for_MCP2221():
     """Check to see if the MCP2221 is connected"""
-    if "MCP2221" in get_usb_devices():
+    import subprocess
+    if "MCP2221" in str(subprocess.check_output("lsusb")):
         return True
     return False
-
         
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     """Format a sensor reading and return it as a string."""
