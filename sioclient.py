@@ -19,6 +19,7 @@ async def connect():
     print('Connected to server')
     print('Registering client')
     sio.register_namespace(client_ns)
+    await sio.sleep(1.0)
     await client_ns.emit('register-client')
 
 @sio.event

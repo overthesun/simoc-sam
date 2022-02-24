@@ -95,10 +95,11 @@ async def test_siowrapper(sensor):
     await siowrapper.connect()
     sensor_info = {'sensor_type': 'TestSensor', 'sensor_name': None,
                    'reading_info': INFO}
-    sio_ac.emit.assert_awaited_with('register-sensor', sensor_info)
+    #await siowrapper.sio.sleep(1.0)
+    sio_ac.emit.assert_awaited_with('register-sensor', sensor_info, namespace='/sensor')
     # request 25 readings and check that at least a batch has been sent
     await siowrapper.send_data(n=25)
-    sio_ac.emit.assert_awaited_with('sensor-batch', ANY)
+    sio_ac.emit.assert_awaited_with('sensor-batch', ANY, namespace='/sensor')
     # check emitted events
     calls = sio_ac.emit.await_args_list
     assert len(calls) == 3
@@ -117,7 +118,7 @@ async def test_siowrapper(sensor):
     assert [r['step_num'] for r in siowrapper.batch] == list(range(20, 25))
     # request 5 more readings (to complete the 3rd batch)
     await siowrapper.send_data(n=5)
-    sio_ac.emit.assert_awaited_with('sensor-batch', ANY)
+    sio_ac.emit.assert_awaited_with('sensor-batch', ANY, namespace='/sensor')
     # make sure all the readings are sent
     assert len(siowrapper.batch) == 0
     batch_2 = sio_ac.emit.await_args.args[1]
