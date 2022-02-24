@@ -9,9 +9,7 @@ from basesensor import SIOWrapper
 def check_for_MCP2221():
     """Check to see if the MCP2221 is connected"""
     import subprocess
-    if "MCP2221" in str(subprocess.check_output("lsusb")):
-        return True
-    return False
+    return "MCP2221" in str(subprocess.check_output("lsusb"))
         
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     """Format a sensor reading and return it as a string."""

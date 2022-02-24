@@ -80,6 +80,14 @@ python3 -m pip install python-socketio aiohttp
 sudo apt install tmux
 ```
 
+To use Raspberry Pi using the qwiic shim, make sure that the i2c is enabled with
+the following directions:
+1. Use `raspi-config`
+2. Choose option 3, Interface Options
+3. Go to I5 I2C Enable/disable loading of i2c
+4. Would you like the ARM I2C interface to be enabled? Yes
+5. Choose Finish
+
 Start everything at once using `tmux`:
 ```sh
 ./tmux.sh
@@ -113,6 +121,8 @@ Install dependencies:
 
 ```sh
 sudo pip install -U pytest pytest-asyncio
+pip3 install adafruit-circuitpython-sgp30
+pip3 install adafruit-circuitpython-bme680
 ```
 
 Run tests:
