@@ -41,14 +41,19 @@ class SCD30(BaseSensor):
         super().__init__(name=name, verbose=verbose)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
+        self.prior_reading = 0
 
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
-        co2_ppm = self.scd.CO2
+        if self.scd.data_available:
+            co2_ppm = self.scd.CO2
+            self.prior_reading = co2_ppm
+        else:
+            co2_ppm = self.prior_reading
         temp = self.scd.temperature  # in °C
         rel_hum = self.scd.relative_humidity
         if self.verbose:
-            print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: '
+            print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: ',
                   f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
         return dict(co2=co2_ppm, temp=temp, rel_hum=rel_hum)
 
