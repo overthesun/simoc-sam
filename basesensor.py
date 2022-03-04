@@ -55,13 +55,13 @@ class BaseSensor(ABC):
         raise NotImplementedError()
 
     def iter_readings(self, *, delay, n=0,
-                      add_timestamp=True, add_stepnum=True):
+                      add_timestamp=True, add_n=True):
         """
         Yield n readings with the given delay (in seconds) between readings.
 
         If n is 0, yield readings forever.  If add_timestamp is true, add a
         'timestamp' field with the value returned by self.get_timestamp().
-        If add_stepnum is true, add an auto-incrementing 'step_num' field.
+        If add_n is true, add an auto-incrementing 'n' field.
 
         """
         read_forever = not n
@@ -71,8 +71,8 @@ class BaseSensor(ABC):
                 continue  # keep trying until we get a reading
             if add_timestamp:
                 data['timestamp'] = self.get_timestamp()
-            if add_stepnum:
-                data['step_num'] = self.reading_num
+            if add_n:
+                data['n'] = self.reading_num
             yield data
             self.reading_num += 1
             if not read_forever:

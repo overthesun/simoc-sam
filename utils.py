@@ -9,7 +9,7 @@ from basesensor import SIOWrapper
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     """Format a sensor reading and return it as a string."""
     r = dict(reading)  # make a copy
-    step_num = r.pop('step_num')
+    n = r.pop('n')
     dt = datetime.strptime(r.pop('timestamp'), '%Y-%m-%d %H:%M:%S.%f')
     timestamp = dt.strftime(time_fmt)
     reading_info = sensor_info['reading_info'] if sensor_info else None
@@ -21,7 +21,7 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
             label = reading_info[key]['label']
             unit = ' ' + reading_info[key]['unit']
         result.append(f'{label}: {v}{unit}')
-    return f' {step_num:3}|{timestamp}  {"; ".join(result)}'
+    return f' {timestamp}|{n:<3}  {"; ".join(result)}'
 
 
 def parse_args(*, read_delay=1, port=8081):

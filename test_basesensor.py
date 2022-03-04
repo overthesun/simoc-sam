@@ -43,7 +43,7 @@ def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
     assert sensor.read_sensor_data() == READING
     readings = list(sensor.iter_readings(delay=0, n=5, add_timestamp=False,
-                                         add_stepnum=False))
+                                         add_n=False))
     assert readings == [READING]*5
     # check that the n arg works
     assert len(list(sensor.iter_readings(delay=0, n=1))) == 1
@@ -53,12 +53,12 @@ def test_iter_readings(sensor):
         assert len(r) == 5
         if x > 10:
             break
-    # check that add_timestamp and add_stepnum work
-    assert all('timestamp' in r and 'step_num' in r
+    # check that add_timestamp and add_n work
+    assert all('timestamp' in r and 'n' in r
                for r in sensor.iter_readings(delay=0, n=5))
-    assert all('timestamp' in r and 'step_num' not in r
-               for r in sensor.iter_readings(delay=0, n=5, add_stepnum=False))
-    assert all('timestamp' not in r and 'step_num' in r
+    assert all('timestamp' in r and 'n' not in r
+               for r in sensor.iter_readings(delay=0, n=5, add_n=False))
+    assert all('timestamp' not in r and 'n' in r
                for r in sensor.iter_readings(delay=0, n=5, add_timestamp=False))
 
 def test_reading_delay(sensor):
