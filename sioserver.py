@@ -88,6 +88,15 @@ async def sensor_batch(sid, batch):
         for client_id in SUBSCRIBERS:
             await sio.emit('step-batch', batch, to=client_id)
 
+@sio.on('sensor-reading')
+async def sensor_reading(sid, reading):
+    """Get a single sensor reading and add it to SENSOR_READINGS."""
+    #print(f'Received a reading from sensor {sid}:')
+    SENSOR_READINGS[sid].append(reading)
+    sensor_info = SENSOR_INFO[sid]
+    print(format_reading(reading, sensor_info=sensor_info))
+
+
 
 # test events (obsolete)
 
@@ -100,7 +109,7 @@ async def msg(sid, data):
 async def get_data(sid, n):
     print('get_data:', n)
     for x in range(int(n)):
-        data =  f'Random num {x+1}: {random.randint(1, 10000)}'
+        data = f'Random num {x+1}: {random.randint(1, 10000)}'
         await sio.emit('send_data', data)
         await asyncio.sleep(1)
 
