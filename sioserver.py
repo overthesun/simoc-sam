@@ -1,6 +1,9 @@
 import asyncio
 import random
 
+from datetime import datetime
+from collections import defaultdict, deque
+
 import socketio
 
 from aiohttp import web
@@ -10,12 +13,15 @@ from utils import format_reading
 
 HAB_INFO = dict(humans=4, volume=272)
 SENSOR_INFO = dict()
+SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
-sio = socketio.AsyncServer(
-        cors_allowed_origins=['http://localhost:8080','http://localhost:8081'])
+# TODO: add non-localhost origin for deployed setup or find a better fix
+allowed_origins = ['http://localhost:8080', 'http://localhost:8081']
+sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
+                           async_mode='aiohttp')
 app = web.Application()
 sio.attach(app)
 
@@ -38,7 +44,9 @@ def disconnect(sid):
         SUBSCRIBERS.remove(sid)
     # remove the sid from the other groups if present
     CLIENTS.discard(sid)
-    SENSORS.discard(sid)
+    if sid in SENSORS:
+        SENSORS.remove(sid)
+        del SENSOR_READINGS[sid]
 
 
 # new clients events
@@ -50,7 +58,7 @@ async def register_sensor(sid, sensor_info):
     print('Sensor info:', sensor_info)
     SENSORS.add(sid)
     SENSOR_INFO[sid] = sensor_info
-    # TODO: send sensor-info to clients when a new
+    await emit_to_subscribers('sensor-info', SENSOR_INFO)
     # sensor is added once we set up a room
     print('Requesting sensor data from', sid)
     # request data from the sensor
@@ -69,6 +77,12 @@ async def register_client(sid):
 
 # data-related events
 
+async def emit_to_subscribers(*args, **kwargs):
+    # TODO: replace with a namespace
+    for client_id in SUBSCRIBERS:
+        await sio.emit(*args, to=client_id, **kwargs)
+
+
 @sio.on('send-step-data')
 async def send_step_data(sid):
     """Handle client requests to send step data."""
@@ -77,16 +91,12 @@ async def send_step_data(sid):
 
 @sio.on('sensor-batch')
 async def sensor_batch(sid, batch):
-    """Handle batches of sensor data and broadcast them to the clients."""
-    print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
+    """Get a batch of readings and it to SENSOR_READINGS."""
+    #print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
+    SENSOR_READINGS[sid].extend(batch)
     sensor_info = SENSOR_INFO[sid]
     for reading in batch:
         print(format_reading(reading, sensor_info=sensor_info))
-    if SUBSCRIBERS:
-        # TODO: set up a room for the clients and broadcast to the room
-        print(f'Broadcasting step data batch to {len(SUBSCRIBERS)} clients')
-        for client_id in SUBSCRIBERS:
-            await sio.emit('step-batch', batch, to=client_id)
 
 @sio.on('sensor-reading')
 async def sensor_reading(sid, reading):
@@ -95,6 +105,10 @@ async def sensor_reading(sid, reading):
     SENSOR_READINGS[sid].append(reading)
     sensor_info = SENSOR_INFO[sid]
     print(format_reading(reading, sensor_info=sensor_info))
+
+def get_timestamp():
+    """Return the current timestamp as a string."""
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
 
@@ -114,8 +128,30 @@ async def get_data(sid, n):
         await asyncio.sleep(1)
 
 
-#app.router.add_static('/static', 'static')
+# main loop that broadcasts bundles
+
+async def emit_readings():
+    """Emit a bundle with the latest reading of all sensors."""
+    n = 0
+    while True:
+        if SENSORS and SUBSCRIBERS:
+            # TODO: set up a room for the clients and broadcast to the room
+            print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
+            timestamp = get_timestamp()
+            sensors_readings = {sid: readings[-1]
+                                for sid, readings in SENSOR_READINGS.items()}
+            bundle = dict(n=n, timestamp=timestamp, readings=sensors_readings)
+            # the frontend expects a list of bundles
+            await emit_to_subscribers('step-batch', [bundle], to=client_id)
+            n += 1
+        await sio.sleep(1)
+
+async def init_app():
+    sio.start_background_task(emit_readings)
+    return app
+
+# app.router.add_static('/static', 'static')
 app.router.add_get('/', index)
 
 if __name__ == '__main__':
-    web.run_app(app)
+    web.run_app(init_app())
