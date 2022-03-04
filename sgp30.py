@@ -28,11 +28,29 @@ from basesensor import BaseSensor
 from utils import start_sensor
 
 
+def tick_conversion_ethanol(signal_output):
+    """ Gets raw ticks from sensor and converts to ppm """
+    # 20997 is an experimetal value in a room assumed to have "typical" concentration
+    # of 14.85 ppm, although this is an unmeasured assumption.
+    signal_reference = 20997
+    e = 2.71828  # Euler's number
+    # Equation provided by Sensirion datasheet for SGP-30
+    return 0.4*e**((20997-signal_output)/512)
+
+def tick_conversion_H2(signal_output):
+    """ Gets raw ticks from sensor and converts to ppm """
+    # 14296 is an experimental value in room assumed to have "typical" concentration
+    # of 1.25 ppm although this is an unmeasured assumption.
+    signal_reference = 14296
+    e = 2.71828 # Euler's number
+    # Equation provided by Sensirion datasheet for SGP-30
+    return 0.5*e**((signal_reference-signal_output)/512)
+
 class SGP30(BaseSensor):
     sensor_type = 'SGP30'
     reading_info = {
-        'H2': dict(label='Hydrogen', unit='Raw Ticks'), # Hydrogen gas concentration in undefined units
-        'ethanol': dict(label='ethanol', unit='Raw Ticks'), # Ethanol Concentration in undefined units
+        'H2': dict(label='Hydrogen', unit='ppm'),
+        'ethanol': dict(label='ethanol', unit='ppm'),
         'eCO2': dict(label='eCO2', unit='ppm'), # Estimated CO2 based on other common associated compounds
         'VolatileOrganicCompounds': dict(label='VOC', unit='ppb') # Total Volatile Organic Compounds
     }
@@ -47,13 +65,21 @@ class SGP30(BaseSensor):
 
     def read_sensor_data(self):
         """Return sensor data (H2, Ethanol, eCO2, TVOC) as a dict."""
-        hydrogen = self.sensor.H2 # "Raw Ticks
-        ethanol = self.sensor.Ethanol # "Raw Ticks
+        # Get a raw sensor reading for hydrogen
+        hydrogen_ticks = self.sensor.H2 # "Raw Ticks
+        # Use Sensirion equation to convert to ppm
+        hydrogen = tick_conversion_H2(hydrogen_ticks)
+        # Get a raw sensor reading for ethanol
+        ethanol_ticks = self.sensor.Ethanol # "Raw Ticks
+        # Use Sensiron equation to convert to ppm
+        ethanol = tick_conversion_ethanol(ethanol_ticks)
+        # Get from the sensor the estimated values of CO2 and volatile
+        # organic compounds. (Interpreted from H2 an Ethanol)
         eCO2 = self.sensor.eCO2 # ppm
         TVOC = self.sensor.TVOC # ppb
         if self.verbose:
-            print(f'H2: {hydrogen:4.0f} Ticks;')
-            print(f'ethanol: {ethanol:2.1f} Ticks;') 
+            print(f'H2: {hydrogen:2.1f} ppm;')
+            print(f'ethanol: {ethanol:2.1f} ppm;')
             print(f'eCO2: {eCO2:2.1f} ppm;')
             print(f'TVOC: {TVOC:2.1f} ppb')
         return {"H2":hydrogen, "ethanol":ethanol,
