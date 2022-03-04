@@ -8,6 +8,7 @@ from utils import format_reading
 
 sio = socketio.AsyncClient()
 
+HAB_INFO = {}
 SENSOR_INFO = {}
 
 # default events
@@ -29,13 +30,16 @@ async def disconnect():
 async def hab_info(data):
     """Handle habitat info sent by the server and request step data."""
     print('Received habitat info:', data)
-    print('Requesting step data')
+    HAB_INFO.clear()  # remove old info
+    HAB_INFO.update(data)
 
 @sio.on('sensor-info')
 async def sensor_info(data):
     """Handle sensor info sent by the server."""
     print('Received sensor info:', data)
+    SENSOR_INFO.clear()  # remove old info
     SENSOR_INFO.update(data)
+    print('Requesting step data')
     await sio.emit('send-step-data')
 
 @sio.on('step-batch')
