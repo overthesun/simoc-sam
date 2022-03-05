@@ -54,8 +54,9 @@ function init_socket() {
     })
     socket.on('step-batch',  (batch) => {
         //log_event(`Received a batch of ${batch.length} step from the server:`)
-        batch.forEach((step) => {
-            log_event(format_reading(step))
+        console.log(batch)
+        batch[0].forEach((step) => { // batch[0] is the batch
+            log_event(format_reading(step,batch[1])) //batch[1] is the SID
             // log_event(`  ${step.step_num}: CO2: ${step.co2_ppm.toFixed(1)}ppm; Temperature: ${step.temp.toFixed(2)}°; Humidity: ${step.hum_perc.toFixed(2)}%`)
         })
     })
@@ -101,17 +102,19 @@ function log_event(event) {
     textarea.value += event + '\n'
     textarea.scrollTop = textarea.scrollHeight
 }
-function format_reading(reading) {
+function format_reading(reading,sid) {
     // TODO get info from the right sensor
     let {step_num, timestamp, ...data} = reading
+    let sensor_id = sid
     timestamp = timestamp.split('.')[0] // remove millisec
-    const reading_info = Object.values(SENSORS_INFO)[0].reading_info
+    const reading_info = SENSORS_INFO[sensor_id].reading_info
     let result = []
     Object.entries(data).forEach(([key, value]) => {
         let v = (typeof value === 'number') ? value.toFixed(2) : value
         let label = key
         let unit = ''
         if (reading_info) {
+            console.log(reading_info[key])
             label = reading_info[key]['label']
             unit = ` ${reading_info[key]['unit']}`
         }

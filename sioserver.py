@@ -85,8 +85,9 @@ async def sensor_batch(sid, batch):
     if SUBSCRIBERS:
         # TODO: set up a room for the clients and broadcast to the room
         print(f'Broadcasting step data batch to {len(SUBSCRIBERS)} clients')
+        batch_and_sid = [batch, sid]
         for client_id in SUBSCRIBERS:
-            await sio.emit('step-batch', batch, to=client_id)
+            await sio.emit('step-batch', batch_and_sid, to=client_id)
 
 
 # test events (obsolete)
