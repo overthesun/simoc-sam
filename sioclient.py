@@ -39,8 +39,6 @@ async def sensor_info(data):
     print('Received sensor info:', data)
     SENSOR_INFO.clear()  # remove old info
     SENSOR_INFO.update(data)
-    print('Requesting step data')
-    await sio.emit('send-step-data')
 
 @sio.on('step-batch')
 async def step_batch(batch):

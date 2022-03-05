@@ -73,6 +73,8 @@ async def register_client(sid):
     await sio.emit('hab-info', HAB_INFO, to=sid)
     print('Sending sensor info to client:', SENSOR_INFO)
     await sio.emit('sensor-info', SENSOR_INFO, to=sid)
+    print(f'Adding {sid!r} to subscribers')
+    SUBSCRIBERS.add(sid)
 
 
 # data-related events
@@ -81,13 +83,6 @@ async def emit_to_subscribers(*args, **kwargs):
     # TODO: replace with a namespace
     for client_id in SUBSCRIBERS:
         await sio.emit(*args, to=client_id, **kwargs)
-
-
-@sio.on('send-step-data')
-async def send_step_data(sid):
-    """Handle client requests to send step data."""
-    print('Start sending step data to', sid)
-    SUBSCRIBERS.add(sid)
 
 @sio.on('sensor-batch')
 async def sensor_batch(sid, batch):
@@ -136,13 +131,14 @@ async def emit_readings():
     while True:
         if SENSORS and SUBSCRIBERS:
             # TODO: set up a room for the clients and broadcast to the room
+            # TODO: improve ctrl+c handling
             print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
             timestamp = get_timestamp()
             sensors_readings = {sid: readings[-1]
                                 for sid, readings in SENSOR_READINGS.items()}
             bundle = dict(n=n, timestamp=timestamp, readings=sensors_readings)
             # the frontend expects a list of bundles
-            await emit_to_subscribers('step-batch', [bundle], to=client_id)
+            await emit_to_subscribers('step-batch', [bundle])
             n += 1
         await sio.sleep(1)
 
