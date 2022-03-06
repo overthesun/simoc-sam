@@ -22,13 +22,7 @@ SUBSCRIBERS = set()
 allowed_origins = ['http://localhost:8080', 'http://localhost:8081']
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
-app = web.Application()
-sio.attach(app)
 
-async def index(request):
-    """Serve the client-side application."""
-    with open('index.html') as f:
-        return web.Response(text=f.read(), content_type='text/html')
 
 # default events
 
@@ -142,12 +136,26 @@ async def emit_readings():
             n += 1
         await sio.sleep(1)
 
-async def init_app():
+
+# app setup
+
+async def index(request):
+    """Serve the client-side application."""
+    with open('index.html') as f:
+        return web.Response(text=f.read(), content_type='text/html')
+
+def create_app():
+    app = web.Application()
+    # app.router.add_static('/static', 'static')
+    app.router.add_get('/', index)
+    return app
+
+async def init_app(app):
+    sio.attach(app)
     sio.start_background_task(emit_readings)
     return app
 
-# app.router.add_static('/static', 'static')
-app.router.add_get('/', index)
 
 if __name__ == '__main__':
-    web.run_app(init_app())
+    app = create_app()
+    web.run_app(init_app(app))
