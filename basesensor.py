@@ -55,13 +55,13 @@ class BaseSensor(ABC):
         raise NotImplementedError()
 
     def iter_readings(self, *, delay, n=0,
-                      add_timestamp=True, add_stepnum=True):
+                      add_timestamp=True, add_n=True):
         """
         Yield n readings with the given delay (in seconds) between readings.
 
         If n is 0, yield readings forever.  If add_timestamp is true, add a
         'timestamp' field with the value returned by self.get_timestamp().
-        If add_stepnum is true, add an auto-incrementing 'step_num' field.
+        If add_n is true, add an auto-incrementing 'n' field.
 
         """
         read_forever = not n
@@ -71,8 +71,8 @@ class BaseSensor(ABC):
                 continue  # keep trying until we get a reading
             if add_timestamp:
                 data['timestamp'] = self.get_timestamp()
-            if add_stepnum:
-                data['step_num'] = self.reading_num
+            if add_n:
+                data['n'] = self.reading_num
             yield data
             self.reading_num += 1
             if not read_forever:
@@ -83,14 +83,10 @@ class BaseSensor(ABC):
 
 
 class SIOWrapper:
-    def __init__(self, sensor, *, read_delay=1, batch_size=10, verbose=False):
+    def __init__(self, sensor, *, read_delay=1, verbose=False):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
-        self.batch_size = batch_size  # how many readings in a batch
         self.verbose = verbose  # toggle verbose output
-        # the batch is an instance attribute so that readings are not lost
-        # if send_data() is interrupted and then restarted
-        self.batch = []
         # instantiate the AsyncClient and register events
         self.sio = sio = socketio.AsyncClient()
         sio.event(self.connect)
@@ -124,15 +120,12 @@ class SIOWrapper:
         self.print('Server requested data')
         # set the delay to 0 because iter_readings uses blocking time.sleep
         # and replace it with a non-blocking asyncio.sleep in the for loop
-        for reading in self.sensor.iter_readings(delay=0, n=n):
-            self.batch.append(reading)
-            if len(self.batch) >= self.batch_size:
-                if not self.sio.connected:
-                    self.print('Not longer connected to a server, '
-                               'stop reading/sending data')
-                    return
-                self.print(f'Sending a {len(self.batch)}-readings batch')
-                await self.sio.emit('sensor-batch', self.batch)
-                self.batch = []
+        readings = self.sensor.iter_readings(delay=0, n=n)
+        for reading in readings:
+            try:
+                await self.sio.emit('sensor-reading', reading)
+            except socketio.exceptions.BadNamespaceError:
+                print('No longer connected to the server...')
+                return
             # wait for the next sensor reading
             await asyncio.sleep(self.read_delay)
