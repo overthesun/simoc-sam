@@ -96,7 +96,6 @@ class SIOWrapper:
         self.sio = sio = socketio.AsyncClient()
         self.sensor_ns = socketio.AsyncClientNamespace('/sensor')
         self.sio.register_namespace(self.sensor_ns)
-        #self.sio.sleep(1.0)
         sio.event(self.connect)
         sio.event(self.disconnect)
         sio.on('send-data')(self.send_data)
@@ -109,7 +108,7 @@ class SIOWrapper:
     async def start(self, port):
         """Open the connection with the sio server."""
         # connect to the server and wait
-        await self.sio.connect(f'http://localhost:{port}')
+        await self.sio.connect(f'http://localhost:{port}', namespaces=['/sensor', '/'])
         await self.sio.wait()
 
     async def connect(self):
