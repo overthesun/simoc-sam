@@ -19,7 +19,7 @@ async def connect():
     print('Connected to server')
     print('Registering client')
     sio.register_namespace(client_ns)
-    await client_ns.emit('register-client')
+    await sio.emit('register-client', namespace='/client')
 
 @sio.event
 async def disconnect():
@@ -33,7 +33,7 @@ async def hab_info(data):
     """Handle habitat info sent by the server and request step data."""
     print('Received habitat info:', data)
     print('Requesting step data')
-    await client_ns.emit('send-step-data')
+    await sio.emit('send-step-data', namespace='/client')
 
 @sio.on('sensor-info', namespace='/client')
 async def sensor_info(data):
