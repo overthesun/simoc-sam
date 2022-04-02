@@ -54,7 +54,7 @@ class SCD30(BaseSensor):
         rel_hum = self.scd.relative_humidity
         if self.verbose:
             print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: ',
-                  f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
+                  f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%; [{self.sensor_type}]')
         return dict(co2=co2_ppm, temp=temp, rel_hum=rel_hum)
 
 
