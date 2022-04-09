@@ -98,10 +98,10 @@ class SIOWrapper:
         if self.verbose:
             print(*args, **kwargs)
 
-    async def start(self, port):
+    async def start(self, port, host):
         """Open the connection with the sio server."""
         # connect to the server and wait
-        await self.sio.connect(f'http://localhost:{port}')
+        await self.sio.connect(f'http://{host}:{port}')
         await self.sio.wait()
 
     async def connect(self):
