@@ -114,6 +114,16 @@ http://0.0.0.0:8081/ to access the web client too.  You can also run
 multiple sensors and clients at once.  If you restart the server, the
 sensors and Python clients should reconnect automatically.
 
+The web client currently does not run on properly on 8081 because it is
+still expecting to receive batches which no longer exist. However, if
+simoc-web is running, then sioserver will send to simoc-web and in the
+ctrl+s capstone versions the sensor data can be seen from live mode there.
+
+To configure sioserver to receive from non-local sensors, run open_port.sh to
+open the port and view this system's IP to send sensor data to from the
+non-local sensor.
+
+Also, edit sioserver.py to add the IP of the sensor to the cors_allowed_origins.
 
 ## Testing
 
