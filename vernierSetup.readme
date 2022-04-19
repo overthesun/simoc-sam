@@ -1,0 +1,7 @@
+pip3 install godirect
+sudo apt update
+sudo apt install libusb1.0.0 # <-- this doesn't seem to exist. Try sudo apt-get install libusb-1.0.0
+sudo apt install libudev-dev
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="08f7", MODE="0666"' >> vstlibusb.rules
+echo 'SUBSYSTEM=="usb_device", ATTRS{idVendor}=="08f7", MODE="0666"' >> vstlibusb.rules
+sudo cp vstlibusb.rules /etc/udev/rules.d/.
