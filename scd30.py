@@ -41,17 +41,25 @@ class SCD30(BaseSensor):
         super().__init__(name=name, verbose=verbose)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
-        self.prior_reading = 0
+        self.prior_reading_co2 = -1.1
+        self.prior_reading_rel_hum = -1.1
+        self.prior_readig_temp = -1.1
+        self.scd.altitutde = 1061 # Height of Biosphere 2 in meters
+        self.scd.forced_recalibration_reference = 257 # Reading given by Vernier when SCD is reading 0
 
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
         if self.scd.data_available:
             co2_ppm = self.scd.CO2
-            self.prior_reading = co2_ppm
+            temp = self.scd.temperature  # in °C
+            rel_hum = self.scd.relative_humidity
+            self.prior_reading_co2 = co2_ppm
+            self.prior_reading_temp = temp
+            self.prior_reading_rel_hum = rel_hum
         else:
-            co2_ppm = self.prior_reading
-        temp = self.scd.temperature  # in °C
-        rel_hum = self.scd.relative_humidity
+            co2_ppm = self.prior_reading_co2
+            temp = self.prior_reading_temp
+            rel_hum =self.prior_reading_rel_hum
         if self.verbose:
             print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: ',
                   f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%; [{self.sensor_type}]')
