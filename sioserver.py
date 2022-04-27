@@ -19,7 +19,7 @@ CLIENTS = set()
 SUBSCRIBERS = set()
 
 # TODO: add non-localhost origin for deployed setup or find a better fix
-allowed_origins = ['http://localhost:8080', 'http://localhost:8081']
+allowed_origins = ['http://localhost:8080', 'http://localhost:8081', 'http://192.168.1.*']
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
 
@@ -40,6 +40,7 @@ def disconnect(sid):
     CLIENTS.discard(sid)
     if sid in SENSORS:
         SENSORS.remove(sid)
+        del SENSOR_INFO[sid]
         del SENSOR_READINGS[sid]
 
 
