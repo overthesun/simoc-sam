@@ -37,9 +37,9 @@ class BME688(BaseSensor):
         'pressure': dict(label='Pressure', unit="hPa"),
     }
     """Represent a BME688 sensor"""
-    def __init__(self, *, name='BME688', verbose=False):
+    def __init__(self, *, name='BME688', **kwargs):
         """Initialize the sensor."""
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name, **kwargs)
         i2c= board.I2C()
         self.sensor = adafruit_bme680.Adafruit_BME680_I2C(i2c, debug=False)
 

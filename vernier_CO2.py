@@ -19,9 +19,9 @@ class VernierCO2(BaseSensor):
         'rel_hum': dict(label='Relative Humidity', unit='%'),
     }
 
-    def __init__(self, *, name='Vernier CO2 Gas', verbose=False):
+    def __init__(self, *, name='Vernier CO2 Gas', **kwargs):
         """Initialize the sensor."""
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name, **kwargs)
         self.device = gdx.gdx() 
         self.device.open_usb()
         # To run CO2, temp, and humidity

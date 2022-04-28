@@ -39,7 +39,7 @@ def alphanum(string):
 def format_sensor_id(location, sensor_type, sensor_name):
     return f'{location}_{sensor_type}_{sensor_name}'
 
-def get_sensor_id(sensor_info, active_sensors=[]):
+def get_sensor_id(sensor_info, active_sensors=[], serial_length=5):
     """Return a unique, non-random id for each location/type/device"""
     
     # The location is a unique identifier for the device where the class
@@ -50,28 +50,32 @@ def get_sensor_id(sensor_info, active_sensors=[]):
     sensor_type = alphanum(sensor_info.get('sensor_type', 'sensor0'))
     # The sensor name is a unique identifier for the sensor itself, in case two
     # sensors of the same type are connected at the same location.
-    sensor_name = sensor_info.get('name', None)
-    if sensor_name is not None:
-        sensor_name = alphanum(sensor_name)
+    serial_no = sensor_info.get('serial_no', None)
+    if serial_no is not None:
+        serial_no = alphanum(serial_no)[:serial_length]
     else:
-        sensor_name = 0
+        serial_no = 0
         while True:
-            id = format_sensor_id(location, sensor_type, sensor_name)
+            id = format_sensor_id(location, sensor_type, serial_no)
             if id not in active_sensors:
                 break
             else:
-                sensor_name += 1
-    return format_sensor_id(location, sensor_type, sensor_name)
+                serial_no += 1
+    return format_sensor_id(location, sensor_type, serial_no)
     
 def get_sensor_info_from_cfg(sensor_type, cfg_file='config.cfg'):
     config = configparser.ConfigParser()
     config.read(cfg_file)
+    sensor_info = dict()
     for name, section in config.items():
-        if not name.lower().startswith('sensor'):
-            continue  # not a section about sensors
-        if section['type'].lower() == sensor_type.lower():
-            return dict(section)
-
+        if name.lower() == 'host':
+            location = section.get('location')
+            if location is not None:
+                sensor_info['location'] = location
+        elif name.lower().startswith('sensor') and 'type' in section:
+            if section['type'].lower() == sensor_type.lower():
+                sensor_info.update(section)
+    return sensor_info
 
 def parse_args(*, read_delay=1, port=8081):
     parser = argparse.ArgumentParser()
@@ -106,7 +110,7 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
     sensor_info = get_sensor_info_from_cfg(sensor_cls.sensor_type)
     # get the name/desc from the config unless the user passed them as kwargs
     # TODO: add cmd line options for name/desc that override the cfg too
-    for attr in ['name', 'description']:
+    for attr in ['location', 'name', 'description']:
         if attr not in kwargs and sensor_info and attr in sensor_info:
             kwargs[attr] = sensor_info[attr]
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:

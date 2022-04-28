@@ -23,7 +23,8 @@ class BaseSensor(ABC):
         # override this with a regular class attr in the subclasses
         raise NotImplementedError()
 
-    def __init__(self, *, name=None, description=None, verbose=False):
+    def __init__(self, *, location=None, name=None, description=None, verbose=False):
+        self.location = location
         self.sensor_name = name
         self.sensor_desc = description
         self.verbose = verbose
@@ -45,6 +46,7 @@ class BaseSensor(ABC):
     def sensor_info(self):
         """Return information about the sensor and the value it returns."""
         return {
+            'location': self.location,
             'sensor_type': self.sensor_type,
             'sensor_name': self.sensor_name,
             'sensor_desc': self.sensor_desc,
