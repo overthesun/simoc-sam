@@ -36,9 +36,9 @@ class SCD30(BaseSensor):
         'rel_hum': dict(label='Relative Humidity', unit='%'),
     }
     """Represent a SCD-30 sensors connected through a MCP2221."""
-    def __init__(self, *, name='SCD-30', verbose=False):
+    def __init__(self, *, name='SCD-30', description=None, verbose=False):
         """Initialize the sensor."""
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name, description=description, verbose=verbose)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
         self.prior_reading_co2 = -1.1
