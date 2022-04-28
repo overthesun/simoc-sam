@@ -1,3 +1,4 @@
+import re
 import asyncio
 import argparse
 
@@ -29,6 +30,38 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
         result.append(f'{label}: {v}{unit}')
     return f'{sensor_name}|{timestamp}|{n:<3}  {"; ".join(result)}'
 
+
+def alphanum(string):
+    """Return a string with non-alphanumeric characters removed"""
+    return re.sub(r'[^a-zA-Z0-9]', '', string)
+
+def format_sensor_id(location, sensor_type, sensor_name):
+    return f'{location}_{sensor_type}_{sensor_name}'
+
+def get_sensor_id(sensor_info, active_sensors=[]):
+    """Return a unique, non-random id for each location/type/device"""
+    
+    # The location is a unique identifier for the device where the class
+    # instance of the sensor is running (e.g. a Raspberry Pi), and should be
+    # descriptive (e.g. 'greenhouse').
+    location = alphanum(sensor_info.get('location', 'loc0'))
+    # Hardcoded into the class instance.
+    sensor_type = alphanum(sensor_info.get('sensor_type', 'sensor0'))
+    # The sensor name is a unique identifier for the sensor itself, in case two
+    # sensors of the same type are connected at the same location.
+    sensor_name = sensor_info.get('name', None)
+    if sensor_name is not None:
+        sensor_name = alphanum(sensor_name)
+    else:
+        sensor_name = 0
+        while True:
+            id = format_sensor_id(location, sensor_type, sensor_name)
+            if id not in active_sensors:
+                break
+            else:
+                sensor_name += 1
+    return format_sensor_id(location, sensor_type, sensor_name)
+    
 
 def parse_args(*, read_delay=1, port=8081):
     parser = argparse.ArgumentParser()
