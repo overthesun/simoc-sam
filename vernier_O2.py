@@ -22,8 +22,8 @@ class VernierO2(BaseSensor):
         super().__init__(name=name, **kwargs)
         self.device = gdx.gdx() 
         self.device.open_usb()
-        # To run CO2, temp, and humidity
-        self.device.select_sensors([1,2])
+        # To run O2, temp, and humidity
+        self.device.select_sensors([1,2,3])
         # Set polling rate to 1000 ms
         self.device.start(1000)
         self.last_reading = dict(o2=0, temp=0)
@@ -33,7 +33,9 @@ class VernierO2(BaseSensor):
         measurements = self.device.read()
         if measurements is not None:
             o2_percent = measurements[0]
-            temp = measurements[1]
+            # O2 - rTC would be measurements[1] but it is only recommended when
+            # starting at room temperature with wild temp fluctuations expected
+            temp = measurements[2]
             self.last_reading = dict(o2=o2_percent, temp=temp)
         if self.verbose:
             print(f'O2: {o2_percent:2.2f}%; Temperature: ',
