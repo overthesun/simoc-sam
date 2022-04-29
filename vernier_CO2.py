@@ -1,5 +1,4 @@
-# Implement the driver for the SCD-30 CO2/temperature/humidity sensor,
-# connected through an MCP2221.
+# Implement the Vernier CO2, Temperature, Humidity Sensor
 
 import os
 import sys
