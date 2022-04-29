@@ -58,6 +58,9 @@ async def register_sensor(sid, sensor_info):
     # Index info and readings with a non-random ID to ensure continuity on the 
     # frontend if sensor is disconnected and reconnected.
     sensor_id = get_sensor_id(sensor_info, list(SENSOR_INFO.keys()))
+    sensor_name = sensor_info.get('sensor_name', sensor_id)
+    is_duplicate = sensor_name in [s['sensor_name'] for s in SENSOR_INFO.values()]
+    sensor_info['sensor_name'] = sensor_name if not is_duplicate else sensor_id
     SID_INDEX[sid] = sensor_id
     SENSOR_INFO[sensor_id] = sensor_info
     await emit_to_subscribers('sensor-info', SENSOR_INFO)
