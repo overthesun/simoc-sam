@@ -45,7 +45,7 @@ def get_sensor_id(sensor_info, active_sensors=[], serial_length=5):
     # The location is a unique identifier for the device where the class
     # instance of the sensor is running (e.g. a Raspberry Pi), and should be
     # descriptive (e.g. 'greenhouse').
-    location = alphanum(sensor_info.get('location', 'loc0'))
+    location = alphanum(sensor_info.get('location') or 'loc0')
     # Hardcoded into the class instance.
     sensor_type = alphanum(sensor_info.get('sensor_type', 'sensor0'))
     # The sensor name is a unique identifier for the sensor itself, in case two
