@@ -1,4 +1,8 @@
 class gdx_lite:
+    """Provide the same methods/syntax as gdx for a single device"""
+
+    device = None
+    enabled_sensors = []
 
     def __init__(self, device):
         self.device = device

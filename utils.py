@@ -40,7 +40,7 @@ def alphanum(string):
 def format_sensor_id(location, sensor_type, sensor_name):
     return f'{location}_{sensor_type}_{sensor_name}'
 
-def get_sensor_id(sensor_info, active_sensors=[], serial_length=5):
+def get_sensor_id(sensor_info, active_sensors=[], serial_length=-1):
     """Return a unique, non-random id for each location/type/device"""
 
     # The location is a unique identifier for the device where the class
@@ -51,18 +51,18 @@ def get_sensor_id(sensor_info, active_sensors=[], serial_length=5):
     sensor_type = alphanum(sensor_info.get('sensor_type', 'sensor0'))
     # The sensor name is a unique identifier for the sensor itself, in case two
     # sensors of the same type are connected at the same location.
-    serial_no = sensor_info.get('serial_no', None)
-    if serial_no is not None:
-        serial_no = alphanum(serial_no)[:serial_length]
+    serial_number = sensor_info.get('serial_number', None)
+    if serial_number is not None:
+        serial_number = alphanum(serial_number)[:serial_length]
     else:
-        serial_no = 0
+        serial_number = 0
         while True:
-            id = format_sensor_id(location, sensor_type, serial_no)
+            id = format_sensor_id(location, sensor_type, serial_number)
             if id not in active_sensors:
                 break
             else:
-                serial_no += 1
-    return format_sensor_id(location, sensor_type, serial_no)
+                serial_number += 1
+    return format_sensor_id(location, sensor_type, serial_number)
 
 def get_sensor_info_from_cfg(sensor_type, cfg_file='config.cfg'):
     config = configparser.ConfigParser()
@@ -113,7 +113,6 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
     for attr in ['location', 'name', 'description']:
         if attr not in kwargs and sensor_info and attr in sensor_info:
             kwargs[attr] = sensor_info[attr]
-    # Use ExitStack from contextlib, line 116, use with statement on many classes at once
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:
         if args.no_sio:
             for reading in sensor.iter_readings(delay=args.delay):
@@ -121,23 +120,22 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
         else:
             delay, verbose, port, host = args.delay, args.verbose_sio, args.port, args.host
             siowrapper = SIOWrapper(sensor, read_delay=delay, verbose=verbose)
-            # asyncio.gather
             asyncio.run(siowrapper.start(port, host))
 
-def start_sensors(sensor_classes, *pargs, **kwargs):
+def start_sensors(sensor_classes):
     args = parse_args()
-    sensors_info = []
-    for (sensor_cls, _) in sensor_classes:
-        sensor_info = get_sensor_info_from_cfg(sensor_cls.sensor_type)
-        for attr in ['location', 'name', 'description']:
-            if attr not in kwargs and sensor_info and attr in sensor_info:
-                kwargs[attr] = sensor_info[attr]
-        sensors_info.append(sensor_info)
-    with ExitStack() as stack:
-        v = args.verbose_sensor
-        sensors = [stack.enter_context(sensor_cls(verbose=v, device=device, *pargs, **kwargs))
-                   for (sensor_cls, device) in sensor_classes]
-        delay, verbose, port, host = args.delay, args.verbose_sio, args.port, args.host
-        wrappers = [SIOWrapper(sensor, read_delay=delay, verbose=verbose)
-                    for sensor in sensors]
-        asyncio.gather(*[wrapper.start(port, host) for wrapper in wrappers])
+    async def start_concurrently():
+        with ExitStack() as stack:
+            v = args.verbose_sensor
+            sensors = []
+            for (sensor_cls, device, kwargs) in sensor_classes:
+                sensor_info = get_sensor_info_from_cfg(sensor_cls.sensor_type)
+                for attr in ['location', 'name', 'description']:
+                    if attr not in kwargs and sensor_info and attr in sensor_info:
+                        kwargs[attr] = sensor_info[attr]
+                sensors.append(stack.enter_context(sensor_cls(verbose=v, device=device, **kwargs)))
+            delay, verbose, port, host = args.delay, args.verbose_sio, args.port, args.host
+            wrappers = [SIOWrapper(sensor, read_delay=delay, verbose=verbose)
+                        for sensor in sensors]
+            await asyncio.gather(*[wrapper.start(port, host) for wrapper in wrappers])
+    asyncio.run(start_concurrently())
