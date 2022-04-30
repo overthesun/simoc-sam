@@ -1,0 +1,1 @@
+This folder contains tmux scripts that would be put on the desktop to make things start up easier for the demos, using tmux. Useful concepts here include tmux time delays, multiple tmux scripts in the same window, remote ssh automation

@@ -1,0 +1,67 @@
+Gretchen,
+
+Welcome to the world of computer geeks with sensors on Mars!
+
+*** CONFIGURE SYSTEM ***
+
+1. Attach the Vernier CO2 sensor to one of the Raspberry Pi USB ports; or
+
+2. Attach the Adafruit modified STEMMA adapter to the GPIO pins on the Pi PC board. This is the long, dual line of exposed pins on the outside edge of the PI PC board. The included photo will show you how to align the STEMMA adapter.
+
+The Vernier and USB option is far simpler, and a good place to start for your first class experiments. Later you can experiment with the Adafruit sensors already in your holding via the STEMMA adapter.
+
+
+*** STARTING LIVE SENSOR MODE ***
+
+1. Double-click on '1_start_sio_server' and choose "Execute in Terminal".
+
+2. Double-click '2_start_simoc_live' and choose "Execute" and wait until the Terminal displays App"
+
+	"App running at:"
+
+3. Open the Chromium web browser and type "localhost:8080" into the search bar.
+
+4. Click "Proceed".
+
+5. Sign in as a Guest. Do not press any of the web interface buttons. We're going to use a back door!
+
+Note that the web interface will appear a little funky compared to what you are accustomed to on the Nat Geo server due to a Raspberry Pi compatibility issue. This is being addressed, but does not affect the function in any way.
+
+6. From within the web browser press "CTRL-S" on the keyboard. A save window will pop up which you will promtly close.
+
+7. Select LIVE MODE.
+
+8. Click the menu (3 horizontal lines) at the top-right of any one of the three panels (not the one at the very top-right of the application) and select "Add Panel".
+
+9. Select "Select Panel".
+
+10. Select "Relative Humidity". This will launch a new (fourth) panel.
+
+11. Back to the Desktop, double-click '3_start_vernier' *or* '3_start_scd30' and select "Execute". After a few moments, the Relative Humidity, Atmospheric CO2, and Temperature panels will show a live data feed and associated graph for each. Switching back to the Terminal will show you the live data feed for each sensor.
+
+12. If you desire, double-click '4_start_bme' to see more data from the BME and SGP sensors. However, at this time, doing so will break the graphs (still working on this :)
+
+On the lower bar of the SIMOC Web 
+
+
+*** CLOSING PROGRAM ***
+
+1. Return to the console interface and press CTRL-C repeatedly until you are returned to the command line "$" prompt.
+
+2. Type "exit" followed by [ENTER] and then CTRL-C again. Repeat until the console is closed.
+
+3. Double-click and Execute 5_kill_tmux if the last window won't close or if there is trouble starting next time.
+
+
+*** TROUBLE SHOOTING ***
+
+If when you go to restart SIMOC Live, and it won't restart (even if you restart your Pi), you may have 'docker containers' yet running when they need to be shut down (steps 1-3 above). You can see if this is the case by launching the Terminal and at the prompt typing "docker ps" [ENTER] to see a list of running containers. Several should be running. If there is a 'frontend-dev' and/or 'sioserver', these containers need to be stopped before SIMOC Live can be started again.
+
+At the left of the list of active containers (you can expand the Terminal to get each container list on its own line). Hi-light, right-click, and Copy the container ID for frontend-dev and at the Terminal enter:
+
+	$ docker stop [ID number]
+
+This should be repeated for sioserver too.
+
+Ok. You are an official geek now. Congrats!
+

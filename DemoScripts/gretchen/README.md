@@ -1,0 +1,1 @@
+These TMUX scripts and Readme go onto the desktop for the educational image to start the corresponding parts of SIMOC automatically.
