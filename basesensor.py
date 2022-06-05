@@ -23,8 +23,12 @@ class BaseSensor(ABC):
         # override this with a regular class attr in the subclasses
         raise NotImplementedError()
 
-    def __init__(self, *, name=None, verbose=False):
+    def __init__(self, *, location=None, name=None, description=None,
+                 serial_number=None, verbose=False):
+        self.location = location
         self.sensor_name = name
+        self.sensor_desc = description
+        self.serial_number = serial_number
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
@@ -44,8 +48,11 @@ class BaseSensor(ABC):
     def sensor_info(self):
         """Return information about the sensor and the value it returns."""
         return {
+            'location': self.location,
             'sensor_type': self.sensor_type,
             'sensor_name': self.sensor_name,
+            'sensor_desc': self.sensor_desc,
+            'serial_number': self.serial_number,
             'reading_info': self.reading_info,
         }
 
@@ -98,10 +105,10 @@ class SIOWrapper:
         if self.verbose:
             print(*args, **kwargs)
 
-    async def start(self, port):
+    async def start(self, port, host):
         """Open the connection with the sio server."""
         # connect to the server and wait
-        await self.sio.connect(f'http://localhost:{port}')
+        await self.sio.connect(f'http://{host}:{port}')
         await self.sio.wait()
 
     async def connect(self):
