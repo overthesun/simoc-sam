@@ -17,7 +17,7 @@ import board  # For MCP-2221
 import adafruit_scd30
 
 from basesensor import BaseSensor
-from utils import start_sensor
+from sensor_utils import start_sensor
 
 
 class SCD30(BaseSensor):
