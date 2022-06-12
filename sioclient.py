@@ -41,7 +41,8 @@ async def sensor_info(data):
     SENSOR_INFO.update(data)
 
 @sio.on('step-batch')
-async def step_batch(batch):
+async def step_batch(batch_and_sid):
+    batch = batch_and_sid[0] # 0 is batch, 1 is for SENSOR_INFO[batch_and_sid[1]]
     """Handle batches of step data received by the server."""
     print(f'Received a batch of {len(batch)} bundles from the server:')
     for bundle in batch:

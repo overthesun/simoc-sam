@@ -8,10 +8,11 @@ import socketio
 
 from aiohttp import web
 
-from utils import format_reading
+from utils import format_reading, get_sensor_id
 
 
 HAB_INFO = dict(humans=4, volume=272)
+SID_INDEX = dict()
 SENSOR_INFO = dict()
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
@@ -19,7 +20,7 @@ CLIENTS = set()
 SUBSCRIBERS = set()
 
 # TODO: add non-localhost origin for deployed setup or find a better fix
-allowed_origins = ['http://localhost:8080', 'http://localhost:8081']
+allowed_origins = ['http://localhost:8080', 'http://localhost:8081', 'http://192.168.1.*']
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
 
@@ -40,7 +41,10 @@ def disconnect(sid):
     CLIENTS.discard(sid)
     if sid in SENSORS:
         SENSORS.remove(sid)
-        del SENSOR_READINGS[sid]
+        sensor_id = SID_INDEX[sid]
+        del SID_INDEX[sid]
+        del SENSOR_INFO[sensor_id]
+        del SENSOR_READINGS[sensor_id]
 
 
 # new clients events
@@ -51,7 +55,14 @@ async def register_sensor(sid, sensor_info):
     print('New sensor connected:', sid)
     print('Sensor info:', sensor_info)
     SENSORS.add(sid)
-    SENSOR_INFO[sid] = sensor_info
+    # Index info and readings with a non-random ID to ensure continuity on the 
+    # frontend if sensor is disconnected and reconnected.
+    sensor_id = get_sensor_id(sensor_info, list(SENSOR_INFO.keys()))
+    sensor_name = sensor_info.get('sensor_name', sensor_id)
+    is_duplicate = sensor_name in [s['sensor_name'] for s in SENSOR_INFO.values()]
+    sensor_info['sensor_name'] = sensor_name if not is_duplicate else sensor_id
+    SID_INDEX[sid] = sensor_id
+    SENSOR_INFO[sensor_id] = sensor_info
     await emit_to_subscribers('sensor-info', SENSOR_INFO)
     # sensor is added once we set up a room
     print('Requesting sensor data from', sid)
@@ -82,23 +93,32 @@ async def emit_to_subscribers(*args, **kwargs):
 async def sensor_batch(sid, batch):
     """Get a batch of readings and it to SENSOR_READINGS."""
     #print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
-    SENSOR_READINGS[sid].extend(batch)
-    sensor_info = SENSOR_INFO[sid]
+    sensor_id = SID_INDEX[sid]
+    SENSOR_READINGS[sensor_id].extend(batch)
+    sensor_info = SENSOR_INFO[sensor_id]
     for reading in batch:
         print(format_reading(reading, sensor_info=sensor_info))
+
+    if SUBSCRIBERS:
+        # TODO: set up a room for the clients and broadcast to the room
+        print(f'Broadcasting step data batch to {len(SUBSCRIBERS)} clients')
+        batch_and_sid = [batch, sid]
+        for client_id in SUBSCRIBERS:
+            await sio.emit('step-batch', batch_and_sid, to=client_id)
+
 
 @sio.on('sensor-reading')
 async def sensor_reading(sid, reading):
     """Get a single sensor reading and add it to SENSOR_READINGS."""
     #print(f'Received a reading from sensor {sid}:')
-    SENSOR_READINGS[sid].append(reading)
-    sensor_info = SENSOR_INFO[sid]
+    sensor_id = SID_INDEX[sid]
+    SENSOR_READINGS[sensor_id].append(reading)
+    sensor_info = SENSOR_INFO[sensor_id]
     print(format_reading(reading, sensor_info=sensor_info))
 
 def get_timestamp():
     """Return the current timestamp as a string."""
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-
 
 
 # test events (obsolete)
@@ -128,8 +148,8 @@ async def emit_readings():
             # TODO: improve ctrl+c handling
             print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
             timestamp = get_timestamp()
-            sensors_readings = {sid: readings[-1]
-                                for sid, readings in SENSOR_READINGS.items()}
+            sensors_readings = {sensor_id: readings[-1]
+                                for sensor_id, readings in SENSOR_READINGS.items()}
             bundle = dict(n=n, timestamp=timestamp, readings=sensors_readings)
             # the frontend expects a list of bundles
             await emit_to_subscribers('step-batch', [bundle])
