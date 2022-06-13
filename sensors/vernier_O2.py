@@ -5,7 +5,7 @@ import sys
 import sensor_utils
 
 from basesensor import BaseSensor
-from utils import start_sensor
+from sensor_utils import start_sensor
 
 # Import the gdx functions from Vernier
 from gdx import gdx
