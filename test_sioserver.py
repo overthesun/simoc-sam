@@ -99,7 +99,22 @@ async def test_register_sensor_2_subs(sio, sensor_id, sensor_info, two_subs):
     assert sioserver.SENSORS == {sensor_id}
     # check that the SENSOR_INFO are populated correctly
     info = {sensor_id: sensor_info}
-    assert sioserver.SENSOR_INFO == info
+    print("SIO INFO : ", sioserver.SENSOR_INFO)
+    print ("info", info)
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    key_name = None
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+            key_name = key
+            # Assign the info to check to be this key assigned by the register function
+            info = {key_name: sensor_info}
+            break
+    assert key_found
     # check that sensor-info are forwarded to the subscribers
     for sub in two_subs:
         sio.emit.assert_any_await('sensor-info', info, to=sub)
