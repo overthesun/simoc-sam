@@ -157,8 +157,22 @@ async def test_sensor_reading(sio, sensor_id, sensor_info, sensor_reading):
     # send a reading to the server
     await sioserver.sensor_reading(sensor_id, sensor_reading)
     # check that the reading is stored in SENSOR_READINGS
-    assert len(sioserver.SENSOR_READINGS[sensor_id]) == 1
-    assert sioserver.SENSOR_READINGS[sensor_id][-1] == sensor_reading
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    key_name = None
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+            key_name = key
+            break
+    assert key_found
+
+    print("READINGS: ", sioserver.SENSOR_READINGS[key])
+    assert len(sioserver.SENSOR_READINGS[key]) == 1
+    assert sioserver.SENSOR_READINGS[key][-1] == sensor_reading
 
 
 @pytest.mark.asyncio
