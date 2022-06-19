@@ -4,7 +4,7 @@ import os
 import sys
 import sensor_utils
 
-if utils.check_for_MCP2221():
+if sensor_utils.check_for_MCP2221():
     # We don't want to import board again if MCP2221 is already running from
     # another script
     if 'BLINKA_MCP2221' not in os.environ:
@@ -23,7 +23,7 @@ except RuntimeError:
 import adafruit_scd30
 
 from basesensor import BaseSensor
-from utils import start_sensor
+from sensor_utils import start_sensor
 
 
 class SCD30(BaseSensor):

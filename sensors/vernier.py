@@ -8,7 +8,7 @@ from godirect import GoDirect
 
 from vernier_CO2 import VernierCO2
 from vernier_O2 import VernierO2
-from utils import start_sensors
+from sensor_utils import start_sensors
 
 def init_sensors():
     """Initialize multiple vernier sensors from the same host"""
