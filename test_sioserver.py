@@ -180,9 +180,21 @@ async def test_sensor_batch(sio, sensor_id, sensor_info, sensor_reading):
     assert sioserver.SENSOR_READINGS == {}
     # register sensor
     await sioserver.register_sensor(sensor_id, sensor_info)
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    key_name = None
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+            key_name = key
+            break
+    assert key_found
     # send a batch to the server
     batch = [sensor_reading] * 3
     await sioserver.sensor_batch(sensor_id, batch)
     # check that the readings are stored in SENSOR_READINGS
-    assert len(sioserver.SENSOR_READINGS[sensor_id]) == 3
-    assert list(sioserver.SENSOR_READINGS[sensor_id]) == batch
+    assert len(sioserver.SENSOR_READINGS[key]) == 3
+    assert list(sioserver.SENSOR_READINGS[key]) == batch
