@@ -1,0 +1,19 @@
+---
+sensors:
+  sensor1:
+    sensor_name: testsensor1
+    sensor_number: 10
+    sensor_type: co2
+    location: greenhouse
+  sensor2:
+    sensor_name: testsensor2
+    sensor_number: 23
+    sensor_type: temp
+    location: stock
+  sensor3:
+    sensor_name: testsensor3
+    sensor_number: 21
+    sensor_type: atmos
+    location: main area
+locations:
+  
