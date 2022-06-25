@@ -102,22 +102,26 @@ function log_event(event) {
     textarea.scrollTop = textarea.scrollHeight
 }
 function format_reading(reading) {
-    // TODO get info from the right sensor
     let {step_num, timestamp, ...data} = reading
     timestamp = timestamp.split('.')[0] // remove millisec
     const reading_info = Object.values(SENSORS_INFO)[0].reading_info
     let result = []
-    Object.entries(data).forEach(([key, value]) => {
+    let step = data['n'] // n reported with data batch
+    let sensor = Object.keys(data['readings'])[0]a
+    sensor_data = data['readings'][sensor]
+    Object.entries(sensor_data).forEach(([key, value]) => {
         let v = (typeof value === 'number') ? value.toFixed(2) : value
         let label = key
-        let unit = ''
-        if (reading_info) {
-            label = reading_info[key]['label']
-            unit = ` ${reading_info[key]['unit']}`
+        if (! ( (label === 'timestamp') || (label === 'n')) ) {
+            let unit = ''
+            if (reading_info) {
+                label = reading_info[key]['label']
+                unit = ` ${reading_info[key]['unit']}`
+            }
+            result.push(`${label}: ${v}${unit}`)
         }
-        result.push(`${label}: ${v}${unit}`)
     })
-    return ` ${step_num}|${timestamp}  ` + result.join('; ')
+    return ` ${sensor}|${step}|${timestamp}  ` + result.join('; ')
 }
 </script>
 
