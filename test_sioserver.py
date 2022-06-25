@@ -75,7 +75,21 @@ async def test_register_sensor_no_subs(sio, sensor_id, sensor_info):
     await sioserver.register_sensor(sensor_id, sensor_info)
     # check that the sensor is in the sensors list
     assert sioserver.SENSORS == {sensor_id}
-    assert sioserver.SENSOR_INFO[sensor_id] == sensor_info
+    print("sensor_id: ", sensor_id)
+    sensor_name = sensor_info.get('sensor_name', sensor_id)
+    print("sensor_name (original): ", sensor_name)
+    is_duplicate = sensor_name in [s['sensor_name'] for s in sioserver.SENSOR_INFO.values()]
+    sensor_info['sensor_name'] = sensor_name if not is_duplicate else sensor_id
+    print("sensor name (final): ", sensor_info['sensor_name'])
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+    assert key_found
     # with no subs, the server only asks the sensor to send data
     sio.emit.assert_awaited_once_with('send-data', to=sensor_id)
 
@@ -85,7 +99,22 @@ async def test_register_sensor_2_subs(sio, sensor_id, sensor_info, two_subs):
     assert sioserver.SENSORS == {sensor_id}
     # check that the SENSOR_INFO are populated correctly
     info = {sensor_id: sensor_info}
-    assert sioserver.SENSOR_INFO == info
+    print("SIO INFO : ", sioserver.SENSOR_INFO)
+    print ("info", info)
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    key_name = None
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+            key_name = key
+            # Assign the info to check to be this key assigned by the register function
+            info = {key_name: sensor_info}
+            break
+    assert key_found
     # check that sensor-info are forwarded to the subscribers
     for sub in two_subs:
         sio.emit.assert_any_await('sensor-info', info, to=sub)
@@ -128,8 +157,22 @@ async def test_sensor_reading(sio, sensor_id, sensor_info, sensor_reading):
     # send a reading to the server
     await sioserver.sensor_reading(sensor_id, sensor_reading)
     # check that the reading is stored in SENSOR_READINGS
-    assert len(sioserver.SENSOR_READINGS[sensor_id]) == 1
-    assert sioserver.SENSOR_READINGS[sensor_id][-1] == sensor_reading
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    key_name = None
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+            key_name = key
+            break
+    assert key_found
+
+    print("READINGS: ", sioserver.SENSOR_READINGS[key])
+    assert len(sioserver.SENSOR_READINGS[key]) == 1
+    assert sioserver.SENSOR_READINGS[key][-1] == sensor_reading
 
 
 @pytest.mark.asyncio
@@ -137,9 +180,21 @@ async def test_sensor_batch(sio, sensor_id, sensor_info, sensor_reading):
     assert sioserver.SENSOR_READINGS == {}
     # register sensor
     await sioserver.register_sensor(sensor_id, sensor_info)
+    # Get each of the keys in the sensor info dictionary
+    sensor_keys = list(sioserver.SENSOR_INFO.keys())
+    key_found = False
+    # Check the sensor info dictionary to see if this sensor info is there.
+    key_name = None
+    for key in sensor_keys:
+        print ("Sensor: ", key )
+        if sioserver.SENSOR_INFO[key] == sensor_info:
+            key_found = True
+            key_name = key
+            break
+    assert key_found
     # send a batch to the server
     batch = [sensor_reading] * 3
     await sioserver.sensor_batch(sensor_id, batch)
     # check that the readings are stored in SENSOR_READINGS
-    assert len(sioserver.SENSOR_READINGS[sensor_id]) == 3
-    assert list(sioserver.SENSOR_READINGS[sensor_id]) == batch
+    assert len(sioserver.SENSOR_READINGS[key]) == 3
+    assert list(sioserver.SENSOR_READINGS[key]) == batch
