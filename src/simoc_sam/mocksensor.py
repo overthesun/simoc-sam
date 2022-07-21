@@ -1,7 +1,7 @@
 import random
 
-from basesensor import BaseSensor
-from utils import start_sensor
+from .basesensor import BaseSensor
+from .utils import start_sensor
 
 
 class MockSensor(BaseSensor):

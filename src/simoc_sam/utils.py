@@ -3,7 +3,7 @@ import argparse
 
 from datetime import datetime
 
-from basesensor import SIOWrapper
+from .basesensor import SIOWrapper
 
 
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
