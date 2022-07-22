@@ -25,7 +25,7 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     return f'{sensor_name}|{timestamp}|{n:<3}  {"; ".join(result)}'
 
 
-def parse_args(*, read_delay=1, port=8081):
+def parse_args(*, read_delay=1, port=8080):
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=int,

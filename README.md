@@ -4,10 +4,38 @@ socketio server and client that will be the foundation of the socketio
 server used in SAM.
 
 
+## Using the `simoc-sam.py` script
+
+The repo contains a `simoc-sam.py` script used to simplify several
+operations.  The script will automatically create a venv (virtual
+environment), install the dependencies, and run the commands inside
+the venv.
+
+You can see the full list of commands with `python simoc_sam.py -h`,
+and you can run them with `python simoc_sam.py COMMAND`:
+* `run-server` will start the `sioserver`
+* `run-tmux` will start the `tmux.sh` script
+* `test` will execute the tests using `pytest`
+
+
+## Using the `venv` manually
+
+If you want to manually run some of the scripts inside the `venv`,
+you first have to activate the venv with `source venv/bin/activate`.
+You can execute commands after activating the `venv` is activated, and
+then leave the `venv` with `deactivate`.
+
+Since the package is already installed within the `venv`, you can run
+the scripts by doing `python -m simoc_sam.scriptname` (see the TL;DR
+section for an example).
+
+
 ## Installation and dependencies
 
-If you are running everything inside the container (see below),
-you only need to have Docker installed.
+If you are using the `simoc-sam.py` script, you only need Python.
+
+If you are using the Docker container (see below),  you need to have
+Docker installed.
 
 If you are running the Python client or server outside the container,
 you need to install the `aiohttp` (only used by the server) and
@@ -15,6 +43,9 @@ you need to install the `aiohttp` (only used by the server) and
 ```sh
 python3 -m pip install python-socketio aiohttp
 ```
+
+Additionally, for the `tmux.sh` script you will need to install `tmux` with
+`sudo apt install tmux`.
 
 
 ## Docker container usage
@@ -67,10 +98,33 @@ while running the server inside the container.
 
 
 ## TL;DR
-
 This is a summary of the commands you need to run everything.
 
-Initial setup (only needed once):
+### `venv`
+Start everything with:
+```sh
+sudo apt install tmux
+python3 simoc-sam.py tmux
+```
+
+Start the server with:
+```sh
+python3 simoc-sam.py run-server
+```
+
+Start the sensor(s)/client(s):
+```sh
+user@host:path$ source venv/bin/activate
+(venv) user@host:path$ python -m simoc_sam.mocksensor -v
+...
+(venv) user@host:path$ deactivate
+user@host:path$
+```
+You can run multiple sensors/clients on multiple terminal tabs
+(you have to activate the `venv` in each of them).
+
+### Docker
+If you want to use Docker, do the initial setup (only needed once):
 ```sh
 # build the image
 docker build . -t sioserver
@@ -107,14 +161,18 @@ sensors and Python clients should reconnect automatically.
 
 ## Testing
 
-Install dependencies:
+Run the tests in the `venv` with:
+```
+python simoc-sam.py test
+```
 
-```sh
+If you want to run them manually outside the `venv`, install
+dependencies:
+```
 sudo pip install -U pytest pytest-asyncio
 ```
 
-Run tests:
-
-```sh
+And then run the tests:
+```
 pytest -v
 ```
