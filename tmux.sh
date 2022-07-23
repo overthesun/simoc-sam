@@ -13,14 +13,14 @@ tmux new-session -s $SNAME -d -x "$(tput cols)" -y "$(tput lines)"
 tmux send-keys -t $SNAME "python -m simoc_sam.sioserver" Enter
 # create 4 more panes and run the sensors and clients
 tmux split-window -h -p 65
-tmux send-keys -t $SNAME 'sleep 5' Enter "python -m simoc_sam.scd30 -v --port $SIOPORT" Enter
+tmux send-keys -t $SNAME 'sleep 5' Enter "python -m simoc_sam.sensors.scd30 -v --port $SIOPORT" Enter
 tmux split-window -v
 tmux send-keys -t $SNAME 'sleep 12' Enter "python -m simoc_sam.sioclient $SIOPORT" Enter
 tmux split-window -h -p 50
 tmux send-keys -t $SNAME 'sleep 17' Enter "python -m simoc_sam.sioclient $SIOPORT" Enter
 tmux select-pane -t 1
 tmux split-window -h -p 50
-tmux send-keys -t $SNAME 'sleep 10' Enter "python -m simoc_sam.mocksensor -v --port $SIOPORT" Enter
+tmux send-keys -t $SNAME 'sleep 10' Enter "python -m simoc_sam.sensors.mocksensor -v --port $SIOPORT" Enter
 # focus on the server pane
 tmux select-pane -t 0
 # enable mouse input

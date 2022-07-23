@@ -115,7 +115,7 @@ python3 simoc-sam.py run-server
 Start the sensor(s)/client(s):
 ```sh
 user@host:path$ source venv/bin/activate
-(venv) user@host:path$ python -m simoc_sam.mocksensor -v
+(venv) user@host:path$ python -m simoc_sam.sensors.mocksensor -v
 ...
 (venv) user@host:path$ deactivate
 user@host:path$
