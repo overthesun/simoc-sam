@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, ANY
 
 import pytest
 
-from simoc_sam.basesensor import BaseSensor, SIOWrapper
+from simoc_sam.sensors.basesensor import BaseSensor, SIOWrapper
 
 
 READING = dict(co2=100, hum=50, temp=25)
