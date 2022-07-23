@@ -8,7 +8,7 @@ import socketio
 
 from aiohttp import web
 
-from utils import format_reading
+from .utils import format_reading
 
 
 HAB_INFO = dict(humans=4, volume=272)

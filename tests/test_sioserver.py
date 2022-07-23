@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import sioserver
+from simoc_sam import sioserver
 
 
 # fixtures
@@ -20,7 +20,7 @@ def reset_global_vars(global_vars):
     """Create a copy of the module-level vars and restore it at the end."""
     with ExitStack() as stack:
         for var in global_vars:
-            var_name = 'sioserver.' + var
+            var_name = 'simoc_sam.sioserver.' + var
             new_value = deepcopy(getattr(sioserver, var))
             stack.enter_context(patch(var_name, new_value))
         yield
@@ -28,7 +28,7 @@ def reset_global_vars(global_vars):
 @pytest.fixture
 def sio():
     """Replace sioserver.sio with an AsyncMock and return it."""
-    with patch('sioserver.sio', AsyncMock()) as mocksio:
+    with patch('simoc_sam.sioserver.sio', AsyncMock()) as mocksio:
         yield mocksio
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def client_id():
 @pytest.fixture
 def two_subs():
     """Add two subscribers to the list of subscribers."""
-    with patch('sioserver.SUBSCRIBERS', {'sub-0', 'sub-1'}) as subs:
+    with patch('simoc_sam.sioserver.SUBSCRIBERS', {'sub-0', 'sub-1'}) as subs:
         yield subs
 
 @pytest.fixture

@@ -3,7 +3,7 @@ import asyncio
 
 import socketio
 
-from utils import format_reading
+from .utils import format_reading
 
 
 sio = socketio.AsyncClient()
