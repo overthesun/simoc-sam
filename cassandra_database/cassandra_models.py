@@ -34,8 +34,6 @@ class Sensors(Model):
 
     def validate(self):
         super(Sensors, self).validate()
-        if self.sensor_id is not type(uuid4):
-            raise ValidationError('SensorID is not valid UUID4')
 
 
 class SensorsByLocation(Model):
@@ -49,10 +47,13 @@ class SensorsByLocation(Model):
 
     def validate(self):
         super(SensorsByLocation, self).validate()
-        if self.sensor_id is not type(uuid4):
-            raise ValidationError('SensorID is not valid UUID4')
-        if self.location_id is not type(uuid4):
-            raise ValidationError('LocationID is not valid UUID4')
+
+
+class ReadingInfo(UserType):
+    co2 = columns.Decimal()
+    temperature = columns.Decimal()
+    humidity = columns.Decimal()
+    pressure = columns.Decimal()
 
 
 class ReadingsBySensor(Model):
@@ -64,17 +65,10 @@ class ReadingsBySensor(Model):
     sensor_number = columns.Text()
     sensor_type = columns.Text()
     sensor_location = columns.Text()
-    co2 = columns.Decimal()
-    temperature = columns.Decimal()
-    humidity = columns.Decimal()
-    pressure = columns.Decimal()
+    reading_info = columns.UserDefinedType(ReadingInfo)
 
     def validate(self):
         super(ReadingsBySensor, self).validate()
-        if self.sensor_id is not type(uuid4):
-            raise ValidationError('SensorID is not valid UUID4')
-        if self.reading_id is not type(uuid1):
-            raise ValidationError('ReadingID is not valid UUID1(Time)')
         
 
 def sync_all_tables():
@@ -82,6 +76,10 @@ def sync_all_tables():
     register_connection(str(_session), session=_session)
     set_default_connection(str(_session))
 
+    # Sync new user types
+    sync_type(ReadingInfo)
+
+    # Sync new models
     sync_table(Sensors)
     sync_table(SensorsByLocation)
     sync_table(ReadingsBySensor)
