@@ -23,8 +23,9 @@ class BaseSensor(ABC):
         # override this with a regular class attr in the subclasses
         raise NotImplementedError()
 
-    def __init__(self, *, name=None, verbose=False):
+    def __init__(self, *, name=None, description=None, verbose=False):
         self.sensor_name = name
+        self.sensor_desc = description
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
@@ -46,6 +47,7 @@ class BaseSensor(ABC):
         return {
             'sensor_type': self.sensor_type,
             'sensor_name': self.sensor_name,
+            'sensor_desc': self.sensor_desc,
             'reading_info': self.reading_info,
         }
 
