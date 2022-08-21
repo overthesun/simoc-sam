@@ -2,10 +2,11 @@
 
 import os
 import sys
-import sensor_utils
+
+from . import utils
 
 
-if sensor_utils.check_for_MCP2221():
+if utils.check_for_MCP2221():
     # We don't want to import board again if MCP2221 is already running from
     # another script
     if 'BLINKA_MCP2221' not in os.environ:
@@ -23,8 +24,8 @@ except RuntimeError:
 
 import adafruit_sgp30
 
-from basesensor import BaseSensor
-from sensor_utils import start_sensor
+from .basesensor import BaseSensor
+from .utils import start_sensor
 
 
 def tick_conversion_ethanol(signal_output):

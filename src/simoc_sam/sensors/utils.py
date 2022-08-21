@@ -1,5 +1,6 @@
 import asyncio
 import argparse
+import subprocess
 
 from datetime import datetime
 
@@ -23,6 +24,11 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
             unit = ' ' + reading_info[key]['unit']
         result.append(f'{label}: {v}{unit}')
     return f'{sensor_name}|{timestamp}|{n:<3}  {"; ".join(result)}'
+
+
+def check_for_MCP2221():
+    """Check to see if the MCP2221 is connected"""
+    return b'MCP2221' in subprocess.check_output("lsusb")
 
 
 def parse_args(*, read_delay=1, port=8080):
