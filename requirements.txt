@@ -1,0 +1,6 @@
+python-socketio
+aiohttp
+
+hidapi
+Adafruit-Blinka
+adafruit-circuitpython-scd30

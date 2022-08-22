@@ -11,8 +11,8 @@ import subprocess
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
-DEPS = ['python-socketio', 'aiohttp']
-DEV_DEPS = ['pytest', 'pytest-asyncio']
+DEPS = 'requirements.txt'
+DEV_DEPS = 'dev-requirements.txt'
 
 COMMANDS = {}
 
@@ -50,7 +50,8 @@ def create_venv():
     return (
         run([sys.executable, '-m', 'venv', 'venv']) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
-        run([VENV_PY, '-m', 'pip', 'install', *DEPS, *DEV_DEPS]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-r', DEPS]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-r', DEV_DEPS]) and
         run([VENV_PY, '-m', 'pip', 'install', '-e', '.'])
     )
 
