@@ -1,6 +1,6 @@
-from contextlib import ExitStack
-
 import asyncio
+
+from contextlib import ExitStack
 
 from .basesensor import SIOWrapper
 from .utils import parse_args, get_sensor_info_from_cfg

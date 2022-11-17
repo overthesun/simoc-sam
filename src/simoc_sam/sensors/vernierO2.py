@@ -14,7 +14,7 @@ class VernierO2(BaseSensor):
             raise ValueError('Missing device. Try running with vernier.py')
         super().__init__(name=name, **kwargs)
         self.device = gdx_lite(device)
-        self.device.select_sensors([1,2,3])  # o2, temp-corrected o2, temp
+        self.device.select_sensors([1, 2, 3])  # o2, temp-corrected o2, temp
         self.device.start()
 
     def read_sensor_data(self):
@@ -23,12 +23,11 @@ class VernierO2(BaseSensor):
         o2_percent = measurements[0]
         # o2_temp_corrected = measurements[1]  # For rapid temp fluctations
         temp = measurements[2]
-        self.last_reading = dict(o2=o2_percent, temp=temp)
         if self.verbose:
             print(f'O2: {o2_percent:2.2f}%; Temperature: ',
                   f'{temp:2.1f}°C; [{self.sensor_type}]')
         return dict(o2=o2_percent, temp=temp)
 
 if __name__ == '__main__':
-    raise ValueError('Vernier sensors cannot be launched independently.')
+    sys.exit('Vernier sensors cannot be launched independently.')
     # start_sensor(VernierO2)
