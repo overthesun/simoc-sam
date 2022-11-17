@@ -1,7 +1,7 @@
 #!/bin/sh
 # set vars
 SNAME=SAM
-SIOPORT=8080
+SIOPORT=8081
 # activate venv
 echo -n 'Activating venv...   '
 . venv/bin/activate

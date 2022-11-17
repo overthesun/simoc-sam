@@ -88,8 +88,8 @@ async def test_siowrapper(sensor):
     # mock the socketio.AsyncClient instance
     siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
     # start the client and check it connects to the server
-    await siowrapper.start(8080)
-    sio_ac.connect.assert_awaited_with('http://localhost:8080')
+    await siowrapper.start(8081)
+    sio_ac.connect.assert_awaited_with('http://localhost:8081')
     # check that sensor registers itself on connect
     await siowrapper.connect()
     sensor_info = {'sensor_type': 'TestSensor', 'sensor_name': None,

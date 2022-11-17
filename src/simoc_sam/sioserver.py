@@ -158,4 +158,4 @@ async def init_app(app):
 
 if __name__ == '__main__':
     app = create_app()
-    web.run_app(init_app(app))
+    web.run_app(init_app(app), port=8081)
