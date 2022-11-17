@@ -15,6 +15,7 @@ HAB_INFO = dict(humans=4, volume=272)
 SENSOR_INFO = dict()
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
+SENSOR_MANAGERS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
@@ -39,11 +40,24 @@ def disconnect(sid):
     # remove the sid from the other groups if present
     CLIENTS.discard(sid)
     if sid in SENSORS:
+        print('Removing disconnected sensor:', sid)
         SENSORS.remove(sid)
+        del SENSOR_INFO[sid]
         del SENSOR_READINGS[sid]
+    if sid in SENSOR_MANAGERS:
+        print('Removing disconnected sensor manager:', sid)
+        SENSOR_MANAGERS.remove(sid)
 
 
 # new clients events
+
+@sio.on('register-sensor-manager')
+async def register_sensor_manager(sid):
+    """Record new sensor manager, start sensors by calling refresh-sensors"""
+    print('New sensor manager connected:', sid)
+    SENSOR_MANAGERS.add(sid)
+    print('Initializing sensors on', sid)
+    await sio.emit('refresh-sensors', to=sid)
 
 @sio.on('register-sensor')
 async def register_sensor(sid, sensor_info):
@@ -94,6 +108,14 @@ async def sensor_reading(sid, reading):
     SENSOR_READINGS[sid].append(reading)
     sensor_info = SENSOR_INFO[sid]
     print(format_reading(reading, sensor_info=sensor_info))
+
+@sio.on('refresh-sensors')
+async def refresh_sensors(sid, sensor_manager_id=None):
+    """Forward the refresh-sensor call to one or all sensor managers"""
+    print('Refreshing sensors (from server)')
+    for sm_id in SENSOR_MANAGERS:
+        if sensor_manager_id is None or sm_id == sensor_manager_id:
+            await sio.emit('refresh-sensors', to=sm_id)
 
 def get_timestamp():
     """Return the current timestamp as a string."""
