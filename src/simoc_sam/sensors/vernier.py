@@ -15,10 +15,10 @@ def init_sensors():
         serial_number = device._serial_number
         if name.startswith('GDX-CO2'):
             print(f'Found CO2 sensor {serial_number}; starting device...')
-            sensor_classes.append((VernierCO2, device, dict(sensor_id=serial_number)))
+            sensor_classes.append((VernierCO2, device, dict(id=serial_number)))
         elif name.startswith('GDX-O2'):
             print(f'Found O2 sensor {serial_number}; starting deivce...')
-            sensor_classes.append((VernierO2, device, dict(sensor_id=serial_number)))
+            sensor_classes.append((VernierO2, device, dict(id=serial_number)))
         else:
             print(f'Found unrecognized device: {name}')
             break
