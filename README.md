@@ -57,15 +57,15 @@ docker build . -t sioserver
 
 You can then start the container with:
 ```sh
-docker run --rm -it -p 8080:8080 sioserver
+docker run --rm -it -p 8081:8080 sioserver
 ```
 
 Once the container is running you can access the test client at
-http://0.0.0.0:8080/
+http://0.0.0.0:8081/
 
 
-If you want to use a different port, use e.g. `-p 8081:8080` and
-open http://0.0.0.0:8081/ instead.
+If you want to use a different port, use e.g. `-p 8082:8080` and
+open http://0.0.0.0:8082/ instead.
 
 When the image is built, both the server and the client (and all other files)
 are copied in the `/sioserver` directory of the container.  This means that
@@ -84,7 +84,7 @@ The repository includes two socketio clients:
 * A JS one in `index.html`
 * A standalone Python one (`sioclient.py`)
 
-To access the JS client simply open http://0.0.0.0:8080/ in the browser,
+To access the JS client simply open http://0.0.0.0:8081/ in the browser,
 with the server running inside or outside the Docker container.
 
 To run the Python client run `python3 sioclient.py <port>`.  You can run
@@ -93,7 +93,7 @@ the server inside the container and the Python client inside or outside.
 Regardless of the setup you choose, you must ensure that you are using the
 correct port either in the URL (for the JS client) or as a command line
 argument (for the Python client).  By default the server will serve on
-port `8080`, unless you specified a different port with e.g. `-p 8081:8080`
+port `8081`, unless you specified a different port with e.g. `-p 8082:8080`
 while running the server inside the container.
 
 
