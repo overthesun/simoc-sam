@@ -1,3 +1,5 @@
+import sys
+
 from .basesensor import BaseSensor
 from .vernier_utils import gdx_lite
 

@@ -32,7 +32,7 @@ tmux select-pane -t 0 -T "Server"
 tmux select-pane -t 1 -T "Vernier"
 tmux select-pane -t 2 -T "MockSensor"
 tmux select-pane -t 3 -T "SCD30"
-tmux select-pane -t 4 -T "Client 2"
+tmux select-pane -t 4 -T "Client 1"
 # attach to the session
 tmux attach-session -t $SNAME
 # deactivate venv when leaving
