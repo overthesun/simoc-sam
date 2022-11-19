@@ -10,15 +10,9 @@
 <script>
 // see https://socket.io/docs/v4/client-initialization/
 var socket = null
-const SENSORS_INFO = {}
+var sensors_info = {}
 
 document.addEventListener("DOMContentLoaded", function(event) {
-    const textarea = document.getElementById('logbox')
-    const msgbox = document.getElementById('msgbox')
-    const numbox = document.getElementById('numbox')
-    textarea.value = 'Status log:\n'
-    msgbox.value = 'test'
-    numbox.value = '10'
     window.setInterval(function() {
         const title = ' Socketio Test Server'
         if (socket?.connected) {
@@ -31,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
 })
 
 function init_socket() {
-    console.log('Initializing socket...')
+    log_event('Initializing socket...')
     socket = io()
     socket.on('connect', () => {
         log_event('Connected to server')
@@ -50,13 +44,14 @@ function init_socket() {
     })
     socket.on('sensor-info', (info) => {
         log_event(`Sensor info: ${JSON.stringify(info, null, '\t')}`)
-        Object.assign(SENSORS_INFO, info)
+        sensors_info = info
     })
     socket.on('step-batch',  (batch) => {
         //log_event(`Received a batch of ${batch.length} step from the server:`)
         batch.forEach((step) => {
-            log_event(format_reading(step))
-            // log_event(`  ${step.step_num}: CO2: ${step.co2_ppm.toFixed(1)}ppm; Temperature: ${step.temp.toFixed(2)}°; Humidity: ${step.hum_perc.toFixed(2)}%`)
+            Object.entries(step.readings).forEach(([sid, reading]) => {
+                log_event(format_reading(reading, sid))
+            })
         })
     })
     socket.on('log', log_event)
@@ -77,35 +72,28 @@ function disconnect() {
     socket = null
 }
 
-function send_msg() {
+function refresh_sensors() {
     if (socket === null) {
         connect()
     }
-    const msg = document.getElementById('msgbox').value
-    log_event(`Sending msg: ${msg}`)
-    socket.emit('msg', msg)
-}
-
-function get_data() {
-    if (socket === null) {
-        connect()
+    const sensor_manager_id = document.getElementById('sensor_manager_id').value
+    if (!sensor_manager_id) {
+        log_event('Refreshing all sensor managers')
+    } else {
+        log_event(`Refreshing sensor manager: ${sensor_manager_id}`)
     }
-    const n =  document.getElementById('numbox').value
-    log_event(`Requesting ${n} random numbers`)
-    socket.emit('get_data', n)
+    socket.emit('refresh-sensors', sensor_manager_id)
 }
 
 function log_event(event) {
-    console.log(event)
     const textarea = document.getElementById('logbox')
-    textarea.value += event + '\n'
+    textarea.value += event + '\n\n'
     textarea.scrollTop = textarea.scrollHeight
 }
-function format_reading(reading) {
-    // TODO get info from the right sensor
-    let {step_num, timestamp, ...data} = reading
+function format_reading(reading, sid) {
+    let {n, timestamp, ...data} = reading
     timestamp = timestamp.split('.')[0] // remove millisec
-    const reading_info = Object.values(SENSORS_INFO)[0].reading_info
+    const {reading_info, sensor_name, ..._} = sensors_info[sid]
     let result = []
     Object.entries(data).forEach(([key, value]) => {
         let v = (typeof value === 'number') ? value.toFixed(2) : value
@@ -117,7 +105,7 @@ function format_reading(reading) {
         }
         result.push(`${label}: ${v}${unit}`)
     })
-    return ` ${step_num}|${timestamp}  ` + result.join('; ')
+    return ` ${sensor_name}|${n}|${timestamp}  ` + result.join('; ')
 }
 </script>
 
@@ -143,6 +131,7 @@ textarea {
     color: #0e0;
     background-color: #111;
     padding: 1em;
+    min-height: 200px;
 }
 </style>
 
@@ -152,10 +141,8 @@ textarea {
 <body>
         <button onclick="connect()">Connect</button>
         <button onclick="disconnect()">Disconnect</button>
-        <input type="text" placeholder="Enter message" id="msgbox">
-        <button onclick="send_msg()">Send message</button>
-        <input type="number" min="0" max="10" id="numbox">
-        <button onclick="get_data()">Get random nums</button>
+        <input type="text" placeholder="Sensor Manager ID" id="sensor_manager_id">
+        <button onclick="refresh_sensors()">Refresh Sensors</button>
         <textarea rows="20" readonly id="logbox"></textarea>
 </body>
 
