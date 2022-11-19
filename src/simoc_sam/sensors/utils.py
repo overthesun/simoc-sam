@@ -32,7 +32,7 @@ def check_for_MCP2221():
     return b'MCP2221' in subprocess.check_output("lsusb")
 
 
-def parse_args(*, read_delay=1, port=8080):
+def parse_args(*, read_delay=1, port=8081):
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=int,

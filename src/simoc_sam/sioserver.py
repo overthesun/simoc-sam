@@ -15,6 +15,7 @@ HAB_INFO = dict(humans=4, volume=272)
 SENSOR_INFO = dict()
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
+SENSOR_MANAGERS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
@@ -39,17 +40,32 @@ def disconnect(sid):
     # remove the sid from the other groups if present
     CLIENTS.discard(sid)
     if sid in SENSORS:
+        print('Removing disconnected sensor:', sid)
         SENSORS.remove(sid)
+        del SENSOR_INFO[sid]
         del SENSOR_READINGS[sid]
+    if sid in SENSOR_MANAGERS:
+        print('Removing disconnected sensor manager:', sid)
+        SENSOR_MANAGERS.remove(sid)
 
 
 # new clients events
+
+@sio.on('register-sensor-manager')
+async def register_sensor_manager(sid):
+    """Record new sensor manager, start sensors by calling refresh-sensors"""
+    print('New sensor manager connected:', sid)
+    SENSOR_MANAGERS.add(sid)
+    print('Initializing sensors on', sid)
+    await sio.emit('refresh-sensors', to=sid)
 
 @sio.on('register-sensor')
 async def register_sensor(sid, sensor_info):
     """Handle new sensors and request sensor data."""
     print('New sensor connected:', sid)
     print('Sensor info:', sensor_info)
+    # TODO: Index by sensor_id rather than sid (socketio address) so that
+    # we can save and re-use the info, despite updated sid.
     SENSORS.add(sid)
     SENSOR_INFO[sid] = sensor_info
     await emit_to_subscribers('sensor-info', SENSOR_INFO)
@@ -95,26 +111,17 @@ async def sensor_reading(sid, reading):
     sensor_info = SENSOR_INFO[sid]
     print(format_reading(reading, sensor_info=sensor_info))
 
+@sio.on('refresh-sensors')
+async def refresh_sensors(sid, sensor_manager_id=None):
+    """Forward the refresh-sensor call to one or all sensor managers"""
+    print('Refreshing sensors (from server)')
+    for sm_id in SENSOR_MANAGERS:
+        if sensor_manager_id is None or sm_id == sensor_manager_id:
+            await sio.emit('refresh-sensors', to=sm_id)
+
 def get_timestamp():
     """Return the current timestamp as a string."""
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-
-
-
-# test events (obsolete)
-
-@sio.event
-async def msg(sid, data):
-    print('msg:', data)
-    await sio.emit('log', f'Server received: {data}')
-
-@sio.event
-async def get_data(sid, n):
-    print('get_data:', n)
-    for x in range(int(n)):
-        data = f'Random num {x+1}: {random.randint(1, 10000)}'
-        await sio.emit('send_data', data)
-        await asyncio.sleep(1)
 
 
 # main loop that broadcasts bundles
@@ -158,4 +165,4 @@ async def init_app(app):
 
 if __name__ == '__main__':
     app = create_app()
-    web.run_app(init_app(app))
+    web.run_app(init_app(app), port=8081)
