@@ -10,15 +10,16 @@ processes = dict()
 
 def terminate_all():
     """Stop all sensor processes"""
-    global processes
     for sensor, process in processes.items():
         print(f'Killing {sensor}')
         process.send_signal(signal.SIGINT)
         process.communicate()
-    processes = dict()
+    processes.clear()
 
 def start_all():
     """Attempt to start all sensor types"""
+    # TODO: Generate list by scanning sensors dir or calling method on each
+    # class found in dir
     sensors_to_start = ['scd30', 'vernier', 'mocksensor']
     for sensor in sensors_to_start:
         process = subprocess.Popen(['python3', '-m', f'simoc_sam.sensors.{sensor}'])

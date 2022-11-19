@@ -64,6 +64,8 @@ async def register_sensor(sid, sensor_info):
     """Handle new sensors and request sensor data."""
     print('New sensor connected:', sid)
     print('Sensor info:', sensor_info)
+    # TODO: Index by sensor_id rather than sid (socketio address) so that
+    # we can save and re-use the info, despite updated sid.
     SENSORS.add(sid)
     SENSOR_INFO[sid] = sensor_info
     await emit_to_subscribers('sensor-info', SENSOR_INFO)
