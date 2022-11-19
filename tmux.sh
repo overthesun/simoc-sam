@@ -13,9 +13,9 @@ tmux new-session -s $SNAME -d -x "$(tput cols)" -y "$(tput lines)"
 tmux send-keys -t $SNAME "python -m simoc_sam.sioserver" Enter
 # create 4 more panes and run the sensors and clients
 tmux split-window -h -p 65
-tmux send-keys -t $SNAME 'sleep 5' Enter "python -m simoc_sam.sensors.scd30 -v --port $SIOPORT" Enter
+tmux send-keys -t $SNAME 'sleep 5' Enter "python -m simoc_sam.sensors.vernier -v --port $SIOPORT" Enter
 tmux split-window -v
-tmux send-keys -t $SNAME 'sleep 12' Enter "python -m simoc_sam.sioclient $SIOPORT" Enter
+tmux send-keys -t $SNAME 'sleep 12' Enter "python -m simoc_sam.sensors.scd30 -v --port $SIOPORT" Enter
 tmux split-window -h -p 50
 tmux send-keys -t $SNAME 'sleep 17' Enter "python -m simoc_sam.sioclient $SIOPORT" Enter
 tmux select-pane -t 1
@@ -29,10 +29,10 @@ tmux set -g mouse on
 tmux set -g pane-border-status top
 tmux set -g pane-border-format "#{pane_title}"
 tmux select-pane -t 0 -T "Server"
-tmux select-pane -t 1 -T "SCD-30"
+tmux select-pane -t 1 -T "Vernier"
 tmux select-pane -t 2 -T "MockSensor"
-tmux select-pane -t 3 -T "Client 1"
-tmux select-pane -t 4 -T "Client 2"
+tmux select-pane -t 3 -T "SCD30"
+tmux select-pane -t 4 -T "Client 1"
 # attach to the session
 tmux attach-session -t $SNAME
 # deactivate venv when leaving
