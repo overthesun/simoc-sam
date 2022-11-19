@@ -79,10 +79,11 @@ function refresh_sensors() {
     const sensor_manager_id = document.getElementById('sensor_manager_id').value
     if (!sensor_manager_id) {
         log_event('Refreshing all sensor managers')
+        socket.emit('refresh-sensors')
     } else {
         log_event(`Refreshing sensor manager: ${sensor_manager_id}`)
+        socket.emit('refresh-sensors', sensor_manager_id)
     }
-    socket.emit('refresh-sensors', sensor_manager_id)
 }
 
 function log_event(event) {
