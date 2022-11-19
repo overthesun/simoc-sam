@@ -100,23 +100,6 @@ def get_timestamp():
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
-
-# test events (obsolete)
-
-@sio.event
-async def msg(sid, data):
-    print('msg:', data)
-    await sio.emit('log', f'Server received: {data}')
-
-@sio.event
-async def get_data(sid, n):
-    print('get_data:', n)
-    for x in range(int(n)):
-        data = f'Random num {x+1}: {random.randint(1, 10000)}'
-        await sio.emit('send_data', data)
-        await asyncio.sleep(1)
-
-
 # main loop that broadcasts bundles
 
 async def emit_readings():
