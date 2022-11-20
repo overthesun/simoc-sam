@@ -4,4 +4,5 @@ aiohttp
 hidapi
 Adafruit-Blinka
 adafruit-circuitpython-scd30
+adafruit-circuitpython-sgp30
 godirect
