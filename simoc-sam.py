@@ -85,6 +85,37 @@ def run_tmux():
     run(['./tmux.sh'])
 
 
+VERNIER_USB_RULES = """\
+SUBSYSTEM=="usb", ATTRS{idVendor}=="08f7", MODE="0666"
+SUBSYSTEM=="usb_device", ATTRS{idVendor}=="08f7", MODE="0666"
+"""
+MCP2221_RULE = """\
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTR{idProduct}=="00dd", MODE="0666"
+"""
+USB_RULES_DIR = '/etc/udev/rules.d/'
+
+@cmd
+def add_vernier_rules():
+    """Add Linux-specific USB rules for Vernier sensors access."""
+    vernier_fname = 'vstlibusb.rules'
+    with open(vernier_fname, 'w') as f:
+        f.write(VERNIER_USB_RULES)
+    return run(['sudo', 'mv', vernier_fname, USB_RULES_DIR])
+
+@cmd
+def add_mcp_rules():
+    """Add Linux-specific USB rules for Adafruit MCP2221 access."""
+    mcp_fname = '99-mcp2221.rules'
+    with open(mcp_fname, 'w') as f:
+        f.write(MCP2221_RULE)
+    return run(['sudo', 'mv', mcp_fname, USB_RULES_DIR])
+
+@cmd
+def add_usb_rules():
+    """Add Linux-specific rules for USB devices access."""
+    return add_vernier_rules() and add_mcp_rules()
+
+
 def create_help(cmds):
     help = ['Full list of available commands:']
     for cmd, func in cmds.items():
