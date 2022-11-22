@@ -5,6 +5,11 @@ import subprocess
 
 import socketio
 
+from .sensors import utils
+
+# default host:port of the sioserver
+SIO_HOST, SIO_PORT = utils.get_sioserver_addr()
+
 sio = socketio.AsyncClient()
 processes = dict()
 
@@ -22,6 +27,7 @@ def start_all():
     # class found in dir
     sensors_to_start = ['scd30', 'vernier', 'mocksensor']
     for sensor in sensors_to_start:
+        print(f'Attempting to start {sensor}...')
         process = subprocess.Popen(['python3', '-m', f'simoc_sam.sensors.{sensor}'])
         processes[sensor] = process
 
@@ -42,17 +48,16 @@ async def connect():
 async def disconnect():
     print('Server disconnected')
 
-async def main(port=None):
+async def main(host=SIO_HOST, port=SIO_PORT):
     """Connect to the server and register as a sensor manager."""
     # connect to the server and wait
-    if port is None:
-        port = 8081
     try:
-        await sio.connect(f'http://localhost:{port}')
+        await sio.connect(f'http://{host}:{port}')
         await sio.wait()
     finally:
         terminate_all()
 
 if __name__ == '__main__':
-    port = sys.argv[1] if len(sys.argv) > 1 else None
-    asyncio.run(main(port))
+    parser = utils.get_addr_argparser()
+    args = parser.parse_args()
+    asyncio.run(main(args.host, args.port))

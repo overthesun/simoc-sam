@@ -1,3 +1,4 @@
+import os
 import asyncio
 import argparse
 import subprocess
@@ -32,13 +33,27 @@ def check_for_MCP2221():
     return b'MCP2221' in subprocess.check_output("lsusb")
 
 
-def parse_args(*, read_delay=1, port=8081):
+def get_sioserver_addr():
+    addr = os.environ.get('SIOSERVER_ADDR', 'localhost:8081')
+    host, port = addr.split(':')
+    return host, port
+
+
+def get_addr_argparser():
+    SIO_HOST, SIO_PORT = get_sioserver_addr()
     parser = argparse.ArgumentParser()
+    parser.add_argument('--host', default=SIO_HOST,
+                        help='The hostname of the sioserver.')
+    parser.add_argument('--port', default=SIO_PORT, type=int,
+                        help='The port used by the sioserver.')
+    return parser
+
+
+def parse_args(*, read_delay=1, port=8081):
+    parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=int,
                         help='How many seconds between readings.')
-    parser.add_argument('--port', default=None, type=str,
-                        help='The port used to connect to the socketio server.')
     parser.add_argument('--no-sio', action='store_true',
                         help='Run the sensor without socketio.')
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -80,6 +95,7 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
             for reading in sensor.iter_readings(delay=args.delay):
                 pass  # the sensor already prints the readings when verbose
         else:
-            delay, verbose, port = args.delay, args.verbose_sio, args.port
+            delay, verbose = args.delay, args.verbose_sio
+            host, port = args.host, args.port
             siowrapper = SIOWrapper(sensor, read_delay=delay, verbose=verbose)
-            asyncio.run(siowrapper.start(port))
+            asyncio.run(siowrapper.start(host, port))
