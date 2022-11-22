@@ -1,10 +1,16 @@
 import time
+import random
 import asyncio
 
 from datetime import datetime
 from abc import ABC, abstractmethod
 
 import socketio
+
+
+def random_id(length=6):
+    """Return a random hexadecimal string of specified length"""
+    return ''.join(random.choice('0123456789ABCDEF') for i in range(length))
 
 
 class BaseSensor(ABC):
@@ -26,7 +32,7 @@ class BaseSensor(ABC):
     def __init__(self, *, name=None, id=None, description=None,
                  verbose=False):
         self.sensor_name = name
-        self.sensor_id = id
+        self.sensor_id = id or random_id()
         self.sensor_desc = description
         self.verbose = verbose
         # the total number of values read through iter_readings
