@@ -3,8 +3,11 @@ import asyncio
 
 import socketio
 
-from .sensors.utils import format_reading
+from .sensors import utils
 
+
+# default host:port of the sioserver
+SIO_HOST, SIO_PORT = utils.get_sioserver_addr()
 
 sio = socketio.AsyncClient()
 
@@ -47,19 +50,18 @@ async def step_batch(batch):
     for bundle in batch:
         for sensor, reading in bundle['readings'].items():
             sensor_info = SENSOR_INFO[sensor]
-            print(format_reading(reading, sensor_info=sensor_info))
+            print(utils.format_reading(reading, sensor_info=sensor_info))
 
 # main
 
-async def main(port=None):
+async def main(host=SIO_HOST, port=SIO_PORT):
     """Connect to the server and register as a client."""
-    if port is None:
-        port = '5000'
     # connect to the server and wait
-    await sio.connect(f'http://localhost:{port}')
+    await sio.connect(f'http://{host}:{port}')
     await sio.wait()
 
 
 if __name__ == '__main__':
-    port = sys.argv[1] if len(sys.argv) > 1 else None
-    asyncio.run(main(port))
+    parser = utils.get_addr_argparser()
+    args = parser.parse_args()
+    asyncio.run(main(args.host, args.port))
