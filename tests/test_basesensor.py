@@ -88,7 +88,7 @@ async def test_siowrapper(sensor):
     # mock the socketio.AsyncClient instance
     siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
     # start the client and check it connects to the server
-    await siowrapper.start(8081)
+    await siowrapper.start('localhost', 8081)
     sio_ac.connect.assert_awaited_with('http://localhost:8081')
     # check that sensor registers itself on connect
     await siowrapper.connect()
@@ -104,3 +104,12 @@ async def test_siowrapper(sensor):
     assert len(calls) == 3
     expected_events = ['register-sensor', 'sensor-reading', 'sensor-reading']
     assert [c.args[0] for c in calls] == expected_events
+
+@pytest.mark.asyncio
+async def test_siowrapper_custom_addr(sensor):
+    siowrapper = SIOWrapper(sensor, read_delay=0)
+    # mock the socketio.AsyncClient instance
+    siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
+    # start the client and check it connects to the server
+    await siowrapper.start('anotherhost', 666)
+    sio_ac.connect.assert_awaited_with('http://anotherhost:666')
