@@ -3,7 +3,7 @@ import asyncio
 from contextlib import ExitStack
 
 from .basesensor import SIOWrapper
-from .utils import parse_args, get_sensor_info_from_cfg
+from .utils import parse_args
 
 def start_sensors(sensor_classes):
     """Initialize multiple Vernier sensors."""
@@ -13,10 +13,6 @@ def start_sensors(sensor_classes):
             v = args.verbose_sensor
             sensors = []
             for (sensor_cls, device, kwargs) in sensor_classes:
-                sensor_info = get_sensor_info_from_cfg(sensor_cls.sensor_type)
-                for attr in ['name', 'description']:
-                    if attr not in kwargs and sensor_info and attr in sensor_info:
-                        kwargs[attr] = sensor_info[attr]
                 sensors.append(stack.enter_context(sensor_cls(verbose=v, device=device, **kwargs)))
             delay, verbose, port = args.delay, args.verbose_sio, args.port
             wrappers = [SIOWrapper(sensor, read_delay=delay, verbose=verbose)
