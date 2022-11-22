@@ -87,7 +87,7 @@ The repository includes two socketio clients:
 To access the JS client simply open http://0.0.0.0:8081/ in the browser,
 with the server running inside or outside the Docker container.
 
-To run the Python client run `python3 sioclient.py <port>`.  You can run
+To run the Python client run `python3 sioclient.py`.  You can run
 the server inside the container and the Python client inside or outside.
 
 Regardless of the setup you choose, you must ensure that you are using the
@@ -144,11 +144,11 @@ Start server/sensor(s)/client(s) separately:
 # start the Docker container and the socketio server
 docker run --rm -it -p 8081:8080 -v `pwd`:/sioserver sioserver
 # start the fake sensor (on a new terminal tab on the host machine)
-python3 mocksensor.py -v --port 8081
+python3 mocksensor.py -v
 # start the client (on a new terminal tab on the host machine)
-python3 sioclient.py 8081
+python3 sioclient.py
 # start a live sensor (on a new terminal tab on the host machine)
-python3 scd30.py -v --port 8081
+python3 scd30.py -v
 
 ```
 

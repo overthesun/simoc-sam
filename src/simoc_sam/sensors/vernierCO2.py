@@ -20,6 +20,9 @@ class VernierCO2(BaseSensor):
         self.device.select_sensors([1, 2, 3])
         self.device.start()
 
+    def __exit__(self, type, value, traceback):
+        self.device.close()
+
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
         measurements = self.device.read()
