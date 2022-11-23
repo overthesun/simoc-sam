@@ -1,5 +1,4 @@
-import asyncio
-import random
+import configparser
 
 from datetime import datetime
 from collections import defaultdict, deque
@@ -54,6 +53,13 @@ def disconnect(sid):
 
 # new clients events
 
+def get_sensor_info_from_cfg(sensor_id, cfg_file='config.cfg'):
+    config = configparser.ConfigParser()
+    config.read(cfg_file)
+    for name, section in config.items():
+        if name.lower() == sensor_id.lower():
+            return dict(section)
+
 @sio.on('register-sensor-manager')
 async def register_sensor_manager(sid):
     """Record new sensor manager, start sensors by calling refresh-sensors"""
@@ -66,10 +72,18 @@ async def register_sensor_manager(sid):
 async def register_sensor(sid, sensor_info):
     """Handle new sensors and request sensor data."""
     print('New sensor connected:', sid)
-    print('Sensor info:', sensor_info)
     # TODO: Index by sensor_id rather than sid (socketio address) so that
     # we can save and re-use the info, despite updated sid.
     SENSORS.add(sid)
+    # Load sensor metadata from config file
+    sensor_id = sensor_info.get('sensor_id')
+    if sensor_id:
+        sensor_meta = get_sensor_info_from_cfg(sensor_id)
+        if sensor_meta:
+            for attr in ['name', 'description']:
+                if attr in sensor_meta and not sensor_info[attr]:
+                    sensor_info[attr] = sensor_meta[attr]
+    print('Sensor info:', sensor_info)
     SENSOR_INFO[sid] = sensor_info
     await emit_to_subscribers('sensor-info', SENSOR_INFO)
     # sensor is added once we set up a room
