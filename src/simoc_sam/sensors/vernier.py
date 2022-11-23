@@ -23,7 +23,10 @@ def init_sensors():
             print(f'Found unrecognized device: {name}')
             break
     print(sensor_classes)
-    start_sensors(sensor_classes)
+    try:
+        start_sensors(sensor_classes)
+    finally:
+        gd.quit()
 
 
 if __name__ == '__main__':

@@ -14,10 +14,11 @@ def start_sensors(sensor_classes):
             sensors = []
             for (sensor_cls, device, kwargs) in sensor_classes:
                 sensors.append(stack.enter_context(sensor_cls(verbose=v, device=device, **kwargs)))
-            delay, verbose, port = args.delay, args.verbose_sio, args.port
+            delay, verbose = args.delay, args.verbose_sio
+            host, port = args.host, args.port
             wrappers = [SIOWrapper(sensor, read_delay=delay, verbose=verbose)
                         for sensor in sensors]
-            await asyncio.gather(*[wrapper.start(port) for wrapper in wrappers])
+            await asyncio.gather(*[wrapper.start(host, port) for wrapper in wrappers])
     asyncio.run(start_concurrently())
 
 class gdx_lite:

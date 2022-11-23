@@ -7,8 +7,11 @@ import socketio
 
 from aiohttp import web
 
-from .sensors.utils import format_reading
+from .sensors import utils
 
+
+# default host:port of the sioserver
+SIO_HOST, SIO_PORT = utils.get_sioserver_addr()
 
 HAB_INFO = dict(humans=4, volume=272)
 SENSOR_INFO = dict()
@@ -18,8 +21,8 @@ SENSOR_MANAGERS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
-# TODO: add non-localhost origin for deployed setup or find a better fix
-allowed_origins = ['http://localhost:8080', 'http://localhost:8081']
+
+allowed_origins = [f'http://{SIO_HOST}:{SIO_PORT}']
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
 
@@ -115,7 +118,7 @@ async def sensor_batch(sid, batch):
     SENSOR_READINGS[sid].extend(batch)
     sensor_info = SENSOR_INFO[sid]
     for reading in batch:
-        print(format_reading(reading, sensor_info=sensor_info))
+        print(utils.format_reading(reading, sensor_info=sensor_info))
 
 @sio.on('sensor-reading')
 async def sensor_reading(sid, reading):
@@ -123,7 +126,7 @@ async def sensor_reading(sid, reading):
     #print(f'Received a reading from sensor {sid}:')
     SENSOR_READINGS[sid].append(reading)
     sensor_info = SENSOR_INFO[sid]
-    print(format_reading(reading, sensor_info=sensor_info))
+    print(utils.format_reading(reading, sensor_info=sensor_info))
 
 @sio.on('refresh-sensors')
 async def refresh_sensors(sid, sensor_manager_id=None):

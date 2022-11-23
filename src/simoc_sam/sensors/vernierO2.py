@@ -19,6 +19,9 @@ class VernierO2(BaseSensor):
         self.device.select_sensors([1, 2, 3])  # o2, temp-corrected o2, temp
         self.device.start()
 
+    def __exit__(self, type, value, traceback):
+        self.device.close()
+
     def read_sensor_data(self):
         """Return sensor data (O2, temperature) as a dict."""
         measurements = self.device.read()
