@@ -86,7 +86,7 @@ def to_csv(batch):
 
     global fpath
     if fpath is None:
-        timestamp = datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         fpath = f'simoc_log_{timestamp}.csv'
 
     # Initialize log file w/ headers
