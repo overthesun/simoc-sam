@@ -1,5 +1,8 @@
-import sys
+import os
+import csv
+import shutil
 import asyncio
+import datetime
 
 import socketio
 
@@ -47,10 +50,70 @@ async def sensor_info(data):
 async def step_batch(batch):
     """Handle batches of step data received by the server."""
     print(f'Received a batch of {len(batch)} bundles from the server:')
+    to_csv(batch)
     for bundle in batch:
         for sensor, reading in bundle['readings'].items():
             sensor_info = SENSOR_INFO[sensor]
             print(utils.format_reading(reading, sensor_info=sensor_info))
+
+# csv
+
+fpath = None
+FIELDNAMES = ['timestamp']
+
+def to_csv(batch):
+    """Update fieldnames in logfile to latest sensor_info and write readings
+
+    Column 1 is timestamp of batch
+    Columns after that are <sensor_id>_<reading_label>, e.g. '92U81J_co2'
+    """
+    # Compile row, update FIELDNAMES
+    rows = []
+    for bundle in batch:
+        row = {'timestamp': bundle['timestamp']}
+        for sid, reading in bundle['readings'].items():
+            if not SENSOR_INFO[sid]['sensor_id']:
+                raise ValueError('sensor_id must be defined for all sensors')
+            sensor_id = SENSOR_INFO[sid]['sensor_id']
+            for field, value in reading.items():
+                if field in {'timestamp', 'n'}:
+                    continue
+                field_id = f'{sensor_id}_{field}'
+                if field_id not in FIELDNAMES:
+                    FIELDNAMES.append(field_id)
+                row[field_id] = value
+        rows.append(row)
+
+    global fpath
+    if fpath is None:
+        timestamp = datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+        fpath = f'simoc_log_{timestamp}.csv'
+
+    # Initialize log file w/ headers
+    if not os.path.exists(fpath):
+        with open(fpath, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+            writer.writeheader()
+
+    # Update log file for new columns
+    else:
+        with open(fpath, 'r') as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+            if not set(FIELDNAMES).issubset(fieldnames):
+                print('updating header')
+                with open('temp_output.csv', 'w') as f:
+                    fieldnames += [f for f in FIELDNAMES if f not in fieldnames]
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for row in reader:
+                        writer.writerow(row)
+                shutil.move('temp_output.csv', fpath)
+
+    # Write new readings
+    with open(fpath, 'a') as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writerows(rows)
 
 # main
 
