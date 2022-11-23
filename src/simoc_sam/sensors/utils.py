@@ -2,7 +2,6 @@ import os
 import asyncio
 import argparse
 import subprocess
-import configparser
 
 from datetime import datetime
 
