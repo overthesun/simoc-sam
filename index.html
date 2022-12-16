@@ -53,6 +53,7 @@ function init_socket() {
                 log_event(format_reading(reading, sid))
             })
         })
+        log_event('')
     })
     socket.on('log', log_event)
     socket.on('send_data', log_event)
@@ -88,7 +89,7 @@ function refresh_sensors() {
 
 function log_event(event) {
     const textarea = document.getElementById('logbox')
-    textarea.value += event + '\n\n'
+    textarea.value += event + '\n'
     textarea.scrollTop = textarea.scrollHeight
 }
 function format_reading(reading, sid) {
