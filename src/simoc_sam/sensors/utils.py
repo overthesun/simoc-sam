@@ -27,9 +27,13 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     return f'{sensor_name}|{timestamp}|{n:<3}  {"; ".join(result)}'
 
 
-def check_for_MCP2221():
-    """Check to see if the MCP2221 is connected"""
-    return b'MCP2221' in subprocess.check_output("lsusb")
+def import_board():
+    """Import the board module while checking for MCP2221s."""
+    if b'MCP2221' in subprocess.check_output("lsusb"):
+        os.environ['BLINKA_MCP2221'] = '1'
+        os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'
+    import board
+    return board
 
 
 def get_sioserver_addr():
