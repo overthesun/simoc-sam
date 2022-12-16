@@ -71,11 +71,11 @@ class SGP30(BaseSensor):
         eCO2 = self.sensor.eCO2  # ppm
         TVOC = self.sensor.TVOC  # ppb
         if self.verbose:
-                print(f'H2: {hydrogen:2.1f} ppm;',
+                print(f'[{self.sensor_type}] '
+                      f'H2: {hydrogen:2.1f} ppm;',
                       f'ethanol: {ethanol:2.1f} ppm;',
                       f'eCO2: {eCO2:2.1f} ppm;',
-                      f'TVOC: {TVOC:2.1f} ppb;',
-                      f'[{self.sensor_type}]')
+                      f'TVOC: {TVOC:2.1f} ppb')
         return {"H2": hydrogen, "ethanol": ethanol,
                 "eCO2": eCO2, "VolatileOrganicCompounds": TVOC}
 

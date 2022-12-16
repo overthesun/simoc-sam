@@ -42,10 +42,10 @@ class BME688(BaseSensor):
         altitude = self.sensor.altitude  # m
         gas = self.sensor.gas  # Ohms
         if self.verbose:
-            print(f'Pressure: {pressure:4.1f} hPa; Temperature: '
-                  f'{temperature:2.1f}°C; Humidity: {humidity:2.1f}%; '
-                  f'Altidude: {altitude:2.1f} m; '
-                  f'Gas Resistance: {gas:2.1f} Ohms; [{self.sensor_type}]')
+            print(f'[{self.sensor_type}] Pressure: {pressure:4.1f} hPa; '
+                  f'Temperature: {temperature:2.1f}°C; '
+                  f'Humidity: {humidity:2.1f}%; Altidude: {altitude:2.1f} m; '
+                  f'Gas Resistance: {gas:2.1f} Ohms')
         return {"temp": temperature, "rel_hum": humidity, "gas_resistance": gas,
                 "altitude": altitude, "pressure": pressure}
 
