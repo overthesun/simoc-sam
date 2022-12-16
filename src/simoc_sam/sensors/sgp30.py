@@ -51,7 +51,8 @@ class SGP30(BaseSensor):
     def __init__(self, *, name='SGP30', verbose=False):
         """Initialize the sensor."""
         super().__init__(name=name, verbose=verbose)
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
+        i2c = utils.get_sensor_i2c_bus(0x58, board.SCL, board.SDA,
+                                       frequency=100000)
         self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
         self.sensor.iaq_init()
         self.sensor.set_iaq_baseline(0x8973, 0x8AEE)  # Numbers from adafruit example

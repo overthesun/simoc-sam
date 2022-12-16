@@ -31,7 +31,7 @@ class BME688(BaseSensor):
     def __init__(self, *, name='BME688', **kwargs):
         """Initialize the sensor."""
         super().__init__(name=name, **kwargs)
-        i2c = board.I2C()
+        i2c = utils.get_sensor_i2c_bus(0x77)
         self.sensor = adafruit_bme680.Adafruit_BME680_I2C(i2c, debug=False)
 
     def read_sensor_data(self):
