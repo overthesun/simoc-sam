@@ -26,7 +26,7 @@ SUBSCRIBERS = set()
 # (e.g. localhost:8080), so we should accept that explicitly.
 # The sensors and the Python client don't send the Origin header,
 # and they work without being allowed explicitly.
-allowed_origins = [f'http://{SIO_HOST}:8080']
+allowed_origins = [f'http://{SIO_HOST}:8080', f'http://{SIO_HOST}:8081']
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
 
