@@ -84,9 +84,9 @@ async def register_sensor(sid, sensor_info):
     if sensor_id:
         sensor_meta = get_sensor_info_from_cfg(sensor_id)
         if sensor_meta:
-            for attr in ['name', 'description']:
-                if attr in sensor_meta and not sensor_info[attr]:
-                    sensor_info[attr] = sensor_meta[attr]
+            for attr in ['name', 'desc']:
+                if attr in sensor_meta and not sensor_info[f'sensor_{attr}']:
+                    sensor_info[f'sensor_{attr}'] = sensor_meta[attr]
     print('Sensor info:', sensor_info)
     SENSOR_INFO[sid] = sensor_info
     await emit_to_subscribers('sensor-info', SENSOR_INFO)
