@@ -2,6 +2,7 @@ from godirect import GoDirect
 
 from .vernierCO2 import VernierCO2
 from .vernierO2 import VernierO2
+from .vernierWTHR import VernierWTHR
 from .vernier_utils import start_sensors
 
 def init_sensors():
@@ -17,8 +18,11 @@ def init_sensors():
             print(f'Found CO2 sensor {serial_number}; starting device...')
             sensor_classes.append((VernierCO2, device, dict(id=serial_number)))
         elif name.startswith('GDX-O2'):
-            print(f'Found O2 sensor {serial_number}; starting deivce...')
+            print(f'Found O2 sensor {serial_number}; starting device...')
             sensor_classes.append((VernierO2, device, dict(id=serial_number)))
+        elif name.startswith('GDX-WTHR'):
+            print(f'Found Weather sensor {serial_number}; starting device...')
+            sensor_classes.append((VernierWTHR, device, dict(id=serial_number)))
         else:
             print(f'Found unrecognized device: {name}')
             break
