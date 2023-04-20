@@ -9,13 +9,13 @@ class VernierWTHR(BaseSensor):
         'wind_speed': dict(label='Wind Speed', unit='m/s'),
         'wind_direction': dict(label='Wind Direction', unit='°'),
         'wind_chill': dict(label='Wind Chill', unit='°C'),
-        'temperature': dict(label='Temperature', unit='°C'),
+        'temp': dict(label='Temperature', unit='°C'),
         'heat_index': dict(label='Heat Index', unit='°C'),
         'dew_point': dict(label='Dew Point', unit='°C'),
-        'relative_humidity': dict(label='Relative Humidity', unit='%'),
+        'rel_hum': dict(label='Relative Humidity', unit='%'),
         'absolute_humidity': dict(label='Absolute Humidity', unit='g/m^3'),
         'station_pressure': dict(label='Station Pressure', unit='mbar'),
-        'barometric_pressure': dict(label='Barometric Pressure', unit='mbar'),
+        'pressure': dict(label='Barometric Pressure', unit='mbar'),
         'altitude': dict(label='Altitude', unit='m'),
     }
 
@@ -38,38 +38,38 @@ class VernierWTHR(BaseSensor):
         wind_speed = measurements[0]  # m/s
         wind_direction = measurements[1]  # °
         wind_chill = measurements[2]  # °C
-        temperature = measurements[3]  # °C
+        temp = measurements[3]  # °C
         heat_index = measurements[4]  # °C
         dew_point = measurements[5]  # °C
-        relative_humidity = measurements[6]  # %
+        rel_hum = measurements[6]  # %
         absolute_humidity = measurements[7]  # g/m^3
         station_pressure = measurements[8]  # mbar
-        barometric_pressure = measurements[9]  # mbar
+        pressure = measurements[9]  # mbar
         altitude = measurements[10]  # m
 
         if self.verbose:
             print(f'Wind Speed: {wind_speed:2.1f}m/s; '
                   f'Wind Direction: {wind_direction:2.1f}°; '
                   f'Wind Chill: {wind_chill:2.1f}°C; '
-                  f'Temperature: {temperature:2.1f}°C; '
+                  f'Temperature: {temp:2.1f}°C; '
                   f'Heat Index: {heat_index:2.1f}°C; '
                   f'Dew Point: {dew_point:2.1f}°C; '
-                  f'Relative Humidity: {relative_humidity:2.1f}%; '
+                  f'Relative Humidity: {rel_hum:2.1f}%; '
                   f'Absolute Humidity: {absolute_humidity:2.1f}g/m^3; '
                   f'Station Pressure: {station_pressure:2.1f}mbar; '
-                  f'Barometric Pressure: {barometric_pressure:2.1f}mbar; '
+                  f'Barometric Pressure: {pressure:2.1f}mbar; '
                   f'Altitude: {altitude:2.1f}m; [{self.sensor_type}]')
         return dict(
             wind_speed=wind_speed,
             wind_direction=wind_direction,
             wind_chill=wind_chill,
-            temperature=temperature,
+            temp=temp,
             heat_index=heat_index,
             dew_point=dew_point,
-            relative_humidity=relative_humidity,
+            rel_hum=rel_hum,
             absolute_humidity=absolute_humidity,
             station_pressure=station_pressure,
-            barometric_pressure=barometric_pressure,
+            pressure=pressure,
             altitude=altitude,
         )
 
