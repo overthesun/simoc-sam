@@ -1,3 +1,4 @@
+import traceback
 import configparser
 
 from datetime import datetime
@@ -157,11 +158,16 @@ async def emit_readings():
             print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
             timestamp = get_timestamp()
             sensors_readings = {sid: readings[-1]
-                                for sid, readings in SENSOR_READINGS.items()}
+                                for sid, readings in SENSOR_READINGS.items()
+                                if readings}
             bundle = dict(n=n, timestamp=timestamp, readings=sensors_readings)
-            # the frontend expects a list of bundles
-            await emit_to_subscribers('step-batch', [bundle])
-            n += 1
+            try:
+                # the frontend expects a list of bundles
+                await emit_to_subscribers('step-batch', [bundle])
+                n += 1
+            except Exception as e:
+                print('!!! Failed to emit step-batch:')
+                traceback.print_exc()
         await sio.sleep(1)
 
 
