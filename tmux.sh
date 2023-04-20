@@ -1,6 +1,6 @@
 #!/bin/sh
 # set vars
-SNAME=SAM
+SNAME=${1:-SAM}  # use provided session name or SAM as default
 SIOSERVER_ADDR=localhost:8081
 # activate venv
 echo -n 'Activating venv...   '

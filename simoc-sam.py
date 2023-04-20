@@ -13,6 +13,7 @@ VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
 DEV_DEPS = 'dev-requirements.txt'
+TMUX_SNAME = 'SAM'  # tmux session name
 
 COMMANDS = {}
 
@@ -81,8 +82,11 @@ def run_server():
 @cmd
 @needs_venv
 def run_tmux():
-    """Run the tmux script."""
-    run(['./tmux.sh'])
+    """Run the tmux script (or attach to an existing session)."""
+    if run(['tmux', 'has-session', '-t', TMUX_SNAME]):
+        run(['tmux', 'attach-session', '-t', TMUX_SNAME])  # attach to sessions
+    else:
+        run(['./tmux.sh', TMUX_SNAME])  # start new sessions
 
 
 VERNIER_USB_RULES = """\
