@@ -113,7 +113,9 @@ async def register_client(sid):
 
 async def emit_to_subscribers(*args, **kwargs):
     # TODO: replace with a namespace
-    for client_id in SUBSCRIBERS:
+    # Iterate on a copy to avoid size changes
+    # caused by other threads adding/removing subs
+    for client_id in SUBSCRIBERS.copy():
         await sio.emit(*args, to=client_id, **kwargs)
 
 @sio.on('sensor-batch')
