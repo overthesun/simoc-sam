@@ -26,7 +26,7 @@ tmux set -g mouse on
 tmux set -g pane-border-status top
 tmux set -g pane-border-format "#{pane_title}"
 tmux select-pane -t 0 -T "Server"
-tmux select-pane -t 1 -T "MockSensor"
+tmux select-pane -t 1 -T "Vernier"
 tmux select-pane -t 2 -T "Client"
 tmux select-pane -t 3 -T "Shell"
 # attach to the session
