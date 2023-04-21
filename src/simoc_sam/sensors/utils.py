@@ -51,7 +51,7 @@ def get_addr_argparser():
 def parse_args(*, read_delay=1, port=8081):
     parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
-                        dest='delay', metavar='DELAY', type=int,
+                        dest='delay', metavar='DELAY', type=float,
                         help='How many seconds between readings.')
     parser.add_argument('--no-sio', action='store_true',
                         help='Run the sensor without socketio.')

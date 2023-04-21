@@ -152,6 +152,9 @@ def get_timestamp():
 
 async def emit_readings():
     """Emit a bundle with the latest reading of all sensors."""
+    args = utils.parse_args()  # TODO: create separate parser for the server
+    delay = args.delay
+    print(f'Broadcasting data every {delay} seconds.')
     n = 0
     while True:
         if SENSORS and SUBSCRIBERS:
@@ -166,14 +169,12 @@ async def emit_readings():
                 # the frontend expects a list of bundles
                 await emit_to_subscribers('step-batch', [bundle])
                 n += 1
-                if n%60 == 0:
-                    print(f'{len(SENSORS)} sensor(s); '
-                          f'{len(SUBSCRIBERS)} subscriber(s); '
-                          f'{n} readings broadcasted')
+                print(f'{len(SENSORS)} sensor(s); {len(SUBSCRIBERS)} '
+                      f'subscriber(s); {n} readings broadcasted')
             except Exception as e:
                 print('!!! Failed to emit step-batch:')
                 traceback.print_exc()
-        await sio.sleep(1)
+        await sio.sleep(delay)
 
 
 # app setup
