@@ -49,7 +49,7 @@ async def sensor_info(data):
 @sio.on('step-batch')
 async def step_batch(batch):
     """Handle batches of step data received by the server."""
-    print(f'Received a batch of {len(batch)} bundles from the server:')
+    #print(f'Received a batch of {len(batch)} bundles from the server:')
     to_csv(batch)
     for bundle in batch:
         for sensor, reading in bundle['readings'].items():
@@ -101,7 +101,7 @@ def to_csv(batch):
             reader = csv.DictReader(f)
             fieldnames = reader.fieldnames
             if not set(FIELDNAMES).issubset(fieldnames):
-                print('updating header')
+                print('Updating CSV header...')
                 with open('temp_output.csv', 'w') as f:
                     fieldnames += [f for f in FIELDNAMES if f not in fieldnames]
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
