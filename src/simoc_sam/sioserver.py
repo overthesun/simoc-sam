@@ -124,8 +124,8 @@ async def sensor_batch(sid, batch):
     #print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
     SENSOR_READINGS[sid].extend(batch)
     sensor_info = SENSOR_INFO[sid]
-    for reading in batch:
-        print(utils.format_reading(reading, sensor_info=sensor_info))
+    #for reading in batch:
+        #print(utils.format_reading(reading, sensor_info=sensor_info))
 
 @sio.on('sensor-reading')
 async def sensor_reading(sid, reading):
@@ -133,7 +133,7 @@ async def sensor_reading(sid, reading):
     #print(f'Received a reading from sensor {sid}:')
     SENSOR_READINGS[sid].append(reading)
     sensor_info = SENSOR_INFO[sid]
-    print(utils.format_reading(reading, sensor_info=sensor_info))
+    #print(utils.format_reading(reading, sensor_info=sensor_info))
 
 @sio.on('refresh-sensors')
 async def refresh_sensors(sid, sensor_manager_id=None):
@@ -157,7 +157,7 @@ async def emit_readings():
         if SENSORS and SUBSCRIBERS:
             # TODO: set up a room for the clients and broadcast to the room
             # TODO: improve ctrl+c handling
-            print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
+            #print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
             timestamp = get_timestamp()
             sensors_readings = {sid: readings[-1]
                                 for sid, readings in SENSOR_READINGS.items()
@@ -167,6 +167,10 @@ async def emit_readings():
                 # the frontend expects a list of bundles
                 await emit_to_subscribers('step-batch', [bundle])
                 n += 1
+                if n%60 == 0:
+                    print(f'{len(SENSORS)} sensor(s); '
+                          f'{len(SUBSCRIBERS)} subscriber(s); '
+                          f'{n} readings broadcasted')
             except Exception as e:
                 print('!!! Failed to emit step-batch:')
                 traceback.print_exc()
