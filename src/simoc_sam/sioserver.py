@@ -156,8 +156,7 @@ async def emit_readings():
     while True:
         if SENSORS and SUBSCRIBERS:
             # TODO: set up a room for the clients and broadcast to the room
-            # TODO: improve ctrl+c handling
-            #print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
+            # TODO: improve ctrl+c handling (see graceful shutdown)
             timestamp = get_timestamp()
             sensors_readings = {sid: readings[-1]
                                 for sid, readings in SENSOR_READINGS.items()
