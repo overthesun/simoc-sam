@@ -48,7 +48,8 @@ class VernierWTHR(BaseSensor):
         altitude = measurements[10]  # m
 
         if self.verbose:
-            print(f'Wind Speed: {wind_speed:2.1f}m/s; '
+            print(f'[{self.sensor_type}]: '
+                  f'Wind Speed: {wind_speed:2.1f}m/s; '
                   f'Wind Direction: {wind_direction:2.1f}°; '
                   f'Wind Chill: {wind_chill:2.1f}°C; '
                   f'Temperature: {temp:2.1f}°C; '
@@ -58,7 +59,7 @@ class VernierWTHR(BaseSensor):
                   f'Absolute Humidity: {absolute_humidity:2.1f}g/m^3; '
                   f'Station Pressure: {station_pressure:2.1f}mbar; '
                   f'Barometric Pressure: {pressure:2.1f}mbar; '
-                  f'Altitude: {altitude:2.1f}m; [{self.sensor_type}]')
+                  f'Altitude: {altitude:2.1f}m')
         return dict(
             wind_speed=wind_speed,
             wind_direction=wind_direction,

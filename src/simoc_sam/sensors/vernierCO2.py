@@ -28,8 +28,8 @@ class VernierCO2(BaseSensor):
         measurements = self.device.read()
         co2_ppm, temp, rel_hum = measurements
         if self.verbose:
-            print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: ',
-                  f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%; [{self.sensor_type}]')
+            print(f'[{self.sensor_type}]: CO2: {co2_ppm:4.0f}ppm; '
+                  f'Temperature: {temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
         return dict(co2=co2_ppm, temp=temp, rel_hum=rel_hum)
 
 if __name__ == '__main__':

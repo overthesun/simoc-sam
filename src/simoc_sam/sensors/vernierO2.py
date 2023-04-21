@@ -29,8 +29,8 @@ class VernierO2(BaseSensor):
         # o2_temp_corrected = measurements[1]  # For rapid temp fluctations
         temp = measurements[2]
         if self.verbose:
-            print(f'O2: {o2_percent:2.2f}%; Temperature: ',
-                  f'{temp:2.1f}°C; [{self.sensor_type}]')
+            print(f'[{self.sensor_type}] '
+                  f'O2: {o2_percent:2.2f}%; Temperature: {temp:2.1f}°C')
         return dict(o2=o2_percent, temp=temp)
 
 if __name__ == '__main__':
