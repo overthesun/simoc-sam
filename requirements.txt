@@ -1,5 +1,6 @@
 python-socketio
 aiohttp
+paho-mqtt
 
 hidapi
 Adafruit-Blinka
