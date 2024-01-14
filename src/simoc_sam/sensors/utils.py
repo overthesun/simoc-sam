@@ -5,7 +5,7 @@ import subprocess
 
 from datetime import datetime
 
-from .basesensor import SIOWrapper
+from .basesensor import SIOWrapper, MQTTWrapper
 
 
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
@@ -55,6 +55,8 @@ def parse_args(*, read_delay=1, port=8081):
                         help='How many seconds between readings.')
     parser.add_argument('--no-sio', action='store_true',
                         help='Run the sensor without socketio.')
+    parser.add_argument('--mqtt', action='store_true',
+                        help='Run the sensor with MQTT.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Enable verbose output for sensor and socketio.')
     parser.add_argument('--verbose-sensor', action='store_true',
@@ -78,6 +80,10 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
         if args.no_sio:
             for reading in sensor.iter_readings(delay=args.delay):
                 pass  # the sensor already prints the readings when verbose
+        elif args.mqtt:
+            delay, verbose, port = args.delay, args.verbose_sio, args.port
+            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
+            mqttwrapper.send_data()
         else:
             delay, verbose = args.delay, args.verbose_sio
             host, port = args.host, args.port

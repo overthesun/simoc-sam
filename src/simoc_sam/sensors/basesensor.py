@@ -1,4 +1,5 @@
 import time
+import json
 import random
 import asyncio
 
@@ -6,6 +7,8 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 
 import socketio
+
+import paho.mqtt.client as mqtt
 
 
 def random_id(length=6):
@@ -140,3 +143,57 @@ class SIOWrapper:
                 return
             # wait for the next sensor reading
             await asyncio.sleep(self.read_delay)
+
+
+class MQTTWrapper:
+    def __init__(self, sensor, *, read_delay=1, verbose=False):
+        self.sensor = sensor
+        self.read_delay = read_delay  # how long to wait between readings
+        self.verbose = verbose  # toggle verbose output
+        # instantiate the AsyncClient and register events
+        self.mqttc = mqttc = mqtt.Client()
+        mqttc.on_connect = self.on_connect
+        mqttc.on_disconnect = self.on_disconnect
+        self.connect()
+
+    def print(self, *args, **kwargs):
+        """Receive and print if self.verbose is true."""
+        if self.verbose:
+            print(*args, **kwargs)
+
+    def on_connect(self,client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT broker")
+        else:
+            print(f"Connection failed with code {rc}")
+
+    # Callback function for disconnection
+    def on_disconnect(self, client, userdata, rc):
+        print("Disconnected from MQTT broker")
+        self.connect()
+
+    def connect(self):
+        """Called when the sensor connects to the server."""
+        print('Connecting to MQTT broker...')
+        rc = self.mqttc.connect("localhost", 1883, 60)
+        if rc == 0:
+            print("Connected to MQTT broker")
+        else:
+            print(f"Connection failed with code {rc}")
+
+    def send_data(self, n=0):
+        """Called when the server requests data, runs in an endless loop."""
+        self.print('Server requested data')
+        # set the delay to 0 because iter_readings uses blocking time.sleep
+        # and replace it with a non-blocking asyncio.sleep in the for loop
+        readings = self.sensor.iter_readings(delay=0, n=n)
+        for reading in readings:
+            try:
+                print(reading)
+                self.mqttc.publish('sam/test', payload=json.dumps(reading), qos=0)
+            except Exception as e:
+                print(e)
+                print('No longer connected to the server...')
+                return
+            # wait for the next sensor reading
+            time.sleep(self.read_delay)
