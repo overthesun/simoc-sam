@@ -7,6 +7,8 @@ import argparse
 import functools
 import subprocess
 
+import hostinfo
+
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
@@ -87,6 +89,25 @@ def run_tmux():
         run(['tmux', 'attach-session', '-t', TMUX_SNAME])  # attach to sessions
     else:
         run(['./tmux.sh', TMUX_SNAME])  # start new sessions
+
+
+@cmd
+@needs_venv
+def info():
+    """Print host info about the network and sensors."""
+    hostinfo.print_info()
+
+@cmd
+@needs_venv
+def network_info():
+    """Print info about the network (hostname, addresses)."""
+    hostinfo.print_network_info()
+
+@cmd
+@needs_venv
+def sensors_info():
+    """Print info about the connected sensors."""
+    hostinfo.print_sensors_info()
 
 
 VERNIER_USB_RULES = """\
