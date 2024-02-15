@@ -7,8 +7,6 @@ import argparse
 import functools
 import subprocess
 
-import hostinfo
-
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
@@ -95,18 +93,21 @@ def run_tmux():
 @needs_venv
 def info():
     """Print host info about the network and sensors."""
+    import hostinfo
     hostinfo.print_info()
 
 @cmd
 @needs_venv
 def network_info():
     """Print info about the network (hostname, addresses)."""
+    import hostinfo
     hostinfo.print_network_info()
 
 @cmd
 @needs_venv
 def sensors_info():
     """Print info about the connected sensors."""
+    import hostinfo
     hostinfo.print_sensors_info()
 
 
