@@ -110,6 +110,12 @@ def sensors_info():
     import hostinfo
     hostinfo.print_sensors_info()
 
+@cmd
+def hosts(target=None):
+    """Print info about the other hosts in the network."""
+    import netinfo
+    netinfo.print_info(target)
+
 
 VERNIER_USB_RULES = """\
 SUBSYSTEM=="usb", ATTRS{idVendor}=="08f7", MODE="0666"

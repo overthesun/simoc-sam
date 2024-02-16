@@ -17,6 +17,7 @@ and you can run them with `python simoc-sam.py COMMAND`:
 * `run-tmux` will start the `tmux.sh` script
 * `test` will execute the tests using `pytest`
 * `info` will print host info about the network and sensors
+* `hosts` will print information about the other hosts in the network
 
 
 ## Using the `venv` manually
