@@ -11,11 +11,12 @@ operations.  The script will automatically create a venv (virtual
 environment), install the dependencies, and run the commands inside
 the venv.
 
-You can see the full list of commands with `python simoc_sam.py -h`,
-and you can run them with `python simoc_sam.py COMMAND`:
+You can see the full list of commands with `python simoc-sam.py -h`,
+and you can run them with `python simoc-sam.py COMMAND`:
 * `run-server` will start the `sioserver`
 * `run-tmux` will start the `tmux.sh` script
 * `test` will execute the tests using `pytest`
+* `info` will print host info about the network and sensors
 
 
 ## Using the `venv` manually

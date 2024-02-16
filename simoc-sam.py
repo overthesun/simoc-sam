@@ -89,6 +89,28 @@ def run_tmux():
         run(['./tmux.sh', TMUX_SNAME])  # start new sessions
 
 
+@cmd
+@needs_venv
+def info():
+    """Print host info about the network and sensors."""
+    import hostinfo
+    hostinfo.print_info()
+
+@cmd
+@needs_venv
+def network_info():
+    """Print info about the network (hostname, addresses)."""
+    import hostinfo
+    hostinfo.print_network_info()
+
+@cmd
+@needs_venv
+def sensors_info():
+    """Print info about the connected sensors."""
+    import hostinfo
+    hostinfo.print_sensors_info()
+
+
 VERNIER_USB_RULES = """\
 SUBSYSTEM=="usb", ATTRS{idVendor}=="08f7", MODE="0666"
 SUBSYSTEM=="usb_device", ATTRS{idVendor}=="08f7", MODE="0666"
