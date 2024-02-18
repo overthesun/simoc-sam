@@ -1,5 +1,6 @@
 """Script to setup and run SIMOC-SAM."""
 
+import re
 import sys
 import shutil
 import pathlib
@@ -65,6 +66,30 @@ def clean_venv():
     print(f'Removing venv dir: {VENV_DIR}')
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
+
+target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
+@cmd
+def copy_repo(target):
+    """Copy the repository to a remote host using rsync."""
+    user, host, path = target_re.fullmatch(target).groups()
+    user = user or 'pi'
+    path = path or '/home/pi/simoc-sam'
+    def rsync_cmd(user, host, path):
+        return ['rsync', '-avz', '.', f'{user}@{host}:{path}']
+    try:
+        subprocess.run(rsync_cmd(user, host, path),
+                       check=True, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+        stderr = err.stderr.decode('utf-8')
+        if (('failure in name resolution' in stderr or
+             'Could not resolve hostname' in stderr) and
+            not host.endswith('.local')):
+            print(f'Failed to resolve <{host}>.')
+            host += '.local'
+            print(f'Retrying with <{host}>...')
+            subprocess.run(rsync_cmd(user, host, path))
+        else:
+            print(stderr)
 
 @cmd
 @needs_venv
