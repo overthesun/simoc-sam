@@ -1,14 +1,12 @@
 import os
 import socket
-import netifaces
 import subprocess
 
+try:
+    import netifaces
+except ImportError:
+    netifaces = None
 
-addr_types = {
-    'MAC': netifaces.AF_LINK,
-    'IPv4': netifaces.AF_INET,
-    'IPv6': netifaces.AF_INET6,
-}
 sensors = {
     0x61: 'SCD30',
     0x77: 'BME688',
@@ -36,6 +34,11 @@ def print_addresses(ifaces_prefixes=('wl', 'bat', 'enp', 'eth')):
         print(f'No interface with the following prefixes found: {ifaces_prefixes}')
         print(f'Available interfaces: {interfaces}')
         return
+    addr_types = {
+        'MAC': netifaces.AF_LINK,
+        'IPv4': netifaces.AF_INET,
+        'IPv6': netifaces.AF_INET6,
+    }
     print('IP/MAC addresses:')
     for iface, addresses in found_ifaces.items():
         print(f'* {iface}:')
@@ -91,8 +94,11 @@ def print_sensors():
 # Combined info
 def print_network_info():
     print_hostname()
-    print_addresses()
-    print_batman()
+    if netifaces:
+        print_addresses()
+        print_batman()
+    else:
+        print("Can't import the netifaces module.")
 
 def print_sensors_info():
     print_MCP2221_info()
