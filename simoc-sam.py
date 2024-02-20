@@ -68,6 +68,7 @@ def clean_venv():
     print('venv dir removed.')
 
 target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
+ipv4_re = re.compile('^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
 def copy_repo(target):
     """Copy the repository to a remote host using rsync."""
@@ -83,7 +84,7 @@ def copy_repo(target):
         stderr = err.stderr.decode('utf-8')
         if (('failure in name resolution' in stderr or
              'Could not resolve hostname' in stderr) and
-            not host.endswith('.local')):
+            not ipv4_re.fullmatch(host) and not host.endswith('.local')):
             print(f'Failed to resolve <{host}>.')
             host += '.local'
             print(f'Retrying with <{host}>...')
