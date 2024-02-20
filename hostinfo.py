@@ -76,14 +76,17 @@ def print_sensors():
     try:
         import board
     except (ImportError, OSError):
-        print('Sensor scanning failed')
-        raise
+        print('Sensor scanning failed.')
         return  # doesn't always work with RPi + MCP2221
     import busio
-    i2c = busio.I2C(board.SCL, board.SDA)
+    try:
+        i2c = busio.I2C(board.SCL, board.SDA)
+    except AttributeError:
+        print('Failed to access I2C bus.')
+        return  # this happens on regular PCs
     devices = i2c.scan()
     if not devices:
-        print('No sensors found')
+        print('No sensors found.')
         return
     print(f'Found {len(devices)} sensors:')
     for i2c_addr in devices:
