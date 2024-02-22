@@ -5,11 +5,9 @@ TARGET = '172.27.0.0/24'
 # TARGET = '192.168.1.0/24'
 # TARGET = '172.27.0.1-10'
 
-def find_hosts(target=None):
+def find_hosts(target):
     """Do an nmap ping sweep and report found hosts for the given target."""
     # target can also be a range like 172.27.0.1-10
-    if target is None:
-        target = TARGET
     cmd = ['nmap', '-sn', '-oG', '-', target]
     output = subprocess.check_output(cmd).decode('utf-8')
     ips = {}
@@ -74,6 +72,8 @@ def format_ips(ips):
 
 def print_info(target=None):
     """Collect and print network information."""
+    if target is None:
+        target = TARGET
     print(f'Scanning <{target}> (might take a few seconds)...')
     ips = find_hosts(target)
     if not ips:
