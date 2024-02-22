@@ -83,7 +83,7 @@ def print_sensors():
         i2c = busio.I2C(board.SCL, board.SDA)
     except (AttributeError, ValueError) as err:
         print(f'Failed to access I2C bus: {err}')
-        return  # this happens on regular PCs
+        return
     devices = i2c.scan()
     if not devices:
         print('No sensors found.')
