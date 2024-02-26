@@ -3,6 +3,7 @@
 import re
 import sys
 import shutil
+import socket
 import pathlib
 import argparse
 import functools
@@ -91,6 +92,40 @@ def copy_repo(target):
             subprocess.run(rsync_cmd(user, host, path))
         else:
             print(stderr)
+
+host_re = re.compile('^samrpi(\d+)$')
+address_re = re.compile('^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
+@cmd
+def fix_ip():
+    """Ensure that the bat0 IP matches the hostname."""
+    bat0 = pathlib.Path('/etc/network/interfaces.d/bat0')
+    hostname = socket.gethostname()
+    if match := host_re.fullmatch(hostname):
+        hostnum = match[1]  # extract e.g. '1' from 'samrpi1'
+    else:
+        print('Invalid hostname (should be "samrpiN").')
+        return
+    updated = False
+    new_bat0 = []
+    with open(bat0) as file:
+        for line in file:
+            if match := address_re.fullmatch(line):
+                head, curr_ip, three_octs, last_oct, tail = match.groups()
+                new_ip = three_octs + hostnum  # update last octet
+                if new_ip != curr_ip:
+                    updated = True
+                new_bat0.append(head + new_ip + tail)
+            else:
+                new_bat0.append(line)
+    # rewrite the file and reboot if the IP needs to be updated
+    if updated:
+        print(f'Updating <{bat0}>...')
+        with open(bat0, 'w') as file:
+            file.writelines(new_bat0)
+        print(f'IP address in <{bat0}> updated from <{curr_ip}> to <{new_ip}>.')
+        print('Restarting...')
+        subprocess.run(['sudo', 'reboot'])
+
 
 @cmd
 @needs_venv
