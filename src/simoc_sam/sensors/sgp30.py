@@ -5,17 +5,7 @@ import sys
 
 from . import utils
 
-
-if utils.check_for_MCP2221():
-    # We don't want to import board again if MCP2221 is already running from
-    # another script
-    if 'BLINKA_MCP2221' not in os.environ:
-        # set these before import board
-        os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
-        os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'  # avoid resetting the sensor
-        import board
-else:
-    import board
+board = utils.import_board()
 
 try:
     import busio
@@ -81,11 +71,11 @@ class SGP30(BaseSensor):
         eCO2 = self.sensor.eCO2  # ppm
         TVOC = self.sensor.TVOC  # ppb
         if self.verbose:
-                print(f'H2: {hydrogen:2.1f} ppm;',
+                print(f'[{self.sensor_type}] '
+                      f'H2: {hydrogen:2.1f} ppm;',
                       f'ethanol: {ethanol:2.1f} ppm;',
                       f'eCO2: {eCO2:2.1f} ppm;',
-                      f'TVOC: {TVOC:2.1f} ppb;',
-                      f'[{self.sensor_type}]')
+                      f'TVOC: {TVOC:2.1f} ppb')
         return {"H2": hydrogen, "ethanol": ethanol,
                 "eCO2": eCO2, "VolatileOrganicCompounds": TVOC}
 
