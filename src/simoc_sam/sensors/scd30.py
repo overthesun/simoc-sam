@@ -1,22 +1,11 @@
-# Implement the driver for the SCD-30 CO2/temperature/humidity sensor,
-# connected through an MCP2221.
+"""Driver for the SCD-30 CO2/temperature/humidity sensor."""
 
 import os
 import sys
 
 from . import utils
 
-
-if utils.check_for_MCP2221():
-    # We don't want to import board again if MCP2221 is already running from
-    # another script
-    if 'BLINKA_MCP2221' not in os.environ:
-        # set these before import board
-        os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
-        os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'  # avoid resetting the sensor
-        import board
-else:
-    import board
+board = utils.import_board()
 
 try:
     import busio
@@ -40,7 +29,8 @@ class SCD30(BaseSensor):
     def __init__(self, *, name='SCD-30', description=None, verbose=False):
         """Initialize the sensor."""
         super().__init__(name=name, description=description, verbose=verbose)
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
+        i2c = utils.get_sensor_i2c_bus(0x61, board.SCL, board.SDA,
+                                       frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
 
     def read_sensor_data(self):
@@ -49,8 +39,8 @@ class SCD30(BaseSensor):
         temp = self.scd.temperature  # in °C
         rel_hum = self.scd.relative_humidity
         if self.verbose:
-            print(f'CO2: {co2_ppm:4.0f}ppm; Temperature: '
-                  f'{temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
+            print(f'[{self.sensor_type}] CO2: {co2_ppm:4.0f}ppm; '
+                  f'Temperature: {temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
         return dict(co2=co2_ppm, temp=temp, rel_hum=rel_hum)
 
 

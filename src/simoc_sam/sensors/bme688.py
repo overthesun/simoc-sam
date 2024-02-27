@@ -5,17 +5,7 @@ import sys
 
 from . import utils
 
-
-if utils.check_for_MCP2221():
-    # We don't want to import board again if MCP2221 is already running from
-    # another script
-    if 'BLINKA_MCP2221' not in os.environ:
-        # set these before import board
-        os.environ['BLINKA_MCP2221'] = '1'  # we are using MCP2221
-        os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'  # avoid resetting the sensor
-        import board
-else:
-    import board
+board = utils.import_board()
 
 try:
     import busio
@@ -41,7 +31,7 @@ class BME688(BaseSensor):
     def __init__(self, *, name='BME688', **kwargs):
         """Initialize the sensor."""
         super().__init__(name=name, **kwargs)
-        i2c = board.I2C()
+        i2c = utils.get_sensor_i2c_bus(0x77)
         self.sensor = adafruit_bme680.Adafruit_BME680_I2C(i2c, debug=False)
 
     def read_sensor_data(self):
@@ -52,10 +42,10 @@ class BME688(BaseSensor):
         altitude = self.sensor.altitude  # m
         gas = self.sensor.gas  # Ohms
         if self.verbose:
-            print(f'Pressure: {pressure:4.1f} hPa; Temperature: '
-                  f'{temperature:2.1f}°C; Humidity: {humidity:2.1f}%; '
-                  f'Altidude: {altitude:2.1f} m; '
-                  f'Gas Resistance: {gas:2.1f} Ohms; [{self.sensor_type}]')
+            print(f'[{self.sensor_type}] Pressure: {pressure:4.1f} hPa; '
+                  f'Temperature: {temperature:2.1f}°C; '
+                  f'Humidity: {humidity:2.1f}%; Altidude: {altitude:2.1f} m; '
+                  f'Gas Resistance: {gas:2.1f} Ohms')
         return {"temp": temperature, "rel_hum": humidity, "gas_resistance": gas,
                 "altitude": altitude, "pressure": pressure}
 
