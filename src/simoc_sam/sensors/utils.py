@@ -29,6 +29,8 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
 
 def get_sensor_i2c_bus(sensor_i2c_addr, *args, **kwargs):
     import busio
+    # this method is currently unused as it requires
+    # https://github.com/adafruit/Adafruit_Blinka/pull/637 to work
     from adafruit_blinka.microcontroller.mcp2221.mcp2221 import MCP2221
 
     addresses = MCP2221.available_paths()
