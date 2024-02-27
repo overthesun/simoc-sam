@@ -1,3 +1,4 @@
+import traceback
 import configparser
 
 from datetime import datetime
@@ -112,7 +113,9 @@ async def register_client(sid):
 
 async def emit_to_subscribers(*args, **kwargs):
     # TODO: replace with a namespace
-    for client_id in SUBSCRIBERS:
+    # Iterate on a copy to avoid size changes
+    # caused by other threads adding/removing subs
+    for client_id in SUBSCRIBERS.copy():
         await sio.emit(*args, to=client_id, **kwargs)
 
 @sio.on('sensor-batch')
@@ -121,8 +124,8 @@ async def sensor_batch(sid, batch):
     #print(f'Received a batch of {len(batch)} readings from sensor {sid}:')
     SENSOR_READINGS[sid].extend(batch)
     sensor_info = SENSOR_INFO[sid]
-    for reading in batch:
-        print(utils.format_reading(reading, sensor_info=sensor_info))
+    #for reading in batch:
+        #print(utils.format_reading(reading, sensor_info=sensor_info))
 
 @sio.on('sensor-reading')
 async def sensor_reading(sid, reading):
@@ -130,7 +133,7 @@ async def sensor_reading(sid, reading):
     #print(f'Received a reading from sensor {sid}:')
     SENSOR_READINGS[sid].append(reading)
     sensor_info = SENSOR_INFO[sid]
-    print(utils.format_reading(reading, sensor_info=sensor_info))
+    #print(utils.format_reading(reading, sensor_info=sensor_info))
 
 @sio.on('refresh-sensors')
 async def refresh_sensors(sid, sensor_manager_id=None):
@@ -149,20 +152,29 @@ def get_timestamp():
 
 async def emit_readings():
     """Emit a bundle with the latest reading of all sensors."""
+    args = utils.parse_args()  # TODO: create separate parser for the server
+    delay = args.delay
+    print(f'Broadcasting data every {delay} seconds.')
     n = 0
     while True:
         if SENSORS and SUBSCRIBERS:
             # TODO: set up a room for the clients and broadcast to the room
-            # TODO: improve ctrl+c handling
-            print(f'Broadcasting reading to {len(SUBSCRIBERS)} clients')
+            # TODO: improve ctrl+c handling (see graceful shutdown)
             timestamp = get_timestamp()
             sensors_readings = {sid: readings[-1]
-                                for sid, readings in SENSOR_READINGS.items()}
+                                for sid, readings in SENSOR_READINGS.items()
+                                if readings}
             bundle = dict(n=n, timestamp=timestamp, readings=sensors_readings)
-            # the frontend expects a list of bundles
-            await emit_to_subscribers('step-batch', [bundle])
-            n += 1
-        await sio.sleep(1)
+            try:
+                # the frontend expects a list of bundles
+                await emit_to_subscribers('step-batch', [bundle])
+                n += 1
+                print(f'{len(SENSORS)} sensor(s); {len(SUBSCRIBERS)} '
+                      f'subscriber(s); {n} readings broadcasted')
+            except Exception as e:
+                print('!!! Failed to emit step-batch:')
+                traceback.print_exc()
+        await sio.sleep(delay)
 
 
 # app setup
