@@ -29,8 +29,7 @@ class SCD30(BaseSensor):
     def __init__(self, *, name='SCD-30', description=None, verbose=False):
         """Initialize the sensor."""
         super().__init__(name=name, description=description, verbose=verbose)
-        i2c = utils.get_sensor_i2c_bus(0x61, board.SCL, board.SDA,
-                                       frequency=50000)
+        i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
 
     def read_sensor_data(self):
