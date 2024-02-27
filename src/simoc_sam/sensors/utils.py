@@ -64,8 +64,6 @@ def parse_args(*, read_delay=1, port=8081):
     args = parser.parse_args()
     if args.verbose:
         args.verbose_sensor = args.verbose_sio = True
-    if args.no_sio and args.port is not None:
-        parser.error("Can't specify the socketio port with --no-sio.")
     if not args.no_sio and args.port is None:
         args.port = port
     return args
