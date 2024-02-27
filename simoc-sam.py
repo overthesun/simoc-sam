@@ -76,8 +76,9 @@ def copy_repo(target):
     user, host, path = target_re.fullmatch(target).groups()
     user = user or 'pi'
     path = path or '/home/pi/simoc-sam'
+    repo = f'{pathlib.Path(__file__).parent}/'  # rsync wants the trailing /
     def rsync_cmd(user, host, path):
-        return ['rsync', '-avz', '.', f'{user}@{host}:{path}']
+        return ['rsync', '-avz', repo, f'{user}@{host}:{path}']
     try:
         subprocess.run(rsync_cmd(user, host, path),
                        check=True, stderr=subprocess.PIPE)
