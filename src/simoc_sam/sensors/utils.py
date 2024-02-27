@@ -76,18 +76,18 @@ def parse_args(*, read_delay=1, port=8081):
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=float,
                         help='How many seconds between readings.')
-    parser.add_argument('--no-sio', action='store_true',
-                        help='Run the sensor without socketio.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Enable verbose output for sensor and socketio.')
     parser.add_argument('--verbose-sensor', action='store_true',
                         help='Enable verbose output for the sensor.')
+    parser.add_argument('--sio', action='store_true',
+                        help='Run the sensor with socketio.')
     parser.add_argument('--verbose-sio', action='store_true',
                         help='Enable verbose output for the socketio.')
     args = parser.parse_args()
     if args.verbose:
         args.verbose_sensor = args.verbose_sio = True
-    if not args.no_sio and args.port is None:
+    if args.sio and args.port is None:
         args.port = port
     return args
 
@@ -96,11 +96,11 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
     args = parse_args()
     # TODO: add cmd line options for name/desc
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:
-        if args.no_sio:
-            for reading in sensor.iter_readings(delay=args.delay):
-                pass  # the sensor already prints the readings when verbose
-        else:
+        if args.sio:
             delay, verbose = args.delay, args.verbose_sio
             host, port = args.host, args.port
             siowrapper = SIOWrapper(sensor, read_delay=delay, verbose=verbose)
             asyncio.run(siowrapper.start(host, port))
+        else:
+            for reading in sensor.iter_readings(delay=args.delay):
+                pass  # the sensor already prints the readings when verbose
