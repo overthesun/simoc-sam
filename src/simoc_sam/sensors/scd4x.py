@@ -34,9 +34,11 @@ class SCD4X(BaseSensor):
 
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
-        co2_ppm = self.scd.CO2 or 0.0
-        temp = self.scd.temperature or 0.0  # in °C
-        rel_hum = self.scd.relative_humidity or 0.0
+        co2_ppm = self.scd.CO2
+        temp = self.scd.temperature # in °C
+        rel_hum = self.scd.relative_humidity
+        if co2_ppm is None or temp is None or rel_hum is None:
+            return  # sensor not ready yet
         if self.verbose:
             print(f'[{self.sensor_type}] CO2: {co2_ppm:4.0f}ppm; '
                   f'Temperature: {temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
