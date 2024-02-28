@@ -55,42 +55,51 @@ def import_board():
     return board
 
 
+def get_mqtt_addr():
+    addr = os.environ.get('MQTTSERVER_ADDR', 'samrpi1:1883')
+    host, port = addr.split(':')
+    return host, int(port)
+
 def get_sioserver_addr():
     addr = os.environ.get('SIOSERVER_ADDR', 'localhost:8081')
     host, port = addr.split(':')
-    return host, port
+    return host, int(port)
 
 
 def get_addr_argparser():
-    SIO_HOST, SIO_PORT = get_sioserver_addr()
     parser = argparse.ArgumentParser()
-    parser.add_argument('--host', default=SIO_HOST,
-                        help='The hostname of the sioserver.')
-    parser.add_argument('--port', default=SIO_PORT, type=int,
-                        help='The port used by the sioserver.')
+    parser.add_argument('--host', help='The hostname of the server.')
+    parser.add_argument('--port', type=int,
+                        help='The port used by the server.')
     return parser
 
 
-def parse_args(*, read_delay=1, port=8081):
+def parse_args(arguments=None, *, read_delay=1):
     parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=float,
                         help='How many seconds between readings.')
-    parser.add_argument('--mqtt', action='store_true',
-                        help='Run the sensor with MQTT.')
     parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Enable verbose output for sensor and socketio.')
+                        help='Enable verbose output for sensor/SocketIO/MQTT.')
     parser.add_argument('--verbose-sensor', action='store_true',
                         help='Enable verbose output for the sensor.')
-    parser.add_argument('--sio', action='store_true',
-                        help='Run the sensor with socketio.')
+    parser.add_argument('--verbose-mqtt', action='store_true',
+                        help='Enable verbose output for MQTT.')
     parser.add_argument('--verbose-sio', action='store_true',
-                        help='Enable verbose output for the socketio.')
-    args = parser.parse_args()
+                        help='Enable verbose output for SocketIO.')
+    parser.add_argument('--mqtt', action='store_true',
+                        help='Run the sensor with MQTT.')
+    parser.add_argument('--sio', action='store_true',
+                        help='Run the sensor with SocketIO.')
+    args = parser.parse_args(arguments)
+    if args.mqtt and args.sio:
+        parser.error('--mqtt and --sio can not be used together.')
+    if (args.sio or args.mqtt) and (not args.host or not args.port):
+        host, port = get_mqtt_addr() if args.mqtt else get_sioserver_addr()
+        args.host = args.host or host
+        args.port = args.port or port
     if args.verbose:
-        args.verbose_sensor = args.verbose_sio = True
-    if args.sio and args.port is None:
-        args.port = port
+        args.verbose_sensor = args.verbose_sio = args.verbose_mqtt = True
     return args
 
 
@@ -99,8 +108,10 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
     # TODO: add cmd line options for name/desc
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:
         if args.mqtt:
-            delay, verbose, port = args.delay, args.verbose_sio, args.port
-            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
+            delay, verbose = args.delay, args.verbose_mqtt
+            host, port = args.host, args.port
+            mqttwrapper = MQTTWrapper(sensor, host=host, port=port,
+                                      read_delay=delay, verbose=verbose)
             mqttwrapper.send_data()
         elif args.sio:
             delay, verbose = args.delay, args.verbose_sio

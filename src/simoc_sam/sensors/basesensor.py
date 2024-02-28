@@ -147,11 +147,13 @@ class SIOWrapper:
 
 
 class MQTTWrapper:
-    def __init__(self, sensor, *, read_delay=1, verbose=False):
+    def __init__(self, sensor, *, host=None, port=None,
+                 read_delay=1, verbose=False):
         self.sensor = sensor
+        self.host = host
+        self.port = port
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
-        # instantiate the AsyncClient and register events
         self.mqttc = mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
@@ -162,25 +164,25 @@ class MQTTWrapper:
         if self.verbose:
             print(*args, **kwargs)
 
-    def on_connect(self,client, userdata, flags, rc):
+    def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            print("Connected to MQTT broker")
+            self.print("Connected to MQTT broker")
         else:
-            print(f"Connection failed with code {rc}")
+            self.print(f"Connection failed with code {rc}")
 
     # Callback function for disconnection
     def on_disconnect(self, client, userdata, rc):
-        print("Disconnected from MQTT broker")
+        self.print("Disconnected from MQTT broker")
         self.connect()
 
     def connect(self):
         """Called when the sensor connects to the server."""
-        print('Connecting to MQTT broker...')
-        rc = self.mqttc.connect("samrpi1", 1883, 60)
+        print(f'Connecting to MQTT broker at {self.host}:{self.port}...')
+        rc = self.mqttc.connect(self.host, self.port)
         if rc == 0:
-            print("Connected to MQTT broker")
+            self.print("Connected to MQTT broker")
         else:
-            print(f"Connection failed with code {rc}")
+            self.print(f"Connection failed with code {rc}")
 
     def send_data(self, n=0):
         """Called when the server requests data, runs in an endless loop."""
@@ -191,12 +193,12 @@ class MQTTWrapper:
         readings = self.sensor.iter_readings(delay=0, n=n)
         for reading in readings:
             try:
-                print(reading)
+                self.print(reading)
                 self.mqttc.publish(f'sam/{hostname}/{self.sensor.sensor_name}',
                                    payload=json.dumps(reading), qos=0)
             except Exception as e:
-                print(e)
-                print('No longer connected to the server...')
+                self.print(e)
+                self.print('No longer connected to the server...')
                 return
             # wait for the next sensor reading
             time.sleep(self.read_delay)
