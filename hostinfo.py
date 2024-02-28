@@ -9,6 +9,7 @@ except ImportError:
 
 sensors = {
     0x61: 'SCD30',
+    0x62: 'SCD41',
     0x77: 'BME688',
     0x58: 'SGP30',
     0x39: 'APDS9960',
