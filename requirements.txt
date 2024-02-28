@@ -6,6 +6,7 @@ netifaces
 hidapi
 Adafruit-Blinka
 adafruit-circuitpython-scd30
+adafruit-circuitpython-scd4x
 adafruit-circuitpython-sgp30
 adafruit-circuitpython-bme680
 godirect

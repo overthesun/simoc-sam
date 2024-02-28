@@ -11,4 +11,4 @@ alias l='ls -CF'
 alias activate='source venv/bin/activate'
 
 # run a simoc-sam.py command directly in the venv
-alias sam='~/simoc-sam/venv/bin/python3 ~/simoc-sam/simoc-sam.py'
+alias sam='$(which ~/simoc-sam/venv/bin/python || which python3) ~/simoc-sam/simoc-sam.py'

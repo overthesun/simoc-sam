@@ -83,6 +83,7 @@ class BaseSensor(ABC):
         while True:
             data = self.read_sensor_data()
             if not data:
+                time.sleep(delay)
                 continue  # keep trying until we get a reading
             if add_timestamp:
                 data['timestamp'] = self.get_timestamp()
