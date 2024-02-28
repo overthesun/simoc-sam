@@ -1,6 +1,5 @@
 """Driver for the SCD-30 CO2/temperature/humidity sensor."""
 
-import os
 import sys
 
 from . import utils
@@ -19,13 +18,13 @@ from .utils import start_sensor
 
 
 class SCD30(BaseSensor):
+    """Represent a SCD-30 sensor."""
     sensor_type = 'SCD-30'
     reading_info = {
         'co2': dict(label='CO2', unit='ppm'),
         'temp': dict(label='Temperature', unit='°C'),
         'rel_hum': dict(label='Relative Humidity', unit='%'),
     }
-    """Represent a SCD-30 sensors connected through a MCP2221."""
     def __init__(self, *, name='SCD-30', description=None, verbose=False):
         """Initialize the sensor."""
         super().__init__(name=name, description=description, verbose=verbose)
