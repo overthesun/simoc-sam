@@ -14,7 +14,7 @@ the venv.
 You can see the full list of commands with `python simoc-sam.py -h`,
 and you can run them with `python simoc-sam.py COMMAND`:
 * `run-server` will start the `sioserver`
-* `run-tmux` will start the `tmux.sh` script
+* `run-tmux` will launch the selected `tmux` script
 * `test` will execute the tests using `pytest`
 * `info` will print host info about the network and sensors
 * `hosts` will print information about the other hosts in the network
@@ -46,7 +46,7 @@ you need to install the `aiohttp` (only used by the server) and
 python3 -m pip install python-socketio aiohttp
 ```
 
-Additionally, for the `tmux.sh` script you will need to install `tmux` with
+Additionally, for the `tmux/` scripts you will need to install `tmux` with
 `sudo apt install tmux`.
 
 
@@ -106,7 +106,7 @@ This is a summary of the commands you need to run everything.
 Start everything with:
 ```sh
 sudo apt install tmux
-python3 simoc-sam.py tmux
+python3 simoc-sam.py run-tmux
 ```
 
 Start the server with:
@@ -132,13 +132,13 @@ If you want to use Docker, do the initial setup (only needed once):
 docker build . -t sioserver
 # install dependencies
 python3 -m pip install python-socketio aiohttp
-# install tmux (if using tmux.sh)
+# install tmux (if using tmux/*.sh)
 sudo apt install tmux
 ```
 
 Start everything at once using `tmux`:
 ```sh
-./tmux.sh
+./tmux/sio.sh
 ```
 
 Start server/sensor(s)/client(s) separately:
