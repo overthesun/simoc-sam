@@ -165,25 +165,27 @@ class MQTTWrapper:
         if self.verbose:
             print(*args, **kwargs)
 
-    def on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
+    def on_connect(self, client, userdata, connect_flags,
+                   reason_code, properties):
+        if reason_code == 0:
             self.print("Connected to MQTT broker")
         else:
-            self.print(f"Connection failed with code {rc}")
+            self.print(f"Connection failed with code {reason_code}")
 
     # Callback function for disconnection
-    def on_disconnect(self, client, userdata, rc):
+    def on_disconnect(self, client, userdata, disconnect_flags,
+                      reason_code, properties):
         self.print("Disconnected from MQTT broker")
         self.connect()
 
     def connect(self):
         """Called when the sensor connects to the server."""
         print(f'Connecting to MQTT broker at {self.host}:{self.port}...')
-        rc = self.mqttc.connect(self.host, self.port)
-        if rc == 0:
+        reason_code = self.mqttc.connect(self.host, self.port)
+        if reason_code == 0:
             self.print("Connected to MQTT broker")
         else:
-            self.print(f"Connection failed with code {rc}")
+            self.print(f"Connection failed with code {reason_code}")
 
     def send_data(self, n=0):
         """Called when the server requests data, runs in an endless loop."""
