@@ -143,12 +143,13 @@ def run_server():
 
 @cmd
 @needs_venv
-def run_tmux():
-    """Run the tmux script (or attach to an existing session)."""
+def run_tmux(file='sio'):
+    """Launch a tmux script (or attach to an existing session)."""
     if run(['tmux', 'has-session', '-t', TMUX_SNAME]):
         run(['tmux', 'attach-session', '-t', TMUX_SNAME])  # attach to sessions
     else:
-        run(['./tmux.sh', TMUX_SNAME])  # start new sessions
+        tmux_path = SIMOC_SAM_DIR / 'tmux' / f'{file}.sh'
+        run([str(tmux_path), TMUX_SNAME])  # start new sessions
 
 
 @cmd
