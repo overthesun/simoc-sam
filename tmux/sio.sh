@@ -13,7 +13,7 @@ tmux new-session -s $SNAME -d -x "$(tput cols)" -y "$(tput lines)"
 tmux send-keys -t $SNAME "python -m simoc_sam.sioserver" Enter
 # create 3 more panes for sensors/clients
 tmux split-window -h -p 75
-tmux send-keys -t $SNAME 'sleep 3' Enter "python -m simoc_sam.sensors.mocksensor -v" Enter
+tmux send-keys -t $SNAME 'sleep 3' Enter "python -m simoc_sam.sensors.mocksensor -v --sio" Enter
 tmux split-window -v -p 67
 tmux send-keys -t $SNAME 'sleep 5' Enter "python -m simoc_sam.sioclient" Enter
 tmux split-window -v -p 50
