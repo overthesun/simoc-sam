@@ -143,7 +143,7 @@ def run_server():
 
 @cmd
 @needs_venv
-def run_tmux(file='sio'):
+def run_tmux(file='mqtt'):
     """Launch a tmux script (or attach to an existing session)."""
     if run(['tmux', 'has-session', '-t', TMUX_SNAME]):
         run(['tmux', 'attach-session', '-t', TMUX_SNAME])  # attach to sessions

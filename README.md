@@ -14,7 +14,7 @@ the venv.
 You can see the full list of commands with `python simoc-sam.py -h`,
 and you can run them with `python simoc-sam.py COMMAND`:
 * `run-server` will start the `sioserver`
-* `run-tmux` will launch the selected `tmux` script
+* `run-tmux` will launch the selected `tmux` script (`mqtt` or `sio`)
 * `test` will execute the tests using `pytest`
 * `info` will print host info about the network and sensors
 * `hosts` will print information about the other hosts in the network
@@ -138,7 +138,7 @@ sudo apt install tmux
 
 Start everything at once using `tmux`:
 ```sh
-./tmux/sio.sh
+./tmux/mqtt.sh
 ```
 
 Start server/sensor(s)/client(s) separately:
