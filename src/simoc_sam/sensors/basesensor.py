@@ -155,7 +155,9 @@ class MQTTWrapper:
         self.port = port
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
-        self.mqttc = mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        # aiomqtt still requires paho-mqtt 1.6
+        # self.mqttc = mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.mqttc = mqttc = mqtt.Client()
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
         self.connect()
@@ -166,7 +168,7 @@ class MQTTWrapper:
             print(*args, **kwargs)
 
     def on_connect(self, client, userdata, connect_flags,
-                   reason_code, properties):
+                   reason_code, properties=None):
         if reason_code == 0:
             self.print("Connected to MQTT broker")
         else:
@@ -174,7 +176,9 @@ class MQTTWrapper:
 
     # Callback function for disconnection
     def on_disconnect(self, client, userdata, disconnect_flags,
-                      reason_code, properties):
+                      reason_code=None, properties=None):
+        # with the old API the reason_code is actually assigned to
+        # disconnect_flags, but we are not using it so it's ok'
         self.print("Disconnected from MQTT broker")
         self.connect()
 
