@@ -7,8 +7,6 @@ try:
 except ImportError:
     netifaces = None
 
-from simoc_sam.sensors.utils import I2C_TO_SENSOR
-
 
 # Network info
 
@@ -77,6 +75,7 @@ def print_sensors():
     except (AttributeError, ValueError) as err:
         print(f'Failed to access I2C bus: {err}')
         return
+    from simoc_sam.sensors.utils import I2C_TO_SENSOR
     devices = i2c.scan()
     if not devices:
         print('No sensors found.')
