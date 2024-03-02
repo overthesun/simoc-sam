@@ -78,10 +78,12 @@ def load_sensor_data(file_path=SENSORS_TOML):
 SENSOR_DATA = load_sensor_data()
 I2C_TO_SENSOR = {info.i2c_address: info for info in SENSOR_DATA.values()}
 
+def has_mcp2221():
+    return b'MCP2221' in subprocess.check_output("lsusb")
 
 def import_board():
     """Import the board module while checking for MCP2221s."""
-    if b'MCP2221' in subprocess.check_output("lsusb"):
+    if has_mcp2221():
         os.environ['BLINKA_MCP2221'] = '1'
         os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'
     import board
