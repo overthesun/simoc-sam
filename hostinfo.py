@@ -7,15 +7,7 @@ try:
 except ImportError:
     netifaces = None
 
-sensors = {
-    0x61: 'SCD30',
-    0x62: 'SCD41',
-    0x77: 'BME688',
-    0x58: 'SGP30',
-    0x39: 'APDS9960',
-    0x29: 'TSL2591',
-    0x10: 'VEML7700',
-}
+from simoc_sam.sensors.utils import I2C_TO_SENSOR
 
 
 # Network info
@@ -91,7 +83,10 @@ def print_sensors():
         return
     print(f'Found {len(devices)} sensors:')
     for i2c_addr in devices:
-        sensor_name = sensors.get(i2c_addr, '<unknown>')
+        if i2c_addr in I2C_TO_SENSOR:
+            sensor_name = I2C_TO_SENSOR[i2c_addr].name
+        else:
+            sensor_name = '<unknown>'
         print(f'* {sensor_name} (I2C addr: {i2c_addr:#x})')
 
 

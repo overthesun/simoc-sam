@@ -1,0 +1,129 @@
+[scd30]
+name = "SCD30"
+description = "NDIR CO2, Temperature, and Humidity Sensor"
+module = "simoc_sam.sensors.scd30"
+i2c_address = 0x61
+
+    [scd30.data.CO2]
+    unit = "ppm"
+    label = "CO2 Concentration"
+
+    [scd30.data.temperature]
+    unit = "°C"
+    label = "Temperature"
+
+    [scd30.data.humidity]
+    unit = "%RH"
+    label = "Humidity"
+
+[scd41]
+name = "SCD41"
+description = "True CO2 Temperature and Humidity Sensor"
+module = "simoc_sam.sensors.scd4x"
+i2c_address = 0x62
+
+    [scd41.data.CO2]
+    unit = "ppm"
+    label = "CO2 Concentration"
+
+    [scd41.data.temperature]
+    unit = "°C"
+    label = "Temperature"
+
+    [scd41.data.humidity]
+    unit = "%RH"
+    label = "Humidity"
+
+[sgp30]
+name = "SGP30"
+description = "TVOC/eCO2 Gas Sensor"
+module = "simoc_sam.sensors.sgp30"
+i2c_address = 0x58
+
+    [sgp30.data.eCO2]
+    unit = "ppm"
+    label = "CO2 Equivalent Concentration"
+
+    [sgp30.data.TVOC]
+    unit = "ppb"
+    label = "Total Volatile Organic Compounds"
+
+    [sgp30.data.H2]
+    unit = "ppm"
+    label = "Hydrogen Concentration"
+
+    [sgp30.data.ethanol]
+    unit = "ppm"
+    label = "Ethanol Concentration"
+
+[bme688]
+name = "BME688"
+description = "Temperature, Humidity, Pressure, and Gas Sensor"
+module = "simoc_sam.sensors.bme688"
+i2c_address = 0x77
+
+    [bme688.data.temperature]
+    unit = "°C"
+    label = "Temperature"
+
+    [bme688.data.pressure]
+    unit = "hPa"
+    label = "Pressure"
+
+    [bme688.data.humidity]
+    unit = "%RH"
+    label = "Humidity"
+
+    [bme688.data.gas_resistance]
+    unit = "Ohm"
+    label = "Gas Resistance"
+
+    [bme688.data.altitude]
+    unit = "m"
+    label = "Altitude"
+
+[apds9960]
+name = "APDS9960"
+description = "Proximity, Light, RGB, and Gesture Sensor"
+module = ""
+i2c_address = 0x39
+
+    [apds9960.data.proximity]
+    unit = ""
+    label = "Proximity"
+
+    [apds9960.data.gesture]
+    unit = ""
+    label = "Gesture"
+
+    [apds9960.data.color]
+    unit = ""
+    label = "Color"
+
+[tsl2591]
+name = "TSL2591"
+description = "High Dynamic Range Digital Light Sensor"
+module = ""
+i2c_address = 0x29
+
+    [tsl2591.data.lux]
+    unit = "lux"
+    label = "Light Intensity"
+
+    [tsl2591.data.visible]
+    unit = ""
+    label = "Visible Light Level"
+
+    [tsl2591.data.infrared]
+    unit = ""
+    label = "Infrared Light Level"
+
+[veml7700]
+name = "VEML7700"
+description = "Ambient Light Sensor"
+module = ""
+i2c_address = 0x10
+
+    [veml7700.data.ambient_light]
+    unit = "Lux"
+    label = "Ambient Light"

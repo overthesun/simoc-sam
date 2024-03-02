@@ -13,13 +13,6 @@ import busio
 
 from adafruit_blinka.microcontroller.mcp2221.mcp2221 import MCP2221
 
-device_to_i2c_addr = dict(
-    bme688=0x77,
-    sgp30=0x58,
-    scd30=0x61,
-)
-i2c_addr_to_device = dict(zip(device_to_i2c_addr.values(),
-                              device_to_i2c_addr.keys()))
 
 async def main():
     addresses = MCP2221.available_paths()
@@ -36,11 +29,11 @@ async def main():
         if i2c_devices:
             print(f'{len(i2c_devices)} device(s) found on <{address.decode()}>:')
             for i2c_addr in i2c_devices:
-                device = i2c_addr_to_device[i2c_addr]
-                print(f'  * {device} ({i2c_addr:#x})')
-                mod = importlib.import_module(f'simoc_sam.sensors.{device}')
+                device = utils.I2C_TO_SENSOR[i2c_addr]
+                print(f'  * {device.name} ({i2c_addr:#x})')
+                mod = importlib.import_module(device.module)
                 #print(f'Imported {mod}')
-                sensors_classes.append(getattr(mod, device.upper()))
+                sensors_classes.append(getattr(mod, device.name))
         else:
             print(f'No device found on <{address.decode()}>.')
             bus.deinit()
