@@ -191,8 +191,9 @@ class MQTTWrapper:
                     self.print(f'Connection failed with code {reason_code}')
             except Exception as err:
                 self.print(f'Connection failed: {err}')
-            self.print(f'Retrying connecting in {delay}s (attempt {attempt})...')
-            time.sleep(delay)
+            self.print(f'Retrying connecting in {retry_delay}s '
+                       f'(attempt {attempt})...')
+            time.sleep(retry_delay)
 
     def send_data(self, n=0):
         """Called when the server requests data, runs in an endless loop."""
