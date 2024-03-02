@@ -178,14 +178,21 @@ class MQTTWrapper:
         self.print("Disconnected from MQTT broker")
         self.connect()
 
-    def connect(self):
+    def connect(self, *, attempts=100, retry_delay=5):
         """Called when the sensor connects to the server."""
-        print(f'Connecting to MQTT broker at {self.host}:{self.port}...')
-        reason_code = self.mqttc.connect(self.host, self.port)
-        if reason_code == 0:
-            self.print("Connected to MQTT broker")
-        else:
-            self.print(f"Connection failed with code {reason_code}")
+        for attempt in range(attempts):
+            try:
+                print(f'Connecting to MQTT broker at {self.host}:{self.port}...')
+                reason_code = self.mqttc.connect(self.host, self.port)
+                if reason_code == 0:
+                    self.print('Connected to MQTT broker')
+                    return
+                else:
+                    self.print(f'Connection failed with code {reason_code}')
+            except Exception as err:
+                self.print(f'Connection failed: {err}')
+            self.print(f'Retrying connecting in {delay}s (attempt {attempt})...')
+            time.sleep(delay)
 
     def send_data(self, n=0):
         """Called when the server requests data, runs in an endless loop."""
