@@ -1,11 +1,16 @@
 import os
+import pathlib
 import asyncio
 import argparse
 import subprocess
 
+from typing import Dict, Any
 from datetime import datetime
+from dataclasses import dataclass, field
 
 from .basesensor import SIOWrapper
+
+import tomli
 
 
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
@@ -46,9 +51,39 @@ def get_sensor_i2c_bus(sensor_i2c_addr, *args, **kwargs):
             bus.deinit()
 
 
+@dataclass
+class SensorData:
+    name: str
+    description: str
+    module: str
+    i2c_address: str
+    data: Dict[str, Any] = field(default_factory=dict)
+
+SENSORS_TOML = pathlib.Path(__file__).with_name('sensors.toml')
+
+def load_sensor_data(file_path=SENSORS_TOML):
+    with open(file_path, 'rb') as f:
+        sensors = tomli.load(f)
+    sensor_data = {}
+    for sensor_name, sensor_info in sensors.items():
+        sensor_data[sensor_name] = SensorData(
+            name=sensor_info['name'],
+            description=sensor_info['description'],
+            module=sensor_info['module'],
+            i2c_address=sensor_info['i2c_address'],
+            data=sensor_info['data'],
+        )
+    return sensor_data
+
+SENSOR_DATA = load_sensor_data()
+I2C_TO_SENSOR = {info.i2c_address: info for info in SENSOR_DATA.values()}
+
+def has_mcp2221():
+    return b'MCP2221' in subprocess.check_output("lsusb")
+
 def import_board():
     """Import the board module while checking for MCP2221s."""
-    if b'MCP2221' in subprocess.check_output("lsusb"):
+    if has_mcp2221():
         os.environ['BLINKA_MCP2221'] = '1'
         os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'
     import board

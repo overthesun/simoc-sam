@@ -7,16 +7,6 @@ try:
 except ImportError:
     netifaces = None
 
-sensors = {
-    0x61: 'SCD30',
-    0x62: 'SCD41',
-    0x77: 'BME688',
-    0x58: 'SGP30',
-    0x39: 'APDS9960',
-    0x29: 'TSL2591',
-    0x10: 'VEML7700',
-}
-
 
 # Network info
 
@@ -62,22 +52,19 @@ def print_batman():
 
 # Sensors info
 
-def has_mcp():
-    return b'MCP2221' in subprocess.check_output("lsusb")
-
 def print_MCP2221_info():
     """Print True if the MCP2221 is connected, False otherwise."""
-    print(f'MCP2221 connected: {has_mcp()}')
+    from simoc_sam.sensors import utils
+    print(f'MCP2221 connected: {utils.has_mcp2221()}')
 
 def print_sensors():
     """Print a list of connected sensors and their I2C addresses."""
-    if has_mcp():
-        os.environ['BLINKA_MCP2221'] = '1'
-        os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'
+    from simoc_sam.sensors import utils
+
     try:
-        import board
-    except (ImportError, OSError):
-        print('Sensor scanning failed.')
+        board = utils.import_board()
+    except (ImportError, OSError) as err:
+        print(f'Sensor scanning failed: {err}')
         return  # doesn't always work with RPi + MCP2221
     import busio
     try:
@@ -91,7 +78,10 @@ def print_sensors():
         return
     print(f'Found {len(devices)} sensors:')
     for i2c_addr in devices:
-        sensor_name = sensors.get(i2c_addr, '<unknown>')
+        if i2c_addr in utils.I2C_TO_SENSOR:
+            sensor_name = utils.I2C_TO_SENSOR[i2c_addr].name
+        else:
+            sensor_name = '<unknown>'
         print(f'* {sensor_name} (I2C addr: {i2c_addr:#x})')
 
 
