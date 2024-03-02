@@ -2,7 +2,9 @@ python-socketio
 aiohttp
 paho-mqtt
 netifaces
+tomli
 
+# sensor-related deps
 hidapi
 Adafruit-Blinka
 adafruit-circuitpython-scd30
