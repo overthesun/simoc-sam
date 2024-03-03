@@ -211,9 +211,8 @@ class MQTTWrapper:
                 self.print(reading)
                 self.mqttc.publish(f'sam/{hostname}/{self.sensor.sensor_name}',
                                    payload=json.dumps(reading), qos=0)
-            except Exception as e:
-                self.print(e)
-                self.print('No longer connected to the server...')
+            except Exception as err:
+                self.print(f'No longer connected to the server ({err})...')
                 return
             # wait for the next sensor reading
             time.sleep(self.read_delay)
