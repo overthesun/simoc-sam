@@ -145,9 +145,10 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
         if args.mqtt:
             delay, verbose = args.delay, args.verbose_mqtt
             host, port = args.host, args.port
-            mqttwrapper = MQTTWrapper(sensor, host=host, port=port,
-                                      read_delay=delay, verbose=verbose)
+            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
+            mqttwrapper.start(host, port)
             mqttwrapper.send_data()
+            mqttwrapper.stop()
         elif args.sio:
             delay, verbose = args.delay, args.verbose_sio
             host, port = args.host, args.port
