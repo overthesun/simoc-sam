@@ -148,11 +148,9 @@ class SIOWrapper:
 
 
 class MQTTWrapper:
-    def __init__(self, sensor, *, host=None, port=None,
-                 read_delay=1, verbose=False):
+    def __init__(self, sensor, *, read_delay=1, verbose=False):
         self.sensor = sensor
-        self.host = host
-        self.port = port
+        self.hostname = socket.gethostname()
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
         # aiomqtt still requires paho-mqtt 1.6
@@ -160,12 +158,18 @@ class MQTTWrapper:
         self.mqttc = mqttc = mqtt.Client()
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
-        self.connect()
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
         if self.verbose:
             print(*args, **kwargs)
+
+    def start(self, host, port):
+        self.mqttc.loop_start()
+        self.connect(host, port)
+
+    def stop(self):
+        self.mqttc.loop_stop()
 
     def on_connect(self, client, userdata, connect_flags,
                    reason_code, properties=None):
@@ -178,38 +182,32 @@ class MQTTWrapper:
     def on_disconnect(self, client, userdata, disconnect_flags,
                       reason_code=None, properties=None):
         # with the old API the reason_code is actually assigned to
-        # disconnect_flags, but we are not using it so it's ok'
+        # disconnect_flags, but we are not using it so it's ok
         self.print("Disconnected from MQTT broker")
-        self.connect()
 
-    def connect(self, *, attempts=100, retry_delay=5):
+    def connect(self, host, port, *, attempts=100, retry_delay=5):
         """Called when the sensor connects to the server."""
-        for attempt in range(attempts):
-            try:
-                print(f'Connecting to MQTT broker at {self.host}:{self.port}...')
-                reason_code = self.mqttc.connect(self.host, self.port)
-                if reason_code == 0:
-                    self.print('Connected to MQTT broker')
-                    return
-                else:
-                    self.print(f'Connection failed with code {reason_code}')
-            except Exception as err:
-                self.print(f'Connection failed: {err}')
-            self.print(f'Retrying connecting in {retry_delay}s '
-                       f'(attempt {attempt})...')
-            time.sleep(retry_delay)
+        try:
+            print(f'Connecting to MQTT broker at {host}:{port}...')
+            reason_code = self.mqttc.connect(host, port)
+            if reason_code == 0:
+                self.print(f'Connected to {host}:{port}')
+                return
+            else:
+                self.print(f'Connection failed with code: {reason_code}')
+        except Exception as err:
+            self.print(f'Connection failed with error: {err}')
 
     def send_data(self, n=0):
         """Called when the server requests data, runs in an endless loop."""
         self.print('Server requested data')
         # set the delay to 0 because iter_readings uses blocking time.sleep
         # and replace it with a non-blocking asyncio.sleep in the for loop
-        hostname = socket.gethostname()
         readings = self.sensor.iter_readings(delay=0, n=n)
         for reading in readings:
             try:
                 self.print(reading)
-                self.mqttc.publish(f'sam/{hostname}/{self.sensor.sensor_name}',
+                self.mqttc.publish(f'sam/{self.hostname}/{self.sensor.sensor_name}',
                                    payload=json.dumps(reading), qos=0)
             except Exception as err:
                 self.print(f'No longer connected to the server ({err})...')
