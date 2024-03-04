@@ -20,17 +20,17 @@ from .utils import start_sensor
 
 def tick_conversion_ethanol(signal_output):
     """Get raw ticks from sensor and converts to ppm."""
-    # 20997 is an experimetal value in a room assumed to have "typical" concentration
-    # of 14.85 ppm, although this is an unmeasured assumption.
+    # 20997 is an experimental value in a room assumed to have "typical"
+    # concentration of 14.85 ppm, although this is an unmeasured assumption.
     signal_reference = 20997
-    e = 2.71828   # Euler's number
+    e = 2.71828  # Euler's number
     # Equation provided by Sensirion datasheet for SGP-30
     return 0.4 * (e**((20997-signal_output)/512))
 
 def tick_conversion_H2(signal_output):
     """Get raw ticks from sensor and converts to ppm."""
-    # 14296 is an experimental value in room assumed to have "typical" concentration
-    # of 1.25 ppm although this is an unmeasured assumption.
+    # 14296 is an experimental value in a room assumed to have "typical"
+    # concentration of 1.25 ppm although this is an unmeasured assumption.
     signal_reference = 14296
     e = 2.71828  # Euler's number
     # Equation provided by Sensirion datasheet for SGP-30

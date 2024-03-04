@@ -1,11 +1,15 @@
 import time
+import json
 import random
+import socket
 import asyncio
 
 from datetime import datetime
 from abc import ABC, abstractmethod
 
 import socketio
+
+import paho.mqtt.client as mqtt
 
 
 def random_id(length=6):
@@ -141,3 +145,70 @@ class SIOWrapper:
                 return
             # wait for the next sensor reading
             await asyncio.sleep(self.read_delay)
+
+
+class MQTTWrapper:
+    def __init__(self, sensor, *, read_delay=1, verbose=False):
+        self.sensor = sensor
+        self.hostname = socket.gethostname()
+        self.read_delay = read_delay  # how long to wait between readings
+        self.verbose = verbose  # toggle verbose output
+        # aiomqtt still requires paho-mqtt 1.6
+        # self.mqttc = mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.mqttc = mqttc = mqtt.Client()
+        mqttc.on_connect = self.on_connect
+        mqttc.on_disconnect = self.on_disconnect
+
+    def print(self, *args, **kwargs):
+        """Receive and print if self.verbose is true."""
+        if self.verbose:
+            print(*args, **kwargs)
+
+    def start(self, host, port):
+        self.mqttc.loop_start()
+        self.connect(host, port)
+
+    def stop(self):
+        self.mqttc.loop_stop()
+
+    def on_connect(self, client, userdata, connect_flags,
+                   reason_code, properties=None):
+        if reason_code == 0:
+            self.print("Connected to MQTT broker")
+        else:
+            self.print(f"Connection failed with code {reason_code}")
+
+    # Callback function for disconnection
+    def on_disconnect(self, client, userdata, disconnect_flags,
+                      reason_code=None, properties=None):
+        # with the old API the reason_code is actually assigned to
+        # disconnect_flags, but we are not using it so it's ok
+        self.print("Disconnected from MQTT broker")
+
+    def connect(self, host, port, *, attempts=100, retry_delay=5):
+        """Called when the sensor connects to the server."""
+        try:
+            self.print(f'Connecting to MQTT broker at {host}:{port}...')
+            reason_code = self.mqttc.connect(host, port)
+            if reason_code == 0:
+                self.print(f'Connected to {host}:{port}')
+            else:
+                self.print(f'Connection failed with code: {reason_code}')
+        except Exception as err:
+            self.print(f'Connection failed with error: {err}')
+
+    def send_data(self, n=0):
+        """Called when the server requests data, runs in an endless loop."""
+        self.print('Server requested data')
+        # set the delay to 0 because iter_readings uses blocking time.sleep
+        # and replace it with a non-blocking asyncio.sleep in the for loop
+        readings = self.sensor.iter_readings(delay=0, n=n)
+        for reading in readings:
+            try:
+                self.print(reading)
+                self.mqttc.publish(f'sam/{self.hostname}/{self.sensor.sensor_name}',
+                                   payload=json.dumps(reading))
+            except Exception as err:
+                self.print(f'No longer connected to the server ({err})...')
+            # wait for the next sensor reading
+            time.sleep(self.read_delay)

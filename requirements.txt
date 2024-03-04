@@ -1,5 +1,7 @@
 python-socketio
 aiohttp
+aiomqtt
+paho-mqtt
 netifaces
 tomli
 
