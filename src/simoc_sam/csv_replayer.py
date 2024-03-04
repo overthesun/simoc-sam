@@ -20,13 +20,13 @@ au_to_km = 149597870.7  # Convert distance from AU to kilometers
 def publish_to_mqtt(topic, payload):
     client.publish(topic, payload)
 
-#async def process_csv_file(file_path, play_data_delay=60):
-#    while True:
-#        await process_once_csv_file(file_path, play_data_delay)
-#        await asyncio.sleep(play_data_delay/10)
+async def process_csv_file(file_path, play_data_delay=60):
+   while True:
+       await process_once_csv_file(file_path, play_data_delay)
+       await asyncio.sleep(play_data_delay/10)
 
 # Function to process a CSV file and publish data to MQTT continuously
-async def process_csv_file(file_path, play_data_delay=60):
+async def process_once_csv_file(file_path, play_data_delay=60):
     # Extract topic name from the file name
     filename = os.path.basename(file_path)
     topic = filename.replace("_", "/").replace("sam/", "samreplay/").replace(".csv","")
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Create an MQTT client
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client = mqtt.Client()
 
     # Connect to the MQTT broker
     client.connect(host=HOST, port=PORT, keepalive=KEEPALIVE)
@@ -100,12 +100,12 @@ if __name__ == '__main__':
     # Loop to handle MQTT communication
     client.loop_start()
 
-    main(args.csv_directory)
+    # main(args.csv_directory)
 
     loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(main())
+        loop.run_until_complete(main(args.csv_directory))
     except KeyboardInterrupt:
         pass
     finally:

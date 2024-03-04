@@ -9,16 +9,11 @@ import paho.mqtt.client as mqtt
 
 HOST = 'samrpi1.local'
 PORT = 1883
-KEEPALIVE = 600  # in seconds
+KEEPALIVE = 10  # in seconds
 TOPIC = "sam/#" 
 
-# Callback function for disconnection
-def on_disconnect(client, userdata, disconnect_flags, reason_codes, properties):
-    print("Disconnected from MQTT broker")
-    self.connect()
-
 # Callback when the client connects to the broker
-def on_connect(client, userdata, flags, rc, properties):
+def on_connect(client, userdata, flags, rc, properties=None):
     print("Connected with result code " + str(rc))
     # Subscribe to the MQTT topic
     client.subscribe(args.topic)
@@ -27,17 +22,15 @@ def on_message(client, userdata, msg):
     payload = msg.payload.decode("utf-8")
     topic = str(msg.topic)
     print(f"Received message: {payload}")
-    print(f"Received message: {topic}")
-
+    print(f"from topic: {topic}")
     # Parse the payload (assuming it's JSON, adjust as needed)
     data = json.loads(payload)
-
 
     # Define file name based on topic
     csv_file_path = "/home/sam/data/" + topic.replace("/", "_").replace("#", "") + ".csv"
 
     # Append the data to the CSV file
-    with open(csv_file_path, mode='a', newline='', buffering=0) as csv_file:
+    with open(csv_file_path, mode='a', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
         #field_names = sorted(data.keys())
         field_names = ['n', 'timestamp', *[k for k in data if k not in ('n', 'timestamp')]]
@@ -61,18 +54,18 @@ def main(host=HOST, port=PORT, topic=TOPIC):
     
     #subscribe.callback(on_message, topic, hostname=HOST, port=PORT, keepalive=KEEPALIVE, qos=2)
     # Create an MQTT client
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client = mqtt.Client()
 
     # Set callback functions
     client.on_connect = on_connect
-    client.on_disconnect = on_disconnect
+#    client.on_disconnect = on_disconnect
     client.on_message = on_message
 
     # Connect to the MQTT broker
     client.connect(host, port, KEEPALIVE)
 
     # Loop to handle MQTT communication
-    client.loop_start()
+    client.loop_forever()
 
     # Keep the script running
     try:
