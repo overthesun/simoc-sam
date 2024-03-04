@@ -188,11 +188,10 @@ class MQTTWrapper:
     def connect(self, host, port, *, attempts=100, retry_delay=5):
         """Called when the sensor connects to the server."""
         try:
-            print(f'Connecting to MQTT broker at {host}:{port}...')
+            self.print(f'Connecting to MQTT broker at {host}:{port}...')
             reason_code = self.mqttc.connect(host, port)
             if reason_code == 0:
                 self.print(f'Connected to {host}:{port}')
-                return
             else:
                 self.print(f'Connection failed with code: {reason_code}')
         except Exception as err:
@@ -208,9 +207,8 @@ class MQTTWrapper:
             try:
                 self.print(reading)
                 self.mqttc.publish(f'sam/{self.hostname}/{self.sensor.sensor_name}',
-                                   payload=json.dumps(reading), qos=0)
+                                   payload=json.dumps(reading))
             except Exception as err:
                 self.print(f'No longer connected to the server ({err})...')
-                return
             # wait for the next sensor reading
             time.sleep(self.read_delay)
