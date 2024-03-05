@@ -1,129 +1,151 @@
-[scd30]
-name = "SCD30"
+[SCD-30]
+name = "SCD-30"
 description = "NDIR CO2, Temperature, and Humidity Sensor"
 module = "simoc_sam.sensors.scd30"
 i2c_address = 0x61
 
-    [scd30.data.CO2]
+    [SCD-30.data.CO2]
     unit = "ppm"
-    label = "CO2 Concentration"
+    label = "CO2"
+    description = "CO2 Concentration"
 
-    [scd30.data.temperature]
+    [SCD-30.data.temperature]
     unit = "°C"
     label = "Temperature"
+    description = "Temperature"
 
-    [scd30.data.humidity]
-    unit = "%RH"
+    [SCD-30.data.humidity]
+    unit = "%"
     label = "Humidity"
+    description = "Relative Humidity"
 
-[scd41]
-name = "SCD41"
+[SCD-41]
+name = "SCD-41"
 description = "True CO2 Temperature and Humidity Sensor"
 module = "simoc_sam.sensors.scd4x"
 i2c_address = 0x62
 
-    [scd41.data.CO2]
+    [SCD-41.data.CO2]
     unit = "ppm"
     label = "CO2 Concentration"
+    description = "CO2 Concentration"
 
-    [scd41.data.temperature]
+    [SCD-41.data.temperature]
     unit = "°C"
     label = "Temperature"
+    description = "Temperature"
 
-    [scd41.data.humidity]
-    unit = "%RH"
+    [SCD-41.data.humidity]
+    unit = "%"
     label = "Humidity"
+    description = "Relative Humidity"
 
-[sgp30]
+[SGP30]
 name = "SGP30"
 description = "TVOC/eCO2 Gas Sensor"
 module = "simoc_sam.sensors.sgp30"
 i2c_address = 0x58
 
-    [sgp30.data.eCO2]
+    [SGP30.data.eCO2]
     unit = "ppm"
-    label = "CO2 Equivalent Concentration"
+    label = "eCO2"
+    description = "CO2 Equivalent Concentration"
 
-    [sgp30.data.TVOC]
+    [SGP30.data.TVOC]
     unit = "ppb"
-    label = "Total Volatile Organic Compounds"
+    label = "TVOC"
+    description = "Total Volatile Organic Compounds"
 
-    [sgp30.data.H2]
+    [SGP30.data.H2]
     unit = "ppm"
-    label = "Hydrogen Concentration"
+    label = "Hydrogen"
+    description =  "Hydrogen Concentration"
 
-    [sgp30.data.ethanol]
+    [SGP30.data.ethanol]
     unit = "ppm"
-    label = "Ethanol Concentration"
+    label = "Ethanol"
+    description = "Ethanol Concentration"
 
-[bme688]
+[BME688]
 name = "BME688"
 description = "Temperature, Humidity, Pressure, and Gas Sensor"
 module = "simoc_sam.sensors.bme688"
 i2c_address = 0x77
 
-    [bme688.data.temperature]
+    [BME688.data.temperature]
     unit = "°C"
     label = "Temperature"
+    description = "Temperature"
 
-    [bme688.data.pressure]
+    [BME688.data.pressure]
     unit = "hPa"
     label = "Pressure"
+    description = "Barometric Pressure"
 
-    [bme688.data.humidity]
-    unit = "%RH"
+    [BME688.data.humidity]
+    unit = "%"
     label = "Humidity"
+    description = "Relative Humidity"
 
-    [bme688.data.gas_resistance]
+    [BME688.data.gas_resistance]
     unit = "Ohm"
-    label = "Gas Resistance"
+    label = "Gas"
+    description = "Gas Resistance (based on VOC)"
 
-    [bme688.data.altitude]
+    [BME688.data.altitude]
     unit = "m"
     label = "Altitude"
+    description = "Altitude"
 
-[apds9960]
+[APDS9960]
 name = "APDS9960"
 description = "Proximity, Light, RGB, and Gesture Sensor"
 module = ""
 i2c_address = 0x39
 
-    [apds9960.data.proximity]
+    [APDS9960.data.proximity]
     unit = ""
     label = "Proximity"
+    description = "Proximity"
 
-    [apds9960.data.gesture]
+    [APDS9960.data.gesture]
     unit = ""
     label = "Gesture"
+    description = "Gesture"
 
-    [apds9960.data.color]
+    [APDS9960.data.color]
     unit = ""
     label = "Color"
+    description = "Color"
 
-[tsl2591]
+[TSL2591]
 name = "TSL2591"
 description = "High Dynamic Range Digital Light Sensor"
 module = ""
 i2c_address = 0x29
 
-    [tsl2591.data.lux]
+    [TSL2591.data.light]
     unit = "lux"
-    label = "Light Intensity"
+    label = "Light"
+    description = "Light Intensity"
 
-    [tsl2591.data.visible]
+    [TSL2591.data.visible]
     unit = ""
-    label = "Visible Light Level"
+    label = "Visible"
+    description = "Visible Light Level"
 
-    [tsl2591.data.infrared]
+    [TSL2591.data.infrared]
     unit = ""
-    label = "Infrared Light Level"
+    label = "Infrared"
+    description = "Infrared Light Level"
 
-[veml7700]
+[VEML7700]
 name = "VEML7700"
 description = "Ambient Light Sensor"
 module = ""
 i2c_address = 0x10
 
-    [veml7700.data.ambient_light]
+    [VEML7700.data.light]
     unit = "Lux"
-    label = "Ambient Light"
+    label = "Light"
+    description = "Ambient Light"
