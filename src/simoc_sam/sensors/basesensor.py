@@ -35,7 +35,7 @@ class BaseSensor(ABC):
 
     def __init__(self, *, name=None, id=None, description=None,
                  verbose=False):
-        self.sensor_name = name
+        self.sensor_name = name or self.sensor_type
         self.sensor_id = id or random_id()
         self.sensor_desc = description
         self.verbose = verbose
