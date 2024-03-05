@@ -1,15 +1,8 @@
 """Driver for the SCD-4x CO2/temperature/humidity sensor."""
 
-import sys
-
 from . import utils
 
 board = utils.import_board()
-
-try:
-    import busio
-except RuntimeError:
-    sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
 import adafruit_scd4x
 

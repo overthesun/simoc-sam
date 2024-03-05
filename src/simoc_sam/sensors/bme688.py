@@ -1,16 +1,8 @@
 """Driver for the BME688 Temp/Humidity/Pressure/Gas Resistance sensor."""
 
-import os
-import sys
-
 from . import utils
 
 board = utils.import_board()
-
-try:
-    import busio
-except RuntimeError:
-    sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
 import adafruit_bme680
 

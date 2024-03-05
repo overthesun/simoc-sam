@@ -1,16 +1,9 @@
 """Driver for the SGP-30 H2/Ethanol sensor."""
 
-import os
-import sys
-
 from . import utils
 
 board = utils.import_board()
-
-try:
-    import busio
-except RuntimeError:
-    sys.exit("Failed to import 'busio'.  Is the sensor plugged in?")
+busio = utils.import_busio()
 
 import adafruit_sgp30
 
