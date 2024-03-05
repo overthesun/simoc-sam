@@ -23,7 +23,7 @@ class SCD41(BaseSensor):
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
         reading = dict(
-            CO2 = self.scd.CO2,  # ppm
+            co2 = self.scd.CO2,  # ppm
             temperature = self.scd.temperature,  # °C
             humidity = self.scd.relative_humidity,  # %
         )

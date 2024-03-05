@@ -43,11 +43,11 @@ class SGP30(BaseSensor):
         hydrogen_ticks = self.sensor.H2  # raw hydrogen ticks
         ethanol_ticks = self.sensor.Ethanol  # raw ethanol ticks
         reading = dict(
-            H2=tick_conversion_H2(hydrogen_ticks),  # convert to ppm
+            h2=tick_conversion_H2(hydrogen_ticks),  # convert to ppm
             ethanol=tick_conversion_ethanol(ethanol_ticks),  # convert to ppm
             # get estimated CO2 and VOC values interpreted from H2 an Ethanol
-            eCO2=self.sensor.eCO2,  # ppm
-            TVOC=self.sensor.TVOC,  # ppb
+            eco2=self.sensor.eCO2,  # ppm
+            tvoc=self.sensor.TVOC,  # ppb
         )
         self.print_reading(reading)
         return reading
