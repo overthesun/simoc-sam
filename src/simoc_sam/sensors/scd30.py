@@ -1,13 +1,11 @@
 """Driver for the SCD-30 CO2/temperature/humidity sensor."""
-
 from . import utils
+from .basesensor import BaseSensor
 
 board = utils.import_board()
 busio = utils.import_busio()
-
 import adafruit_scd30
 
-from .basesensor import BaseSensor
 
 
 class SCD30(BaseSensor):

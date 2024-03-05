@@ -1,13 +1,10 @@
 """Driver for the SGP-30 H2/Ethanol sensor."""
-
 from . import utils
+from .basesensor import BaseSensor
 
 board = utils.import_board()
 busio = utils.import_busio()
-
 import adafruit_sgp30
-
-from .basesensor import BaseSensor
 
 
 def tick_conversion_ethanol(signal_output):

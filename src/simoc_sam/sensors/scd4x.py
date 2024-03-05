@@ -1,12 +1,9 @@
 """Driver for the SCD-4x CO2/temperature/humidity sensor."""
-
 from . import utils
+from .basesensor import BaseSensor
 
 board = utils.import_board()
-
 import adafruit_scd4x
-
-from .basesensor import BaseSensor
 
 
 class SCD4X(BaseSensor):

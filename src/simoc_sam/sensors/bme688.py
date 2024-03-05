@@ -1,12 +1,9 @@
 """Driver for the BME688 Temp/Humidity/Pressure/Gas Resistance sensor."""
-
 from . import utils
+from .basesensor import BaseSensor
 
 board = utils.import_board()
-
 import adafruit_bme680
-
-from .basesensor import BaseSensor
 
 
 class BME688(BaseSensor):
