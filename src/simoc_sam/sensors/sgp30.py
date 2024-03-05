@@ -8,7 +8,6 @@ busio = utils.import_busio()
 import adafruit_sgp30
 
 from .basesensor import BaseSensor
-from .utils import start_sensor
 
 
 def tick_conversion_ethanol(signal_output):
@@ -73,4 +72,4 @@ class SGP30(BaseSensor):
                 "eCO2": eCO2, "VolatileOrganicCompounds": TVOC}
 
 if __name__ == '__main__':
-    start_sensor(SGP30)
+    utils.start_sensor(SGP30)

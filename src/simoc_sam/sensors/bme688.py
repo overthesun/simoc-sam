@@ -7,7 +7,6 @@ board = utils.import_board()
 import adafruit_bme680
 
 from .basesensor import BaseSensor
-from .utils import start_sensor
 
 
 class BME688(BaseSensor):
@@ -42,4 +41,4 @@ class BME688(BaseSensor):
                 "altitude": altitude, "pressure": pressure}
 
 if __name__ == '__main__':
-    start_sensor(BME688)
+    utils.start_sensor(BME688)

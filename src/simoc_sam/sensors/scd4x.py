@@ -7,7 +7,6 @@ board = utils.import_board()
 import adafruit_scd4x
 
 from .basesensor import BaseSensor
-from .utils import start_sensor
 
 
 class SCD4X(BaseSensor):
@@ -39,4 +38,4 @@ class SCD4X(BaseSensor):
 
 
 if __name__ == '__main__':
-    start_sensor(SCD4X)
+    utils.start_sensor(SCD4X)

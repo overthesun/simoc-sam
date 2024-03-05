@@ -8,7 +8,6 @@ busio = utils.import_busio()
 import adafruit_scd30
 
 from .basesensor import BaseSensor
-from .utils import start_sensor
 
 
 class SCD30(BaseSensor):
@@ -37,4 +36,4 @@ class SCD30(BaseSensor):
 
 
 if __name__ == '__main__':
-    start_sensor(SCD30)
+    utils.start_sensor(SCD30)
