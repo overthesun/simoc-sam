@@ -6,17 +6,14 @@ board = utils.import_board()
 import adafruit_bme680
 
 
+BME688_DATA = utils.SENSOR_DATA['BME688']
+
 class BME688(BaseSensor):
     """Represent a BME688 sensor"""
-    sensor_type = 'BME688'
-    reading_info = {
-        'temp': dict(label='Temperature', unit='°C'),
-        'rel_hum': dict(label='Relative Humidity', unit='%'),
-        'gas_resistance' : dict(label='Gas Resistance', unit='Ohms'),
-        'altitude': dict (label='Altitude', unit='m'),
-        'pressure': dict(label='Pressure', unit='hPa'),
-    }
-    def __init__(self, *, name='BME688', **kwargs):
+    sensor_type = BME688_DATA.name
+    reading_info = BME688_DATA.data
+
+    def __init__(self, *, name=None, **kwargs):
         """Initialize the sensor."""
         super().__init__(name=name, **kwargs)
         i2c = board.I2C()
@@ -24,18 +21,15 @@ class BME688(BaseSensor):
 
     def read_sensor_data(self):
         """Return sensor data as a dict."""
-        temperature = self.sensor.temperature  # °C
-        humidity = self.sensor.relative_humidity  # %
-        pressure = self.sensor.pressure  # hPa
-        altitude = self.sensor.altitude  # m
-        gas = self.sensor.gas  # Ohms
-        if self.verbose:
-            print(f'[{self.sensor_type}] Pressure: {pressure:4.1f} hPa; '
-                  f'Temperature: {temperature:2.1f}°C; '
-                  f'Humidity: {humidity:2.1f}%; Altidude: {altitude:2.1f} m; '
-                  f'Gas Resistance: {gas:2.1f} Ohms')
-        return {"temp": temperature, "rel_hum": humidity, "gas_resistance": gas,
-                "altitude": altitude, "pressure": pressure}
+        reading = dict(
+            temperature = self.sensor.temperature,  # °C
+            humidity = self.sensor.relative_humidity,  # %
+            pressure = self.sensor.pressure,  # hPa
+            altitude = self.sensor.altitude,  # m
+            gas_resistance = self.sensor.gas,  # Ohms
+        )
+        self.print_reading(reading)
+        return reading
 
 if __name__ == '__main__':
     utils.start_sensor(BME688)
