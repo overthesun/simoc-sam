@@ -18,12 +18,12 @@ def tick_conversion_ethanol(signal_output):
     return 0.4 * (math.e**((signal_reference-signal_output)/512))
 
 def tick_conversion_H2(signal_output):
-    """Get raw ticks from sensor and converts to ppm."""on.
+    """Get raw ticks from sensor and converts to ppm."""
     signal_reference = 14296
     return 0.5 * (math.e**((signal_reference-signal_output)/512))
 
 
-SGP30_DATA = utils.SENSOR_DATA['SGP-30']
+SGP30_DATA = utils.SENSOR_DATA['SGP30']
 
 class SGP30(BaseSensor):
     """Represent a SGP30 sensor."""
