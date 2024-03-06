@@ -35,7 +35,7 @@ class BaseSensor(ABC):
 
     def __init__(self, *, name=None, id=None, description=None,
                  verbose=False):
-        self.sensor_name = name
+        self.sensor_name = name or self.sensor_type
         self.sensor_id = id or random_id()
         self.sensor_desc = description
         self.verbose = verbose
@@ -63,6 +63,20 @@ class BaseSensor(ABC):
             'sensor_desc': self.sensor_desc,
             'reading_info': self.reading_info,
         }
+
+    def print(self, *args, **kwargs):
+        """Print the args if self.verbose is True"""
+        if self.verbose:
+            print(*args, **kwargs)
+
+    def print_reading(self, reading):
+        data = []
+        for name, info in self.reading_info.items():
+            value = reading[name]
+            if isinstance(value, float):
+                value = format(value, '.1f')
+            data.append(f"{info['label']}: {value}{info['unit']}")
+        self.print(f"[{self.sensor_type}] {': '.join(data)}")
 
     @abstractmethod
     def read_sensor_data(self):

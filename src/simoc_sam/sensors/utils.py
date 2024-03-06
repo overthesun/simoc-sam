@@ -1,4 +1,5 @@
 import os
+import sys
 import pathlib
 import asyncio
 import argparse
@@ -89,6 +90,12 @@ def import_board():
     import board
     return board
 
+def import_busio():
+    try:
+        import busio
+        return busio
+    except RuntimeError:
+        sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
 def get_mqtt_addr():
     addr = os.environ.get('MQTTSERVER_ADDR', 'samrpi1:1883')
