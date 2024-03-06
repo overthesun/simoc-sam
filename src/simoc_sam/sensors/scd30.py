@@ -1,31 +1,20 @@
 """Driver for the SCD-30 CO2/temperature/humidity sensor."""
-
-import sys
-
 from . import utils
+from .basesensor import BaseSensor
 
 board = utils.import_board()
-
-try:
-    import busio
-except RuntimeError:
-    sys.exit("Failed to import 'busio', is the sensor plugged in?")
-
+busio = utils.import_busio()
 import adafruit_scd30
 
-from .basesensor import BaseSensor
-from .utils import start_sensor
 
+SCD30_DATA = utils.SENSOR_DATA['SCD-30']
 
 class SCD30(BaseSensor):
     """Represent a SCD-30 sensor."""
-    sensor_type = 'SCD-30'
-    reading_info = {
-        'co2': dict(label='CO2', unit='ppm'),
-        'temp': dict(label='Temperature', unit='°C'),
-        'rel_hum': dict(label='Relative Humidity', unit='%'),
-    }
-    def __init__(self, *, name='SCD-30', description=None, verbose=False):
+    sensor_type = SCD30_DATA.name
+    reading_info = SCD30_DATA.data
+
+    def __init__(self, *, name=None, description=None, verbose=False):
         """Initialize the sensor."""
         super().__init__(name=name, description=description, verbose=verbose)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
@@ -33,14 +22,14 @@ class SCD30(BaseSensor):
 
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""
-        co2_ppm = self.scd.CO2
-        temp = self.scd.temperature  # in °C
-        rel_hum = self.scd.relative_humidity
-        if self.verbose:
-            print(f'[{self.sensor_type}] CO2: {co2_ppm:4.0f}ppm; '
-                  f'Temperature: {temp:2.1f}°C; Humidity: {rel_hum:2.1f}%')
-        return dict(co2=co2_ppm, temp=temp, rel_hum=rel_hum)
+        reading = dict(
+            co2=self.scd.CO2,  # ppm
+            temperature=self.scd.temperature,  # °C
+            humidity=self.scd.relative_humidity,  # %
+        )
+        self.print_reading(reading)
+        return reading
 
 
 if __name__ == '__main__':
-    start_sensor(SCD30)
+    utils.start_sensor(SCD30)
