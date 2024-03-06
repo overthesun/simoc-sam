@@ -218,7 +218,7 @@ async def emit_readings():
 
 
 async def mqtt_handler():
-    broker_address = "samrpi1"
+    broker_address = "samrpi1.local"
     client = aiomqtt.Client(broker_address)
     print(SENSOR_INFO)
     interval = 5  # Seconds
