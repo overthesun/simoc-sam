@@ -2,9 +2,9 @@ import os
 import csv
 import json
 
-from simoc_sam.sensors import utils
-
 import paho.mqtt.client as mqtt
+
+from simoc_sam.sensors import utils
 
 
 HOST = 'samrpi1.local'
@@ -14,13 +14,13 @@ TOPIC = "sam/#"
 
 # Callback when the client connects to the broker
 def on_connect(client, userdata, flags, rc, properties=None):
-    print("Connected with result code " + str(rc))
+    print(f'Connected with result code {rc}')
     # Subscribe to the MQTT topic
     client.subscribe(args.topic)
 
 def on_message(client, userdata, msg):
     payload = msg.payload.decode("utf-8")
-    topic = str(msg.topic)
+    topic = msg.topic
     print(f"Received message: {payload}")
     print(f"from topic: {topic}")
     # Parse the payload (assuming it's JSON, adjust as needed)
@@ -33,7 +33,7 @@ def on_message(client, userdata, msg):
     with open(csv_file_path, mode='a', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
         #field_names = sorted(data.keys())
-        field_names = ['n', 'timestamp', *[k for k in data if k not in ('n', 'timestamp')]]
+        field_names = ['n', 'timestamp', *[k for k in data if k not in {'n', 'timestamp'}]]
         # Check if the CSV file is empty
         is_empty = os.stat(csv_file_path).st_size == 0
 
@@ -50,15 +50,11 @@ def on_message(client, userdata, msg):
 # main
 
 def main(host=HOST, port=PORT, topic=TOPIC):
-    
-    
-    #subscribe.callback(on_message, topic, hostname=HOST, port=PORT, keepalive=KEEPALIVE, qos=2)
     # Create an MQTT client
     client = mqtt.Client()
 
     # Set callback functions
     client.on_connect = on_connect
-#    client.on_disconnect = on_disconnect
     client.on_message = on_message
 
     # Connect to the MQTT broker
