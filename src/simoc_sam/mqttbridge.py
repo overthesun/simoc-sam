@@ -199,7 +199,9 @@ async def emit_readings():
         # TODO: set up a room for the clients and broadcast to the room
         # TODO: improve ctrl+c handling (see graceful shutdown)
         timestamp = get_timestamp()
-        print('SR', SENSOR_READINGS)
+        print('Last readings:',
+              {k: [v[-1]['n'], v[-1]['timestamp']]
+               for k, v in SENSOR_READINGS.items()})
         sensors_readings = {sid: readings[-1]
                             for sid, readings in SENSOR_READINGS.items()
                             if readings}
@@ -232,6 +234,7 @@ async def mqtt_handler():
                     sam, host, sensor = topic.split('/')
                     sensor_id = f'{host}.{sensor}'
                     if sensor_id not in SENSOR_INFO:
+                        SENSORS.add(sensor_id)
                         info = copy.deepcopy(SENSOR_DATA[sensor])
                         info['sensor_name'] = sensor_id
                         info['sensor_id'] = sensor_id
