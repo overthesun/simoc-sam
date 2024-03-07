@@ -62,15 +62,7 @@ def main(host=HOST, port=PORT, topic=TOPIC):
 
     # Loop to handle MQTT communication
     client.loop_forever()
-
-    # Keep the script running
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        # Disconnect from the MQTT broker on keyboard interrupt
-        client.disconnect()
-        print("Disconnected from MQTT broker")
+    print("Disconnected from MQTT broker")
 
 if __name__ == '__main__':
     parser = utils.get_addr_argparser()
