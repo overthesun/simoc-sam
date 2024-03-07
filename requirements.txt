@@ -4,6 +4,7 @@ aiomqtt
 paho-mqtt
 netifaces
 tomli
+ephem
 
 # sensor-related deps
 hidapi
