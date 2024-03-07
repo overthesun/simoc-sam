@@ -221,11 +221,13 @@ async def emit_readings():
 
 async def mqtt_handler():
     broker_address = "samrpi1.local"
-    client = aiomqtt.Client(broker_address)
     print(SENSOR_INFO)
     interval = 5  # Seconds
     while True:
         try:
+            # the client is supposed to be reusable, so it should be possible
+            # to instantiate it outside of the loop, but that doesn't work
+            client = aiomqtt.Client(broker_address)
             async with client:
                 await client.subscribe("sam/#")
                 async for message in client.messages:
