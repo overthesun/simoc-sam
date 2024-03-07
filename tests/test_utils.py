@@ -5,7 +5,7 @@ from simoc_sam.sensors import utils
 
 def test_delay():
     args = utils.parse_args([])
-    assert args.delay == 1
+    assert args.delay == 10
     args = utils.parse_args(['-d', '5'])
     assert args.delay == 5.0
     args = utils.parse_args(['--read-delay', '5.5'])
