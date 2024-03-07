@@ -71,14 +71,19 @@ def clean_venv():
 target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
 ipv4_re = re.compile('^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
-def copy_repo(target):
+def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     """Copy the repository to a remote host using rsync."""
     user, host, path = target_re.fullmatch(target).groups()
     user = user or 'pi'
     path = path or '/home/pi/simoc-sam'
     repo = f'{pathlib.Path(__file__).parent}/'  # rsync wants the trailing /
+    excludes = []
+    if exclude_venv:
+        excludes.extend(['--exclude', 'venv'])
+    if exclude_git:
+        excludes.extend(['--exclude', '.git'])
     def rsync_cmd(user, host, path):
-        return ['rsync', '-avz', repo, f'{user}@{host}:{path}']
+        return ['rsync', '-avz', *excludes, repo, f'{user}@{host}:{path}']
     try:
         subprocess.run(rsync_cmd(user, host, path),
                        check=True, stderr=subprocess.PIPE)
@@ -93,6 +98,17 @@ def copy_repo(target):
             subprocess.run(rsync_cmd(user, host, path))
         else:
             print(stderr)
+
+@cmd
+def copy_repo_venv(target):
+    """Copy the repository to a remote host using rsync (includes venv dir)."""
+    copy_repo(target, exclude_venv=False)
+
+@cmd
+def copy_repo_git(target):
+    """Copy the repository to a remote host using rsync (includes .git dir)."""
+    copy_repo(target, exclude_git=False)
+
 
 host_re = re.compile('^samrpi(\d+)$')
 address_re = re.compile('^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
