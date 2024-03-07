@@ -113,7 +113,7 @@ class BaseSensor(ABC):
 
 
 class SIOWrapper:
-    def __init__(self, sensor, *, read_delay=1, verbose=False):
+    def __init__(self, sensor, *, read_delay=10, verbose=False):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
@@ -162,7 +162,7 @@ class SIOWrapper:
 
 
 class MQTTWrapper:
-    def __init__(self, sensor, *, read_delay=1, verbose=False):
+    def __init__(self, sensor, *, read_delay=10, verbose=False):
         self.sensor = sensor
         self.hostname = socket.gethostname()
         self.read_delay = read_delay  # how long to wait between readings

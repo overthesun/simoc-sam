@@ -116,7 +116,7 @@ def get_addr_argparser():
     return parser
 
 
-def parse_args(arguments=None, *, read_delay=1):
+def parse_args(arguments=None, *, read_delay=10):
     parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=float,
