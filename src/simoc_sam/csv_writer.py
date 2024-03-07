@@ -10,7 +10,7 @@ from simoc_sam.sensors import utils
 HOST = 'samrpi1.local'
 PORT = 1883
 KEEPALIVE = 10  # in seconds
-TOPIC = "sam/#" 
+TOPIC = "sam/#"
 
 # Callback when the client connects to the broker
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -27,10 +27,10 @@ def on_message(client, userdata, msg):
     data = json.loads(payload)
 
     # Define file name based on topic
-    csv_file_path = "/home/sam/data/" + topic.replace("/", "_").replace("#", "") + ".csv"
+    csv_file_path = "/home/sam/data/" + topic.replace("/", "_") + ".csv"
 
     # Append the data to the CSV file
-    with open(csv_file_path, mode='a', newline='') as csv_file:
+    with open(csv_file_path, 'a', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
         #field_names = sorted(data.keys())
         field_names = ['n', 'timestamp', *[k for k in data if k not in {'n', 'timestamp'}]]
