@@ -95,7 +95,11 @@ class BaseSensor(ABC):
         """
         read_forever = not n
         while True:
-            data = self.read_sensor_data()
+            try:
+                data = self.read_sensor_data()
+            except RuntimeError as err:
+                self.print(f'Error reading data: {err}')
+                data = None
             if not data:
                 time.sleep(delay)
                 continue  # keep trying until we get a reading
