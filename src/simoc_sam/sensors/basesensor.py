@@ -186,8 +186,11 @@ class MQTTWrapper:
 
     def log(self, payload):
         # TODO: implement better logging
-        with open(self.log_fname, 'a') as f:
-            f.write(f'{payload}\n')
+        try:
+            with open(self.log_fname, 'a') as f:
+                f.write(f'{payload}\n')
+        except FileNotFoundError as err:
+            self.print(f'Unable to write log file: {err}')
 
     def start(self, host, port):
         self.mqttc.loop_start()
