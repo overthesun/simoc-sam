@@ -89,7 +89,7 @@ i2c_address = 0x77
 
     [BME688.data.gas_resistance]
     unit = "Ohm"
-    label = "Gas"
+    label = "Gas Res."
     description = "Gas Resistance (based on VOC)"
 
     [BME688.data.altitude]
