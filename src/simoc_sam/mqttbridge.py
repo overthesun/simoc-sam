@@ -1,3 +1,7 @@
+# TODO: this file was copied from the sioserver.py and adapted
+# to work with MQTT.  Some of the code is unused and should
+# be removed.
+
 import json
 import copy
 import asyncio
@@ -36,32 +40,6 @@ def convert_sensor_data():
 HAB_INFO = dict(humans=4, volume=272)
 SENSOR_DATA = convert_sensor_data()
 SENSOR_INFO = {}
-dict(
-    bme688={
-        'sensor_type': 'BME688',
-        'sensor_name': 'BME688 Mars Yard',
-        'sensor_id': '38049A',
-        'sensor_desc': None,
-        'reading_info': {
-            'temp': dict(label='Temperature', unit='°C'),
-            'rel_hum': dict(label='Relative Humidity', unit='%'),
-            'gas_resistance' : dict(label='Gas Resistance', unit='Ohms'),
-            'altitude': dict (label='Altitude', unit='m'),
-            'pressure': dict(label='Pressure', unit='hPa'),
-    }},
-    sgp30={
-        'sensor_type': 'SGP30',
-        'sensor_name': 'SGP30 Mars Yard',
-        'sensor_id': '38049B',
-        'sensor_desc': None,
-        'reading_info':{
-            'H2': dict(label='Hydrogen', unit='ppm'),
-            'ethanol': dict(label='ethanol', unit='ppm'),
-            # Estimated CO2 based on other common associated compounds
-            'eCO2': dict(label='eCO2', unit='ppm'),
-            # Total Volatile Organic Compounds
-            'VolatileOrganicCompounds': dict(label='VOC', unit='ppb')
-    }})
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
 SENSOR_MANAGERS = set()
