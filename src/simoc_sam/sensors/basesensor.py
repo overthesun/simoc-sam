@@ -189,7 +189,7 @@ class MQTTWrapper:
         try:
             with open(self.log_fname, 'a') as f:
                 f.write(f'{payload}\n')
-        except FileNotFoundError as err:
+        except Exception as err:
             self.print(f'Unable to write log file: {err}')
 
     def start(self, host, port):
