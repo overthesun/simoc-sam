@@ -37,7 +37,7 @@ def test_parse_args_sio_mqtt(capsys):
 
 def test_parse_args_mqtt_default_ports():
     args = utils.parse_args(['--mqtt'])
-    assert args.host == 'samrpi1'
+    assert args.host == 'sambridge1'
     assert args.port == 1883
 
 def test_parse_args_mqtt_custom_ports():

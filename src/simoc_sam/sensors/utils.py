@@ -98,7 +98,7 @@ def import_busio():
         sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
 def get_mqtt_addr():
-    addr = os.environ.get('MQTTSERVER_ADDR', 'samrpi1:1883')
+    addr = os.environ.get('MQTTSERVER_ADDR', 'sambridge1:1883')
     host, port = addr.split(':')
     return host, int(port)
 
