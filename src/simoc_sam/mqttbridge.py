@@ -199,17 +199,18 @@ async def emit_readings():
 
 async def mqtt_handler():
     args = utils.parse_args()
-    host = args.host or MQTT_HOST
+    mqtt_broker = args.host or MQTT_HOST
     print(SENSOR_INFO)
     interval = 5  # Seconds
     while True:
         try:
             # the client is supposed to be reusable, so it should be possible
             # to instantiate it outside of the loop, but that doesn't work
-            print(f'Connecting to <{host}>...')
-            client = aiomqtt.Client(host)
+            print(f'* Connecting to <{mqtt_broker}>...')
+            client = aiomqtt.Client(mqtt_broker)
             async with client:
                 await client.subscribe("sam/#")
+                print(f'* Connected to <{mqtt_broker}>.')
                 async for message in client.messages:
                     topic = message.topic.value
                     print(topic)
@@ -228,8 +229,8 @@ async def mqtt_handler():
                     # print('adding', payload)
                     SENSOR_READINGS[sensor_id].append(payload)
         except aiomqtt.MqttError as err:
-            print(f'Connection lost; {err}')
-            print(f'Reconnecting in {interval} seconds...')
+            print(f'* Connection lost from <{mqtt_broker}>; {err}')
+            print(f'* Reconnecting in {interval} seconds...')
             await asyncio.sleep(interval)
 
 
