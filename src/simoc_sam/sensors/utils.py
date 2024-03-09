@@ -131,6 +131,9 @@ def parse_args(arguments=None, *, read_delay=10):
                         help='Enable verbose output for SocketIO.')
     parser.add_argument('--mqtt', action='store_true',
                         help='Run the sensor with MQTT.')
+    # TODO: put this in a separate parser
+    parser.add_argument('--mqtt-topic', default='sam/#',
+                        help='The MQTT topic to subscribe to.')
     parser.add_argument('--sio', action='store_true',
                         help='Run the sensor with SocketIO.')
     args = parser.parse_args(arguments)

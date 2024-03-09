@@ -200,6 +200,7 @@ async def emit_readings():
 async def mqtt_handler():
     args = utils.parse_args()
     mqtt_broker = args.host or MQTT_HOST
+    topic_sub = args.mqtt_topic
     print(SENSOR_INFO)
     interval = 5  # Seconds
     while True:
@@ -209,8 +210,9 @@ async def mqtt_handler():
             print(f'* Connecting to <{mqtt_broker}>...')
             client = aiomqtt.Client(mqtt_broker)
             async with client:
-                await client.subscribe("sam/#")
-                print(f'* Connected to <{mqtt_broker}>.')
+                await client.subscribe(topic_sub)
+                print(f'* Connected to <{mqtt_broker}>, '
+                      f'subscribed to <{topic_sub}>.')
                 async for message in client.messages:
                     topic = message.topic.value
                     print(topic)
