@@ -19,6 +19,16 @@ i2c_address = 0x00
     label = "Humidity"
     description = "Relative Humidity"
 
+    [Mock.data.altitude]
+    unit = "m"
+    label = "Altitude"
+    description = "Altitude"
+
+    [Mock.data.pressure]
+    unit = "hPa"
+    label = "Pressure"
+    description = "Barometric Pressure"
+
 [SCD-30]
 name = "SCD-30"
 description = "NDIR CO2, Temperature, and Humidity Sensor"
