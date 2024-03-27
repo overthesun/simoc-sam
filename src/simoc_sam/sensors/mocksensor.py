@@ -1,19 +1,18 @@
 import random
 
+from . import utils
 from .basesensor import BaseSensor
-from .utils import start_sensor
 
+
+MOCK_DATA = utils.SENSOR_DATA['Mock']
 
 class MockSensor(BaseSensor):
-    sensor_type = 'Mock'
-    reading_info = {
-        'co2': dict(label='CO2', unit='ppm'),
-        'temp': dict(label='Temperature', unit='°C'),
-        'rel_hum': dict(label='Relative Humidity', unit='%'),
-    }
-    """A mock server that generates random CO2/temperature/humidity data."""
+    """A mock sensor that generates random CO2/temperature/humidity data."""
+    sensor_type = MOCK_DATA.name
+    reading_info = MOCK_DATA.data
+
     def __init__(self, *, base_co2=500, base_temp=20, base_hum=50,
-                 name='MockSensor', description=None, verbose=False):
+                 name=None, description=None, verbose=False):
         super().__init__(name=name, description=description, verbose=verbose)
         self.co2_ppm = base_co2
         self.temp = base_temp
@@ -28,11 +27,14 @@ class MockSensor(BaseSensor):
         self.co2_ppm = float(max(0, min(self.co2_ppm, 5000)))
         self.temp = float(max(15, min(self.temp, 25)))
         self.rel_hum = float(max(0, min(self.rel_hum, 100)))
-        if self.verbose:
-            print(f'CO2: {self.co2_ppm:4.0f}ppm; Temperature: '
-                  f'{self.temp:2.1f}°C; Humidity: {self.rel_hum:2.1f}%')
-        return dict(co2=self.co2_ppm, temp=self.temp, rel_hum=self.rel_hum)
+        reading = dict(
+            co2=self.co2_ppm,
+            temperature=self.temp,
+            humidity=self.rel_hum,
+        )
+        self.print_reading(reading)
+        return reading
 
 
 if __name__ == '__main__':
-    start_sensor(MockSensor)
+    utils.start_sensor(MockSensor)
