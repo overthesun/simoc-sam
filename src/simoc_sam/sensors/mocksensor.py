@@ -1,38 +1,45 @@
 import random
 
+from . import utils
 from .basesensor import BaseSensor
-from .utils import start_sensor
 
+
+MOCK_DATA = utils.SENSOR_DATA['Mock']
 
 class MockSensor(BaseSensor):
-    sensor_type = 'Mock'
-    reading_info = {
-        'co2': dict(label='CO2', unit='ppm'),
-        'temp': dict(label='Temperature', unit='°C'),
-        'rel_hum': dict(label='Relative Humidity', unit='%'),
-    }
-    """A mock server that generates random CO2/temperature/humidity data."""
-    def __init__(self, *, base_co2=500, base_temp=20, base_hum=50,
-                 name='MockSensor', description=None, verbose=False):
+    """A mock sensor that generates random CO2/temperature/humidity data."""
+    sensor_type = MOCK_DATA.name
+    reading_info = MOCK_DATA.data
+
+    def __init__(self, *, name=None, description=None, verbose=False,
+                 base_co2=1000, base_temp=20, base_hum=50,
+                 base_altitude=1000, base_pressure=900):
         super().__init__(name=name, description=description, verbose=verbose)
-        self.co2_ppm = base_co2
-        self.temp = base_temp
-        self.rel_hum = base_hum
+        self.co2_ppm = self.gen_values(base_co2, offset=50, range=(0, 5000))
+        self.temp = self.gen_values(base_temp, offset=1, range=(0, 40))
+        self.rel_hum = self.gen_values(base_hum, offset=3, range=(0, 100))
+        self.altitude = self.gen_values(base_altitude, offset=1, range=(0, 10000))
+        self.pressure = self.gen_values(base_pressure, offset=5, range=(0, 10000))
+
+    def gen_values(self, value, offset, range):
+        """Generate random values starting from values +-offset, within range."""
+        range_min, range_max = range  # value must be within this range
+        while True:
+            value = random.gauss(value, offset/3)
+            value = float(max(range_min, min(value, range_max)))
+            yield value
 
     def read_sensor_data(self):
-        # add/remove random values to/from the previous ones
-        self.co2_ppm += random.randint(1, 50) * random.choice([-1, 0, +1])
-        self.temp += random.random() * random.choice([-1, 0, +1])
-        self.rel_hum += random.randint(1, 3) * random.choice([-1, 0, +1])
-        # clip values to be within range
-        self.co2_ppm = float(max(0, min(self.co2_ppm, 5000)))
-        self.temp = float(max(15, min(self.temp, 25)))
-        self.rel_hum = float(max(0, min(self.rel_hum, 100)))
-        if self.verbose:
-            print(f'CO2: {self.co2_ppm:4.0f}ppm; Temperature: '
-                  f'{self.temp:2.1f}°C; Humidity: {self.rel_hum:2.1f}%')
-        return dict(co2=self.co2_ppm, temp=self.temp, rel_hum=self.rel_hum)
+        reading = dict(
+            co2=next(self.co2_ppm),
+            temperature=next(self.temp),
+            humidity=next(self.rel_hum),
+            altitude=next(self.altitude),
+            pressure=next(self.pressure),
+        )
+        self.print_reading(reading)
+        return reading
 
 
 if __name__ == '__main__':
-    start_sensor(MockSensor)
+    utils.start_sensor(MockSensor)

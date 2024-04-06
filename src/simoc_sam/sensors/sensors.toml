@@ -1,3 +1,34 @@
+[Mock]
+name = "Mock"
+description = "A mock sensor used for testing."
+module = "simoc_sam.sensors.mocksensor"
+i2c_address = 0x00
+
+    [Mock.data.co2]
+    unit = "ppm"
+    label = "CO2"
+    description = "CO2 Concentration"
+
+    [Mock.data.temperature]
+    unit = "°C"
+    label = "Temperature"
+    description = "Temperature"
+
+    [Mock.data.humidity]
+    unit = "%"
+    label = "Humidity"
+    description = "Relative Humidity"
+
+    [Mock.data.altitude]
+    unit = "m"
+    label = "Altitude"
+    description = "Altitude"
+
+    [Mock.data.pressure]
+    unit = "hPa"
+    label = "Pressure"
+    description = "Barometric Pressure"
+
 [SCD-30]
 name = "SCD-30"
 description = "NDIR CO2, Temperature, and Humidity Sensor"
