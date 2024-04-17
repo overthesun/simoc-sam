@@ -11,11 +11,13 @@ import subprocess
 
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
+CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
 DEV_DEPS = 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
+HOSTNAME = socket.gethostname()
 
 COMMANDS = {}
 
@@ -43,6 +45,10 @@ def needs_venv(func):
         return func(*args, **kwargs)
     return inner
 
+def replace_text(path, placeholder, replacement):
+    """Replace a placeholder in a file with the given replacement."""
+    file_content = path.read_text()
+    path.write_text(file_content.replace(placeholder, replacement))
 
 @cmd
 def create_venv():
@@ -142,6 +148,34 @@ def fix_ip():
         print(f'IP address in <{bat0}> updated from <{curr_ip}> to <{new_ip}>.')
         print('Restarting...')
         subprocess.run(['sudo', 'reboot'])
+
+
+@cmd
+def setup_nginx():
+    """Setup nginx to serve the frontend and the socketio backend."""
+    if not shutil.which('nginx'):
+        sys.exit('nginx not found. Install it with `sudo apt install nginx`.')
+    # remove default site and add simoc_live site
+    sites_enabled = pathlib.Path('/etc/nginx/sites-enabled/')
+    default = sites_enabled / 'default'
+    if default.exists():
+        default.unlink()  # remove default site
+    simoc_live = CONFIGS_DIR / 'simoc_live'
+    replace_text(simoc_live, '{{hostname}}', HOSTNAME)  # update hostname
+    (sites_enabled / 'simoc_live').symlink_to(simoc_live)
+    assert run(['sudo', 'nginx', '-t'])  # ensure that the config is valid
+    # enable/start nginx
+    if not run(['systemctl', 'is-enabled', 'nginx']):
+        run(['sudo', 'systemctl', 'enable', 'nginx'])
+    if not run(['systemctl', 'is-active', 'nginx']):
+        run(['sudo', 'systemctl', 'start', 'nginx'])
+
+@cmd
+def teardown_nginx():
+    """Revert the changes made by the setup-nginx command."""
+    run(['sudo', 'systemctl', 'stop', 'nginx'])
+    run(['sudo', 'systemctl', 'disable', 'nginx'])
+    pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink()
 
 
 @cmd
