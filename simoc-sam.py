@@ -1,5 +1,6 @@
 """Script to setup and run SIMOC-SAM."""
 
+import os
 import re
 import sys
 import shutil
@@ -44,6 +45,11 @@ def needs_venv(func):
             create_venv()
         return func(*args, **kwargs)
     return inner
+
+def needs_root(func):
+    if os.geteuid() != 0:
+        sys.exit('This commands needs to be executed as root.')
+    return func
 
 def replace_text(path, placeholder, replacement):
     """Replace a placeholder in a file with the given replacement."""
@@ -151,6 +157,7 @@ def fix_ip():
 
 
 @cmd
+@needs_root
 def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
     if not shutil.which('nginx'):
@@ -163,18 +170,19 @@ def setup_nginx():
     simoc_live = CONFIGS_DIR / 'simoc_live'
     replace_text(simoc_live, '{{hostname}}', HOSTNAME)  # update hostname
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
-    assert run(['sudo', 'nginx', '-t'])  # ensure that the config is valid
+    assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
     if not run(['systemctl', 'is-enabled', 'nginx']):
-        run(['sudo', 'systemctl', 'enable', 'nginx'])
+        run(['systemctl', 'enable', 'nginx'])
     if not run(['systemctl', 'is-active', 'nginx']):
-        run(['sudo', 'systemctl', 'start', 'nginx'])
+        run(['systemctl', 'start', 'nginx'])
 
 @cmd
+@needs_root
 def teardown_nginx():
     """Revert the changes made by the setup-nginx command."""
-    run(['sudo', 'systemctl', 'stop', 'nginx'])
-    run(['sudo', 'systemctl', 'disable', 'nginx'])
+    run(['systemctl', 'stop', 'nginx'])
+    run(['systemctl', 'disable', 'nginx'])
     pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink()
 
 
