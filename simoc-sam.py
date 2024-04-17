@@ -167,7 +167,9 @@ def setup_nginx():
     default = sites_enabled / 'default'
     if default.exists():
         default.unlink()  # remove default site
+    simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
+    shutil.copy(simoc_live_tmpl, simoc_live)
     replace_text(simoc_live, '{{hostname}}', HOSTNAME)  # update hostname
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
