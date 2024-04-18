@@ -47,9 +47,13 @@ def needs_venv(func):
     return inner
 
 def needs_root(func):
-    if os.geteuid() != 0:
-        sys.exit('This commands needs to be executed as root.')
-    return func
+    """Ensure that the command is run as root before calling func."""
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        if os.geteuid() != 0:
+            sys.exit('This commands needs to be executed as root.')
+        return func(*args, **kwargs)
+    return inner
 
 def replace_text(path, placeholder, replacement):
     """Replace a placeholder in a file with the given replacement."""
