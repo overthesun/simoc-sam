@@ -162,6 +162,21 @@ def fix_ip():
 
 @cmd
 @needs_root
+def setup_hotspot():
+    """Setup a hotspot that allows direct connections to the RPi."""
+    nmconn_name = 'Hotspot.nmconnection'
+    nmconn = CONFIGS_DIR / nmconn_name
+    sys_conns = pathlib.Path('/etc/NetworkManager/system-connections/')
+    target_nmconn = sys_conns / nmconn_name
+    target_nmconn.symlink_to(nmconn)
+    target_nmconn.chmod(0o600)  # lchmod?
+    if not run(['systemctl', 'is-enabled', 'NetworkManager']):
+        run(['systemctl', 'enable', 'NetworkManager'])
+    run(['systemctl', 'restart', 'NetworkManager'])
+
+
+@cmd
+@needs_root
 def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
     if not shutil.which('nginx'):
