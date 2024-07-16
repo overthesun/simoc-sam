@@ -1,4 +1,4 @@
-"""Driver for the TSL2591  sensor."""
+"""Driver for the TSL2591 light sensor."""
 from . import utils
 from .basesensor import BaseSensor
 
@@ -24,8 +24,8 @@ class TSL2591(BaseSensor):
         """Return sensor data (lux, visible, infrared) as a dict."""
         reading = dict(
             lux=self.tsl.lux,  # lux
-            visible=self.tsl.visible,  # int between 0-2147483647 (32-bit)
-            infrared=self.tsl.infrared,  # int between 0-65535 (16-bit)
+            visible=self.tsl.visible,  # 32 bit int between 0-2147483647
+            infrared=self.tsl.infrared,  # 16 bit int between 0-65535
         )
         self.print_reading(reading)
         return reading
