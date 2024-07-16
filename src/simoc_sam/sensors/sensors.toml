@@ -177,6 +177,6 @@ module = ""
 i2c_address = 0x10
 
     [VEML7700.data.light]
-    unit = "Lux"
+    unit = "lux"
     label = "Light"
     description = "Ambient Light"
