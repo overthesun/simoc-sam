@@ -155,7 +155,7 @@ description = "High Dynamic Range Digital Light Sensor"
 module = ""
 i2c_address = 0x29
 
-    [TSL2591.data.light]
+    [TSL2591.data.lux]
     unit = "lux"
     label = "Light"
     description = "Light Intensity"
