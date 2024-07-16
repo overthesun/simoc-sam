@@ -23,7 +23,7 @@ class TSL2591(BaseSensor):
     def read_sensor_data(self):
         """Return sensor data (lux, visible, infrared) as a dict."""
         reading = dict(
-            lux=self.tsl.lux,  # lux
+            light=self.tsl.lux,  # lux
             visible=self.tsl.visible,  # 32 bit int between 0-2147483647
             infrared=self.tsl.infrared,  # 16 bit int between 0-65535
         )
