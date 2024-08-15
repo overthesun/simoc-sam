@@ -178,8 +178,9 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     )
     write_template(hotspot_nmconn, repls)
     hotspot_nmconn.chmod(0o600)
+    os.chown(hotspot_nmconn, 0, 0)  # owner is now root
     target_nmconn = NM_DIR / HOTSPOT_CFG
-    target_nmconn.symlink_to(nmconn)
+    target_nmconn.symlink_to(hotspot_nmconn)
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
     run(['systemctl', 'restart', 'NetworkManager'])
