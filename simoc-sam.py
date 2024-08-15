@@ -13,6 +13,8 @@ import subprocess
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
+HOTSPOT_CFG = 'hotspot.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
@@ -165,14 +167,23 @@ def fix_ip():
 def setup_hotspot():
     """Setup a hotspot that allows direct connections to the RPi."""
     nmconn_name = 'Hotspot.nmconnection'
-    nmconn = CONFIGS_DIR / nmconn_name
-    sys_conns = pathlib.Path('/etc/NetworkManager/system-connections/')
-    target_nmconn = sys_conns / nmconn_name
+    nmconn = CONFIGS_DIR / HOTSPOT_CFG
+    target_nmconn = NM_DIR / HOTSPOT_CFG
     target_nmconn.symlink_to(nmconn)
-    target_nmconn.chmod(0o600)  # lchmod?
+    target_nmconn.chmod(0o600)
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
     run(['systemctl', 'restart', 'NetworkManager'])
+
+@cmd
+@needs_root
+def teardown_hotspot():
+    """Revert the changes made by the setup-hotspot command."""
+    (NM_DIR / HOTSPOT_CFG).unlink()
+    if not os.listdir(NM_DIR):
+        # stop NetworkManager if there are no other connections
+        run(['systemctl', 'stop', 'NetworkManager'])
+        run(['systemctl', 'disable', 'NetworkManager'])
 
 
 @cmd
