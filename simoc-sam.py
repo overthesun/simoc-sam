@@ -190,6 +190,7 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
     (NM_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
+    (CONFIGS_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
     if not os.listdir(NM_DIR):
         # stop NetworkManager if there are no other connections
         run(['systemctl', 'stop', 'NetworkManager'])
