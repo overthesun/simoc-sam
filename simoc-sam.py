@@ -179,7 +179,7 @@ def setup_hotspot():
 @needs_root
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
-    (NM_DIR / HOTSPOT_CFG).unlink()
+    (NM_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
     if not os.listdir(NM_DIR):
         # stop NetworkManager if there are no other connections
         run(['systemctl', 'stop', 'NetworkManager'])
@@ -215,7 +215,7 @@ def teardown_nginx():
     """Revert the changes made by the setup-nginx command."""
     run(['systemctl', 'stop', 'nginx'])
     run(['systemctl', 'disable', 'nginx'])
-    pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink()
+    pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
 
 
 @cmd
