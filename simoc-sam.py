@@ -10,6 +10,7 @@ import argparse
 import functools
 import subprocess
 
+from jinja2 import Template
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
@@ -57,10 +58,10 @@ def needs_root(func):
         return func(*args, **kwargs)
     return inner
 
-def replace_text(path, placeholder, replacement):
-    """Replace a placeholder in a file with the given replacement."""
-    file_content = path.read_text()
-    path.write_text(file_content.replace(placeholder, replacement))
+def render_template(path, replacements):
+    """Replace {{placeholders}} in a file with the given replacements."""
+    template = Template(path.read_text())
+    path.write_text(template.render(replacements))
 
 @cmd
 def create_venv():
@@ -200,7 +201,7 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    replace_text(simoc_live, '{{hostname}}', HOSTNAME)  # update hostname
+    render_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
