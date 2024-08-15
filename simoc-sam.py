@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import uuid
 import shutil
 import socket
 import pathlib
@@ -15,6 +16,7 @@ from jinja2 import Template
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
+NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
 HOTSPOT_CFG = 'hotspot.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
@@ -58,7 +60,7 @@ def needs_root(func):
         return func(*args, **kwargs)
     return inner
 
-def render_template(path, replacements):
+def write_template(path, replacements):
     """Replace {{placeholders}} in a file with the given replacements."""
     template = Template(path.read_text())
     path.write_text(template.render(replacements))
@@ -165,12 +167,19 @@ def fix_ip():
 
 @cmd
 @needs_root
-def setup_hotspot():
+def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     """Setup a hotspot that allows direct connections to the RPi."""
-    nmconn = CONFIGS_DIR / HOTSPOT_CFG
+    hotspot_nmconn = CONFIGS_DIR / HOTSPOT_CFG
+    shutil.copy(NM_TMPL, hotspot_nmconn)
+    repls = dict(
+        conn_id='hotspot', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
+        ipv4_method='shared', ipv6_addr_gen_mode='stable-privacy'
+    )
+    write_template(hotspot_nmconn, repls)
+    hotspot_nmconn.chmod(0o600)
     target_nmconn = NM_DIR / HOTSPOT_CFG
     target_nmconn.symlink_to(nmconn)
-    target_nmconn.chmod(0o600)
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
     run(['systemctl', 'restart', 'NetworkManager'])
@@ -200,7 +209,7 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    render_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
+    write_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
