@@ -167,7 +167,6 @@ def fix_ip():
 @needs_root
 def setup_hotspot():
     """Setup a hotspot that allows direct connections to the RPi."""
-    nmconn_name = 'Hotspot.nmconnection'
     nmconn = CONFIGS_DIR / HOTSPOT_CFG
     target_nmconn = NM_DIR / HOTSPOT_CFG
     target_nmconn.symlink_to(nmconn)
