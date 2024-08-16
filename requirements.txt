@@ -3,6 +3,7 @@ aiohttp
 aiomqtt
 paho-mqtt
 netifaces
+jinja2
 tomli
 
 # sensor-related deps

@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import uuid
 import shutil
 import socket
 import pathlib
@@ -10,9 +11,17 @@ import argparse
 import functools
 import subprocess
 
+try:
+    from jinja2 import Template
+except ModuleNotFoundError:
+    # keep running if jinja2 is missing
+    Template = None
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
+NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
+HOTSPOT_CFG = 'hotspot.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
@@ -55,10 +64,10 @@ def needs_root(func):
         return func(*args, **kwargs)
     return inner
 
-def replace_text(path, placeholder, replacement):
-    """Replace a placeholder in a file with the given replacement."""
-    file_content = path.read_text()
-    path.write_text(file_content.replace(placeholder, replacement))
+def write_template(path, replacements):
+    """Replace {{placeholders}} in a file with the given replacements."""
+    template = Template(path.read_text())
+    path.write_text(template.render(replacements))
 
 @cmd
 def create_venv():
@@ -162,6 +171,41 @@ def fix_ip():
 
 @cmd
 @needs_root
+def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
+    """Setup a hotspot that allows direct connections to the RPi."""
+    hotspot_nmconn = NM_DIR / HOTSPOT_CFG
+    if hotspot_nmconn.exists():
+        print('Hotspot already set up.  Use `teardown-hotspot` to remove.')
+        return
+    # copy the template in the NetworkManager dir
+    shutil.copy(NM_TMPL, hotspot_nmconn)
+    repls = dict(
+        conn_id='hotspot', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
+        ipv4_method='shared', ipv6_addr_gen_mode='stable-privacy'
+    )
+    # update template with actual values and set permissions/owner
+    write_template(hotspot_nmconn, repls)
+    hotspot_nmconn.chmod(0o600)
+    os.chown(hotspot_nmconn, 0, 0)  # owner is now root
+    if not run(['systemctl', 'is-enabled', 'NetworkManager']):
+        run(['systemctl', 'enable', 'NetworkManager'])
+    run(['systemctl', 'restart', 'NetworkManager'])
+
+@cmd
+@needs_root
+def teardown_hotspot():
+    """Revert the changes made by the setup-hotspot command."""
+    (NM_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
+    (CONFIGS_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
+    if not os.listdir(NM_DIR):
+        # stop NetworkManager if there are no other connections
+        run(['systemctl', 'stop', 'NetworkManager'])
+        run(['systemctl', 'disable', 'NetworkManager'])
+
+
+@cmd
+@needs_root
 def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
     if not shutil.which('nginx'):
@@ -174,7 +218,7 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    replace_text(simoc_live, '{{hostname}}', HOSTNAME)  # update hostname
+    write_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
@@ -189,7 +233,7 @@ def teardown_nginx():
     """Revert the changes made by the setup-nginx command."""
     run(['systemctl', 'stop', 'nginx'])
     run(['systemctl', 'disable', 'nginx'])
-    pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink()
+    pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
 
 
 @cmd
