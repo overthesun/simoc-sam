@@ -22,6 +22,7 @@ CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
 HOTSPOT_CFG = 'hotspot.nmconnection'
+WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
@@ -177,27 +178,59 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     if hotspot_nmconn.exists():
         print('Hotspot already set up.  Use `teardown-hotspot` to remove.')
         return
-    # copy the template in the NetworkManager dir
-    shutil.copy(NM_TMPL, hotspot_nmconn)
     repls = dict(
         conn_id='hotspot', conn_uuid=uuid.uuid4(), conn_interface=interface,
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
-        ipv4_method='shared', ipv6_addr_gen_mode='stable-privacy'
+        ipv4_method='shared',
     )
-    # update template with actual values and set permissions/owner
-    write_template(hotspot_nmconn, repls)
-    hotspot_nmconn.chmod(0o600)
-    os.chown(hotspot_nmconn, 0, 0)  # owner is now root
-    if not run(['systemctl', 'is-enabled', 'NetworkManager']):
-        run(['systemctl', 'enable', 'NetworkManager'])
-    run(['systemctl', 'restart', 'NetworkManager'])
+    setup_nmconn(hotspot_nmconn, repls)
 
 @cmd
 @needs_root
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
-    (NM_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
-    (CONFIGS_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
+    teardown_nmconn(NM_DIR / HOTSPOT_CFG)
+
+
+@cmd
+@needs_root
+def setup_wifi(ssid=None, password=None, interface='wlan0'):
+    """Setup a connection to an existing WiFi network."""
+    wifi_nmconn = NM_DIR / WIFI_CFG
+    if wifi_nmconn.exists():
+        print('WiFi connection already set up.  Use `teardown-wifi` to remove.')
+        return
+    if ssid is None or password is None:
+        print('Please provide the SSID and the password.')
+        return
+    repls = dict(
+        conn_id='wifi', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
+        ipv4_method='auto',
+    )
+    setup_nmconn(wifi_nmconn, repls)
+
+@cmd
+@needs_root
+def teardown_wifi():
+    """Revert the changes made by the setup-wifi command."""
+    teardown_nmconn(NM_DIR / WIFI_CFG)
+
+
+def setup_nmconn(nmconn_file, repls):
+    # copy the template in the NetworkManager dir
+    shutil.copy(NM_TMPL, nmconn_file)
+    # update template with actual values and set permissions/owner
+    write_template(nmconn_file, repls)
+    nmconn_file.chmod(0o600)
+    os.chown(nmconn_file, 0, 0)  # owner is now root
+    if not run(['systemctl', 'is-enabled', 'NetworkManager']):
+        run(['systemctl', 'enable', 'NetworkManager'])
+    run(['systemctl', 'restart', 'NetworkManager'])
+
+def teardown_nmconn(nmconn_file):
+    """Remove the given nmconn file and possibly stop NetworkManager."""
+    nmconn_file.unlink(missing_ok=True)
     if not os.listdir(NM_DIR):
         # stop NetworkManager if there are no other connections
         run(['systemctl', 'stop', 'NetworkManager'])
