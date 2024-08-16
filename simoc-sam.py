@@ -174,6 +174,9 @@ def fix_ip():
 def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     """Setup a hotspot that allows direct connections to the RPi."""
     hotspot_nmconn = CONFIGS_DIR / HOTSPOT_CFG
+    if hotspot_nmconn.exists():
+        print('Hotspot already set up.  Use `teardown-hotspot` to remove.')
+        return
     shutil.copy(NM_TMPL, hotspot_nmconn)
     repls = dict(
         conn_id='hotspot', conn_uuid=uuid.uuid4(), conn_interface=interface,
