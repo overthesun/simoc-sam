@@ -14,7 +14,7 @@ import subprocess
 try:
     from jinja2 import Template
 except ModuleNotFoundError:
-    # keep running if the jinja2 is missing
+    # keep running if jinja2 is missing
     Template = None
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
