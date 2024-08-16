@@ -181,7 +181,7 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     repls = dict(
         conn_id='hotspot', conn_uuid=uuid.uuid4(), conn_interface=interface,
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
-        ipv4_method='shared', ipv6_addr_gen_mode='stable-privacy'
+        ipv4_method='shared',
     )
     setup_nmconn(hotspot_nmconn, repls)
 
@@ -206,7 +206,7 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
     repls = dict(
         conn_id='wifi', conn_uuid=uuid.uuid4(), conn_interface=interface,
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
-        ipv4_method='auto', ipv6_addr_gen_mode='default'
+        ipv4_method='auto',
     )
     setup_nmconn(wifi_nmconn, repls)
 
