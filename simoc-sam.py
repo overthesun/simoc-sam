@@ -11,7 +11,11 @@ import argparse
 import functools
 import subprocess
 
-from jinja2 import Template
+try:
+    from jinja2 import Template
+except ModuleNotFoundError:
+    # keep running if the jinja2 is missing
+    Template = None
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
