@@ -176,9 +176,13 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
         ipv4_method='shared', ipv6_addr_gen_mode='stable-privacy'
     )
+    # TODO: use `sudo nmcli connection modify hotspost wifi-sec.psk "pass"`
+    # to store the password hash?
+    # create nmconnection file and set permissions/owner
     write_template(hotspot_nmconn, repls)
     hotspot_nmconn.chmod(0o600)
     os.chown(hotspot_nmconn, 0, 0)  # owner is now root
+    # create symlink for NetworkManager
     target_nmconn = NM_DIR / HOTSPOT_CFG
     target_nmconn.symlink_to(hotspot_nmconn)
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
