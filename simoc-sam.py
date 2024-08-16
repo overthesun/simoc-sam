@@ -22,6 +22,7 @@ CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
 HOTSPOT_CFG = 'hotspot.nmconnection'
+WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
@@ -197,7 +198,43 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
     (NM_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
-    (CONFIGS_DIR / HOTSPOT_CFG).unlink(missing_ok=True)
+    if not os.listdir(NM_DIR):
+        # stop NetworkManager if there are no other connections
+        run(['systemctl', 'stop', 'NetworkManager'])
+        run(['systemctl', 'disable', 'NetworkManager'])
+
+
+@cmd
+@needs_root
+def setup_wifi(ssid=None, password=None, interface='wlan0'):
+    """Setup a connection to an existing WiFi network."""
+    if ssid is None or password is None:
+        print('Please provide the SSID and the password.')
+        return
+    wifi_nmconn = NM_DIR / WIFI_CFG
+    if wifi_nmconn.exists():
+        print('WiFi connection already set up.  Use `teardown-wifi` to remove.')
+        return
+    # copy the template in the NetworkManager dir
+    shutil.copy(NM_TMPL, wifi_nmconn)
+    repls = dict(
+        conn_id='wifi', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
+        ipv4_method='auto', ipv6_addr_gen_mode='default'
+    )
+    # update template with actual values and set permissions/owner
+    write_template(wifi_nmconn, repls)
+    wifi_nmconn.chmod(0o600)
+    os.chown(wifi_nmconn, 0, 0)  # owner is now root
+    if not run(['systemctl', 'is-enabled', 'NetworkManager']):
+        run(['systemctl', 'enable', 'NetworkManager'])
+    run(['systemctl', 'restart', 'NetworkManager'])
+
+@cmd
+@needs_root
+def teardown_wifi():
+    """Revert the changes made by the setup-wifi command."""
+    (NM_DIR / WIFI_CFG).unlink(missing_ok=True)
     if not os.listdir(NM_DIR):
         # stop NetworkManager if there are no other connections
         run(['systemctl', 'stop', 'NetworkManager'])
