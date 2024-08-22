@@ -8,6 +8,8 @@
 # They can be controlled with `start`/`stop`/`restart`/`status`.
 # Use e.g. `journalctl -u sensor-runner@scd30.service -f` to
 # see the script output.
+# Use `journalctl -u 'sensor-runner@*' -f` to see the combined
+# output of all the sensors.
 
 [Unit]
 Description=%i sensor runner service
