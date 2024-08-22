@@ -2,10 +2,8 @@
 # set vars
 SNAME=${1:-SAM}  # use provided session name or SAM as default
 SIOSERVER_ADDR=localhost:8081
-# activate venv
-echo -n 'Activating venv...   '
-. venv/bin/activate
-echo '[done]'
+# ensure we are in the right dir
+cd ~/simoc-sam
 # create a new session and set the num of cols/lines
 tmux new-session -s $SNAME -d -x "$(tput cols)" -y "$(tput lines)"
 # The first pane is just a shell
@@ -27,7 +25,3 @@ tmux select-pane -t 1 -T "SCD30"
 tmux select-pane -t 2 -T "BME688"
 # attach to the session
 tmux attach-session -t $SNAME
-# deactivate venv when leaving
-echo -n 'Deactivating venv... '
-deactivate
-echo '[done]'
