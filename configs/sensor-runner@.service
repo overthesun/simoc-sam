@@ -1,0 +1,26 @@
+# This unit file is used to launch the sensors scripts on boot.
+# Symlink it with `ln -s configs/sensor-runner@.service
+# /etc/systemd/system/sensor-runner@.service` before using.
+# Use e.g. `systemctl enable sensor-runner@scd30.service`
+# to enable the service.
+# Once symlinked and enabled for each sensor, the services will
+# start automatically on boot.
+# They can be controlled with `start`/`stop`/`restart`/`status`.
+# Use e.g. `journalctl -u sensor-runner@scd30.service -f` to
+# see the script output.
+
+[Unit]
+Description=%i sensor runner service
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/simoc-sam
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.sensors.%i -v --mqtt
+Restart=always
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
