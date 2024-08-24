@@ -98,7 +98,7 @@ def import_busio():
         sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
 def get_mqtt_addr():
-    addr = os.environ.get('MQTTSERVER_ADDR', 'samrpi1:1883')
+    addr = os.environ.get('MQTTSERVER_ADDR', 'sambridge1:1883')
     host, port = addr.split(':')
     return host, int(port)
 
@@ -116,7 +116,7 @@ def get_addr_argparser():
     return parser
 
 
-def parse_args(arguments=None, *, read_delay=1):
+def parse_args(arguments=None, *, read_delay=10):
     parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=read_delay,
                         dest='delay', metavar='DELAY', type=float,
@@ -131,6 +131,9 @@ def parse_args(arguments=None, *, read_delay=1):
                         help='Enable verbose output for SocketIO.')
     parser.add_argument('--mqtt', action='store_true',
                         help='Run the sensor with MQTT.')
+    # TODO: put this in a separate parser
+    parser.add_argument('--mqtt-topic', default='sam/#',
+                        help='The MQTT topic to subscribe to.')
     parser.add_argument('--sio', action='store_true',
                         help='Run the sensor with SocketIO.')
     args = parser.parse_args(arguments)

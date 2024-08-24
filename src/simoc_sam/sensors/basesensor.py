@@ -95,7 +95,11 @@ class BaseSensor(ABC):
         """
         read_forever = not n
         while True:
-            data = self.read_sensor_data()
+            try:
+                data = self.read_sensor_data()
+            except RuntimeError as err:
+                self.print(f'Error reading data: {err}')
+                data = None
             if not data:
                 time.sleep(delay)
                 continue  # keep trying until we get a reading
@@ -113,7 +117,7 @@ class BaseSensor(ABC):
 
 
 class SIOWrapper:
-    def __init__(self, sensor, *, read_delay=1, verbose=False):
+    def __init__(self, sensor, *, read_delay=10, verbose=False):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
@@ -162,9 +166,8 @@ class SIOWrapper:
 
 
 class MQTTWrapper:
-    def __init__(self, sensor, *, read_delay=1, verbose=False):
+    def __init__(self, sensor, *, read_delay=10, verbose=False):
         self.sensor = sensor
-        self.hostname = socket.gethostname()
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
         # aiomqtt still requires paho-mqtt 1.6
@@ -172,11 +175,22 @@ class MQTTWrapper:
         self.mqttc = mqttc = mqtt.Client()
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
+        hostname = socket.gethostname()
+        self.topic = f'sam/{hostname}/{sensor.sensor_name}'
+        self.log_fname = f'/home/pi/logs/{self.topic.replace("/", "_")}.jsonl'
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
         if self.verbose:
             print(*args, **kwargs)
+
+    def log(self, payload):
+        # TODO: implement better logging
+        try:
+            with open(self.log_fname, 'a') as f:
+                f.write(f'{payload}\n')
+        except Exception as err:
+            self.print(f'Unable to write log file: {err}')
 
     def start(self, host, port):
         self.mqttc.loop_start()
@@ -219,9 +233,10 @@ class MQTTWrapper:
         readings = self.sensor.iter_readings(delay=0, n=n)
         for reading in readings:
             try:
+                jreading = json.dumps(reading)
+                self.mqttc.publish(self.topic, payload=jreading)
+                self.log(jreading)  # TODO: move this somewhere else
                 self.print(reading)
-                self.mqttc.publish(f'sam/{self.hostname}/{self.sensor.sensor_name}',
-                                   payload=json.dumps(reading))
             except Exception as err:
                 self.print(f'No longer connected to the server ({err})...')
             # wait for the next sensor reading

@@ -5,7 +5,7 @@ from simoc_sam.sensors import utils
 
 def test_delay():
     args = utils.parse_args([])
-    assert args.delay == 1
+    assert args.delay == 10
     args = utils.parse_args(['-d', '5'])
     assert args.delay == 5.0
     args = utils.parse_args(['--read-delay', '5.5'])
@@ -37,7 +37,7 @@ def test_parse_args_sio_mqtt(capsys):
 
 def test_parse_args_mqtt_default_ports():
     args = utils.parse_args(['--mqtt'])
-    assert args.host == 'samrpi1'
+    assert args.host == 'sambridge1'
     assert args.port == 1883
 
 def test_parse_args_mqtt_custom_ports():

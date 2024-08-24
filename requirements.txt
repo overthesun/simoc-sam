@@ -3,6 +3,7 @@ aiohttp
 aiomqtt
 paho-mqtt
 netifaces
+jinja2
 tomli
 ephem
 
@@ -13,4 +14,6 @@ adafruit-circuitpython-scd30
 adafruit-circuitpython-scd4x
 adafruit-circuitpython-sgp30
 adafruit-circuitpython-bme680
+adafruit-circuitpython-tsl2591
+adafruit-circuitpython-veml7700
 godirect

@@ -1,7 +1,9 @@
 """Script to setup and run SIMOC-SAM."""
 
+import os
 import re
 import sys
+import uuid
 import shutil
 import socket
 import pathlib
@@ -9,13 +11,24 @@ import argparse
 import functools
 import subprocess
 
+try:
+    from jinja2 import Template
+except ModuleNotFoundError:
+    # keep running if jinja2 is missing
+    Template = None
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
+CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
+NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
+HOTSPOT_CFG = 'hotspot.nmconnection'
+WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = 'requirements.txt'
 DEV_DEPS = 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
+HOSTNAME = socket.gethostname()
 
 COMMANDS = {}
 
@@ -43,6 +56,19 @@ def needs_venv(func):
         return func(*args, **kwargs)
     return inner
 
+def needs_root(func):
+    """Ensure that the command is run as root before calling func."""
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        if os.geteuid() != 0:
+            sys.exit('This commands needs to be executed as root.')
+        return func(*args, **kwargs)
+    return inner
+
+def write_template(path, replacements):
+    """Replace {{placeholders}} in a file with the given replacements."""
+    template = Template(path.read_text())
+    path.write_text(template.render(replacements))
 
 @cmd
 def create_venv():
@@ -77,7 +103,7 @@ def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     user = user or 'pi'
     path = path or '/home/pi/simoc-sam'
     repo = f'{pathlib.Path(__file__).parent}/'  # rsync wants the trailing /
-    excludes = []
+    excludes = ['--exclude', '**/__pycache__']
     if exclude_venv:
         excludes.extend(['--exclude', 'venv'])
     if exclude_git:
@@ -142,6 +168,105 @@ def fix_ip():
         print(f'IP address in <{bat0}> updated from <{curr_ip}> to <{new_ip}>.')
         print('Restarting...')
         subprocess.run(['sudo', 'reboot'])
+
+
+@cmd
+@needs_root
+def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
+    """Setup a hotspot that allows direct connections to the RPi."""
+    hotspot_nmconn = NM_DIR / HOTSPOT_CFG
+    if hotspot_nmconn.exists():
+        print('Hotspot already set up.  Use `teardown-hotspot` to remove.')
+        return
+    repls = dict(
+        conn_id='hotspot', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
+        ipv4_method='shared',
+    )
+    setup_nmconn(hotspot_nmconn, repls)
+
+@cmd
+@needs_root
+def teardown_hotspot():
+    """Revert the changes made by the setup-hotspot command."""
+    teardown_nmconn(NM_DIR / HOTSPOT_CFG)
+
+
+@cmd
+@needs_root
+def setup_wifi(ssid=None, password=None, interface='wlan0'):
+    """Setup a connection to an existing WiFi network."""
+    wifi_nmconn = NM_DIR / WIFI_CFG
+    if wifi_nmconn.exists():
+        print('WiFi connection already set up.  Use `teardown-wifi` to remove.')
+        return
+    if ssid is None or password is None:
+        print('Please provide the SSID and the password.')
+        return
+    repls = dict(
+        conn_id='wifi', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
+        ipv4_method='auto',
+    )
+    setup_nmconn(wifi_nmconn, repls)
+
+@cmd
+@needs_root
+def teardown_wifi():
+    """Revert the changes made by the setup-wifi command."""
+    teardown_nmconn(NM_DIR / WIFI_CFG)
+
+
+def setup_nmconn(nmconn_file, repls):
+    # copy the template in the NetworkManager dir
+    shutil.copy(NM_TMPL, nmconn_file)
+    # update template with actual values and set permissions/owner
+    write_template(nmconn_file, repls)
+    nmconn_file.chmod(0o600)
+    os.chown(nmconn_file, 0, 0)  # owner is now root
+    if not run(['systemctl', 'is-enabled', 'NetworkManager']):
+        run(['systemctl', 'enable', 'NetworkManager'])
+    run(['systemctl', 'restart', 'NetworkManager'])
+
+def teardown_nmconn(nmconn_file):
+    """Remove the given nmconn file and possibly stop NetworkManager."""
+    nmconn_file.unlink(missing_ok=True)
+    if not os.listdir(NM_DIR):
+        # stop NetworkManager if there are no other connections
+        run(['systemctl', 'stop', 'NetworkManager'])
+        run(['systemctl', 'disable', 'NetworkManager'])
+
+
+@cmd
+@needs_root
+def setup_nginx():
+    """Setup nginx to serve the frontend and the socketio backend."""
+    if not shutil.which('nginx'):
+        sys.exit('nginx not found. Install it with `sudo apt install nginx`.')
+    # remove default site and add simoc_live site
+    sites_enabled = pathlib.Path('/etc/nginx/sites-enabled/')
+    default = sites_enabled / 'default'
+    if default.exists():
+        default.unlink()  # remove default site
+    simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
+    simoc_live = CONFIGS_DIR / 'simoc_live'
+    shutil.copy(simoc_live_tmpl, simoc_live)
+    write_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
+    (sites_enabled / 'simoc_live').symlink_to(simoc_live)
+    assert run(['nginx', '-t'])  # ensure that the config is valid
+    # enable/start nginx
+    if not run(['systemctl', 'is-enabled', 'nginx']):
+        run(['systemctl', 'enable', 'nginx'])
+    if not run(['systemctl', 'is-active', 'nginx']):
+        run(['systemctl', 'start', 'nginx'])
+
+@cmd
+@needs_root
+def teardown_nginx():
+    """Revert the changes made by the setup-nginx command."""
+    run(['systemctl', 'stop', 'nginx'])
+    run(['systemctl', 'disable', 'nginx'])
+    pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
 
 
 @cmd
