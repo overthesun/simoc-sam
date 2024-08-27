@@ -143,7 +143,8 @@ def fix_ip():
     """Ensure that the bat0 IP matches the hostname."""
     bat0 = pathlib.Path('/etc/network/interfaces.d/bat0')
     hostname = socket.gethostname()
-    if match := host_re.fullmatch(hostname):
+    match = host_re.fullmatch(hostname)
+    if match:
         hostnum = match[1]  # extract e.g. '1' from 'samrpi1'
     else:
         print('Invalid hostname (should be "samrpiN").')
@@ -152,7 +153,8 @@ def fix_ip():
     new_bat0 = []
     with open(bat0) as file:
         for line in file:
-            if match := address_re.fullmatch(line):
+            match = address_re.fullmatch(line)
+            if match:
                 head, curr_ip, three_octs, last_oct, tail = match.groups()
                 new_ip = three_octs + hostnum  # update last octet
                 if new_ip != curr_ip:
