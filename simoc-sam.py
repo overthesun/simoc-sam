@@ -94,8 +94,8 @@ def clean_venv():
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
 
-target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
-ipv4_re = re.compile('^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
+target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
+ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
 def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     """Copy the repository to a remote host using rsync."""
@@ -136,8 +136,8 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
-host_re = re.compile('^samrpi(\d+)$')
-address_re = re.compile('^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
+host_re = re.compile(r'^samrpi(\d+)$')
+address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
 def fix_ip():
     """Ensure that the bat0 IP matches the hostname."""
