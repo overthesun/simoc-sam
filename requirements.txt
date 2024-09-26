@@ -5,6 +5,7 @@ paho-mqtt
 netifaces
 jinja2
 tomli
+ephem
 
 # sensor-related deps
 hidapi
