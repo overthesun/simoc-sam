@@ -1,0 +1,12 @@
+[Unit]
+Description=Network Monitor Service
+After=network.target
+
+[Service]
+ExecStart=/home/pi/simoc-sam/network_monitor.sh
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+
