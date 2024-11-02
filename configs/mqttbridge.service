@@ -9,7 +9,7 @@
 # Use e.g. `journalctl -u mqttbridge.service -f` to
 # see the script output.
 [Unit]
-Description= mqttbridge (forwarding data to simoc web) service
+Description=mqttbridge service to forward data to SIMOC web
 After=network.target
 
 [Service]
