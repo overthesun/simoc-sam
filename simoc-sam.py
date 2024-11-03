@@ -61,8 +61,10 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            sys.exit('This commands needs to be executed as root.')
-        return func(*args, **kwargs)
+            os.execvp('sudo', ['sudo', sys.executable, *sys.argv])
+            return
+        else:
+            return func(*args, **kwargs)
     return inner
 
 def write_template(path, replacements):
