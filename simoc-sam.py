@@ -19,6 +19,7 @@ except ModuleNotFoundError:
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
 HOTSPOT_CFG = 'hotspot.nmconnection'
@@ -61,8 +62,10 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            sys.exit('This commands needs to be executed as root.')
-        return func(*args, **kwargs)
+            os.execvp('sudo', ['sudo', sys.executable, *sys.argv])
+            return
+        else:
+            return func(*args, **kwargs)
     return inner
 
 def write_template(path, replacements):
@@ -94,8 +97,8 @@ def clean_venv():
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
 
-target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
-ipv4_re = re.compile('^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
+target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
+ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
 def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     """Copy the repository to a remote host using rsync."""
@@ -136,8 +139,8 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
-host_re = re.compile('^samrpi(\d+)$')
-address_re = re.compile('^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
+host_re = re.compile(r'^samrpi(\d+)$')
+address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
 def fix_ip():
     """Ensure that the bat0 IP matches the hostname."""
@@ -235,6 +238,35 @@ def teardown_nmconn(nmconn_file):
         # stop NetworkManager if there are no other connections
         run(['systemctl', 'stop', 'NetworkManager'])
         run(['systemctl', 'disable', 'NetworkManager'])
+
+
+@cmd
+@needs_root
+def setup_mqttbridge():
+    """Setup a systemd service that runs the mqttbridge."""
+    setup_systemd_service('mqttbridge')
+
+@cmd
+@needs_root
+def teardown_mqttbridge():
+    """Revert the changes made by the setup-mqttbridge command."""
+    teardown_systemd_service('mqttbridge')
+
+
+def setup_systemd_service(name):
+    # create a symlink to the given service, enable it, and start it
+    service_name = f'{name}.service'
+    (SYSTEMD_DIR / service_name).symlink_to(CONFIGS_DIR / service_name)
+    if not run(['systemctl', 'is-enabled', name]):
+        run(['systemctl', 'enable', name])
+    if not run(['systemctl', 'is-active', name]):
+        run(['systemctl', 'start', name])
+
+def teardown_systemd_service(name):
+    # stop, disable, and remove the symlink to the given service
+    run(['systemctl', 'stop', name])
+    run(['systemctl', 'disable', name])
+    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
 
 
 @cmd
