@@ -1,8 +1,9 @@
-# SIMOC SAM
-This repository contains a Docker container that include a sample
-socketio server and client that will be the foundation of the socketio
-server used in SAM.
+# SIMOC Live
+This repository contains the code for the live backend used in
+[SAM](https://samb2.space/) to collect live sensors data.
 
+The configurations and scripts are generally installed and executed
+on Raspberry Pi 4 and 0s using the `simoc-sam.py` script.
 
 ## Using the `simoc-sam.py` script
 
