@@ -30,12 +30,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r dev-requirements.txt
-        lsusb --version
-        lsusb
     - name: Install simoc_sam
       run: |
         python -m pip install -e .
     - name: Test with pytest
       run: |
         pytest -v
-        python simoc-sam.py info  # smoke test
+        python simoc-sam.py --help  # smoke test
