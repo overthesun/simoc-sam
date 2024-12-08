@@ -36,4 +36,6 @@ jobs:
     - name: Test with pytest
       run: |
         pytest -v
-        python simoc-sam.py --help  # smoke test
+    - name: simoc-sam.py smoke test
+      run: |
+        python simoc-sam.py --help
