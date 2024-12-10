@@ -38,10 +38,10 @@ def cmd(func):
     COMMANDS[func.__name__] = func
     return func
 
-def run(args):
+def run(args, **kwargs):
     print('>>', ' '.join(args))
     print('-'*80)
-    result = subprocess.run(args)
+    result = subprocess.run(args, **kwargs)
     print('-'*80)
     print('<<', result)
     print()
