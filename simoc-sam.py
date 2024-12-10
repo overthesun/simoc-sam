@@ -384,6 +384,23 @@ def add_usb_rules():
     return add_vernier_rules() and add_mcp_rules()
 
 
+@cmd
+def install_touchscreen():
+    """Install the GeeekPi 3.5" LCD touchscreen."""
+    home = pathlib.Path.home()
+    os.chdir(home)
+    repo_name = 'LCD-show'
+    run(['git', 'clone', f'https://github.com/goodtft/{repo_name}.git'])
+    run(['chmod', '-R', '775', repo_name])
+    repo_path = home / repo_name
+    remove_on_boot(repo_path)  # schedule cleanup before running the script
+    run(['sudo', './MHS35-show'], cwd=repo_path)  # will reboot at the end
+
+def remove_on_boot(path):
+    # schedule removal of the specified path 1s after boot
+    run(['sudo', 'systemd-run', '--on-boot=1', 'rm', '-rf', str(path)])
+
+
 def create_help(cmds):
     help = ['Full list of available commands:']
     for cmd, func in cmds.items():
