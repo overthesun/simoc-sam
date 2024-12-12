@@ -8,6 +8,7 @@ import shutil
 import socket
 import pathlib
 import argparse
+import tempfile
 import functools
 import subprocess
 
@@ -385,20 +386,16 @@ def add_usb_rules():
 
 
 @cmd
+@needs_root
 def install_touchscreen():
     """Install the GeeekPi 3.5" LCD touchscreen."""
-    home = pathlib.Path.home()
-    os.chdir(home)
     repo_name = 'LCD-show'
-    run(['git', 'clone', f'https://github.com/goodtft/{repo_name}.git'])
-    run(['chmod', '-R', '775', repo_name])
-    repo_path = home / repo_name
-    remove_on_boot(repo_path)  # schedule cleanup before running the script
-    run(['sudo', './MHS35-show'], cwd=repo_path)  # will reboot at the end
-
-def remove_on_boot(path):
-    # schedule removal of the specified path 1s after boot
-    run(['sudo', 'systemd-run', '--on-boot=1', 'rm', '-rf', str(path)])
+    repo_url = f'https://github.com/goodtft/{repo_name}.git'
+    with tempfile.TemporaryDirectory() as tmpdir_name:
+        repo_path = pathlib.Path(tmpdir_name) / repo_name
+        run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
+        run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
+        run([str(repo_path / 'MHS35-show')])  # install the touchscreen
 
 
 def create_help(cmds):
