@@ -8,6 +8,7 @@ import shutil
 import socket
 import pathlib
 import argparse
+import tempfile
 import functools
 import subprocess
 
@@ -38,10 +39,10 @@ def cmd(func):
     COMMANDS[func.__name__] = func
     return func
 
-def run(args):
+def run(args, **kwargs):
     print('>>', ' '.join(args))
     print('-'*80)
-    result = subprocess.run(args)
+    result = subprocess.run(args, **kwargs)
     print('-'*80)
     print('<<', result)
     print()
@@ -382,6 +383,20 @@ def add_mcp_rules():
 def add_usb_rules():
     """Add Linux-specific rules for USB devices access."""
     return add_vernier_rules() and add_mcp_rules()
+
+
+@cmd
+@needs_root
+def install_touchscreen():
+    """Install the GeeekPi 3.5" LCD touchscreen."""
+    repo_name = 'LCD-show'
+    repo_url = f'https://github.com/goodtft/{repo_name}.git'
+    with tempfile.TemporaryDirectory() as tmpdir_name:
+        os.chdir(tmpdir_name)
+        repo_path = pathlib.Path(tmpdir_name) / repo_name
+        run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
+        run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
+        run([str(repo_path / 'MHS35-show')])  # install the screen and reboot
 
 
 def create_help(cmds):
