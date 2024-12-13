@@ -392,6 +392,7 @@ def install_touchscreen():
     repo_name = 'LCD-show'
     repo_url = f'https://github.com/goodtft/{repo_name}.git'
     with tempfile.TemporaryDirectory() as tmpdir_name:
+        os.chdir(tmpdir_name)
         repo_path = pathlib.Path(tmpdir_name) / repo_name
         run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
         run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
