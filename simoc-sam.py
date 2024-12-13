@@ -396,7 +396,7 @@ def install_touchscreen():
         repo_path = pathlib.Path(tmpdir_name) / repo_name
         run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
         run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
-        run([str(repo_path / 'MHS35-show')])  # install the touchscreen
+        run([str(repo_path / 'MHS35-show')])  # install the screen and reboot
 
 
 def create_help(cmds):
