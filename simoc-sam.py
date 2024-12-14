@@ -408,12 +408,12 @@ def initial_setup():
 
 def install_bash_aliases():
     """Install the .bash_aliases file in the home dir."""
-    fname = '.bash_aliases'
+    fname = 'bash_aliases'
     try:
-        (HOME / fname).symlink_to(SIMOC_SAM_DIR / fname)
-        print(f'Run this to install the aliases now: source {fname}')
+        (HOME / f'.{fname}').symlink_to(SIMOC_SAM_DIR / fname)
+        print(f'Run this to install the aliases now: source ~/.{fname}')
     except FileExistsError:
-        print(f'<.bash_aliases> already exists!')
+        print(f'<~/.{fname}> already exists!')
 
 def remove_home_dirs():
     """Remove unused default directories from the user's home."""
