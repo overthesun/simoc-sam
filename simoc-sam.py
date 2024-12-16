@@ -402,16 +402,19 @@ def install_touchscreen():
 @cmd
 def initial_setup():
     """Perform the initial setup of the Raspberry Pi."""
+    print('Instaling bash aliases...')
     install_bash_aliases()
+    print('Removing empty home dirs...')
     remove_home_dirs()
     install_deps()
+    print('System updated, deps installed, aliases set up.')
+    print('Run <source ~/.bash_aliases> to install the aliases now.')
 
 def install_bash_aliases():
     """Install the .bash_aliases file in the home dir."""
     fname = 'bash_aliases'
     try:
         (HOME / f'.{fname}').symlink_to(SIMOC_SAM_DIR / fname)
-        print(f'Run this to install the aliases now: source ~/.{fname}')
     except FileExistsError:
         print(f'<~/.{fname}> already exists!')
 
