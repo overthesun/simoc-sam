@@ -18,6 +18,7 @@ except ModuleNotFoundError:
     # keep running if jinja2 is missing
     Template = None
 
+HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
@@ -400,6 +401,43 @@ def install_touchscreen():
              str(script_path)])  # update res (also: fbset -xres 960 -yres 640)
         run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
         run([str(script_path)])  # install the screen and reboot
+
+@cmd
+def initial_setup():
+    """Perform the initial setup of the Raspberry Pi."""
+    print('Instaling bash aliases...')
+    install_bash_aliases()
+    print('Removing empty home dirs...')
+    remove_home_dirs()
+    print('Updating system and installing deps...')
+    install_deps()
+    print('System updated, deps installed, home cleaned, aliases set up.')
+    print('Run <source ~/.bash_aliases> to install the aliases now.')
+
+def install_bash_aliases():
+    """Install the .bash_aliases file in the home dir."""
+    fname = 'bash_aliases'
+    try:
+        (HOME / f'.{fname}').symlink_to(SIMOC_SAM_DIR / fname)
+    except FileExistsError:
+        print(f'<~/.{fname}> already exists!')
+
+def remove_home_dirs():
+    """Remove unused default directories from the user's home."""
+    dirs = ['Bookshelf', 'Desktop', 'Documents', 'Downloads',
+            'Music', 'Pictures', 'Public', 'Templates', 'Videos']
+    for dir_name in dirs:
+        try:
+            (HOME / dir_name).rmdir()
+        except (FileNotFoundError, OSError):
+            pass  # skip missing dirs or dirs that are not empty
+
+def install_deps():
+    """Install dependencies using apt."""
+    packages = ['nmap', 'vim', 'tcpdump', 'mosquitto-clients', 'avahi-utils']
+    run(['sudo', 'apt', 'update'], check=True)
+    run(['sudo', 'apt', 'upgrade', '-y'], check=True)
+    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
 
 
 def create_help(cmds):
