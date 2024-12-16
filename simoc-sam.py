@@ -393,10 +393,10 @@ def install_touchscreen():
     repo_name = 'LCD-show'
     repo_url = f'https://github.com/goodtft/{repo_name}.git'
     with tempfile.TemporaryDirectory() as tmpdir_name:
-        os.chdir(tmpdir_name)  # the script creates files in the cwd
         repo_path = pathlib.Path(tmpdir_name) / repo_name
         script_path = repo_path / 'MHS35-show'
         run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
+        os.chdir(repo_path)  # the script creates files in the cwd
         run(['sed', '-i', '-e', '/hdmi_cvt / s/480 320/960 640/',
              str(script_path)])  # update res (also: fbset -xres 960 -yres 640)
         run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
