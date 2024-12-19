@@ -1,4 +1,4 @@
-python-socketio==5.11.4
+python-socketio==5.12.0
 aiohttp==3.11.10
 aiomqtt==2.3.0
 paho-mqtt==2.1.0
