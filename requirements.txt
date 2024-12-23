@@ -3,7 +3,7 @@ aiohttp==3.11.11
 aiomqtt==2.3.0
 paho-mqtt==2.1.0
 netifaces==0.11.0
-jinja2==3.1.4
+jinja2==3.1.5
 tomli==2.2.1
 
 # sensor-related deps
