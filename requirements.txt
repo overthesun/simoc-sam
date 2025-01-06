@@ -14,5 +14,5 @@ adafruit-circuitpython-scd4x==1.4.5
 adafruit-circuitpython-sgp30==3.0.10
 adafruit-circuitpython-bme680==3.7.11
 adafruit-circuitpython-tsl2591==1.3.13
-adafruit-circuitpython-veml7700==2.0.2
+adafruit-circuitpython-veml7700==2.1.0
 godirect==1.1.4
