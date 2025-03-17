@@ -8,7 +8,7 @@ tomli==2.2.1
 
 # sensor-related deps
 hidapi==0.14.0.post4
-Adafruit-Blinka==8.54.0
+Adafruit-Blinka==8.56.0
 adafruit-circuitpython-scd30==2.2.13
 adafruit-circuitpython-scd4x==1.4.5
 adafruit-circuitpython-sgp30==3.0.10
