@@ -1,12 +1,18 @@
 import os
+import re
 import socket
+import pathlib
 import subprocess
+
+from collections import defaultdict
 
 try:
     import netifaces
 except ImportError:
     netifaces = None
 
+# Get the configs directory path
+CONFIGS_DIR = pathlib.Path(__file__).resolve().parent / 'configs'
 
 # Network info
 
@@ -85,7 +91,89 @@ def print_sensors():
         print(f'* {sensor_name} (I2C addr: {i2c_addr:#x})')
 
 
+# Services info
+
+def check_journal_errors(service_name, n_lines=15):
+    """Check for errors in the journal output of the given service."""
+    try:
+        cmd = ['journalctl', '-u', service_name, '-n', str(n_lines), '--no-pager']
+        cp = subprocess.run(cmd , capture_output=True, text=True)
+    except Exception as e:
+        print(f"Error checking journal for {service_name!r}: {e}")
+        return True
+    output = cp.stdout.lower()
+    error_indicators = ['error', 'failed', 'exception', 'traceback', 'critical']
+    return any(indicator in output for indicator in error_indicators)
+
+
+def get_all_running_services():
+    """Get all running systemd services using systemctl show."""
+    try:
+        cmd = ['systemctl', 'show', '*.service', '--state=running',
+               '--no-pager', '--property=Id,ActiveState,UnitFileState']
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            return {}
+        all_services = defaultdict(list)
+        for service in result.stdout.strip().split('\n\n'):
+            info = dict(prop.split('=') for prop in service.split('\n'))
+            name = info['Id'].removesuffix('.service')
+            all_services[re.sub('@.*$', '@', name)].append({
+                'name': name,
+                'state': info['ActiveState'],
+                'is_active': info['ActiveState'] == 'active',
+                'enabled': info['UnitFileState'],
+                'is_enabled': info['UnitFileState'] == 'enabled',
+                'has_errors': check_journal_errors(info['Id']),
+            })
+        return all_services
+    except Exception as e:
+        print(f"Error getting running services: {e}")
+        return {}
+
+def print_services():
+    """Print status of SIMOC Live services and key system services."""
+    config_services = [service_file.stem for service_file in CONFIGS_DIR.glob('*.service')]
+    system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon']
+    services_to_check = config_services + system_services
+
+    all_services = get_all_running_services()
+    filtered_services = {name: info for name, info in all_services.items()
+                         if name in services_to_check}
+    inactive_services = set(services_to_check) - filtered_services.keys()
+    services_with_errors = []
+
+    print('Service name              | Active         | Enabled    | Errors')
+    print('--------------------------+----------------+------------+--------')
+    for name, services in sorted(filtered_services.items()):
+        indent = ''
+        if len(services) > 1:
+            # for service templates only print the template name
+            print(f'{name:<25} |                |            |')
+            indent = '  '
+        for service in services:
+            service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
+            active_icon = '🟢' if service['is_active'] else '🔴'
+            enabled_icon = '🟢' if service['is_enabled'] else '🔴'
+            error_icon = '⚠️' if service['has_errors'] else ''
+            if service['has_errors']:
+                services_with_errors.append(service['name'])
+            print(f'{service_name} | {active_icon}{service["state"]:<12} | '
+                  f'{enabled_icon}{service["enabled"]:<8} | {error_icon}')
+    print('--------------------------+----------------+------------+--------')
+
+    if inactive_services:
+        print('* Inactive services:', ', '.join(sorted(inactive_services)))
+
+    if services_with_errors:
+        print(f'* {len(services_with_errors)} service(s) with errors. '
+              f'Run the following command(s) to see the logs:')
+        for service_name in services_with_errors:
+            print(f'  journalctl -u {service_name} --no-pager -n 100')
+
+
 # Combined info
+
 def print_network_info():
     print_hostname()
     if netifaces:
@@ -101,8 +189,10 @@ def print_sensors_info():
 def print_info():
     print('===== Network info =====')
     print_network_info()
-    print('===== Sensors info =====')
+    print('\n===== Sensors info =====')
     print_sensors_info()
+    print('\n===== Services info =====')
+    print_services()
 
 if __name__ == '__main__':
     print_info()
