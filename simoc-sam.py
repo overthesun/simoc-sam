@@ -350,7 +350,7 @@ def sensors_info():
 
 @cmd
 def services_info():
-    """Print status of SIMOC-SAM services and key system services."""
+    """Print status of SIMOC Live services and key system services."""
     import hostinfo
     hostinfo.print_services()
 
