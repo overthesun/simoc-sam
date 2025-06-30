@@ -349,6 +349,12 @@ def sensors_info():
     hostinfo.print_sensors_info()
 
 @cmd
+def services_info():
+    """Print status of SIMOC Live services and key system services."""
+    import hostinfo
+    hostinfo.print_services()
+
+@cmd
 def hosts(target=None):
     """Print info about the other hosts in the network."""
     import netinfo
