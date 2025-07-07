@@ -58,7 +58,7 @@ i2c_address = 0x62
 
     [SCD-41.data.co2]
     unit = "ppm"
-    label = "CO2 Concentration"
+    label = "CO2"
     description = "CO2 Concentration"
 
     [SCD-41.data.temperature]
@@ -90,7 +90,7 @@ i2c_address = 0x58
     [SGP30.data.h2]
     unit = "ppm"
     label = "Hydrogen"
-    description =  "Hydrogen Concentration"
+    description = "Hydrogen Concentration"
 
     [SGP30.data.ethanol]
     unit = "ppm"
@@ -152,7 +152,7 @@ i2c_address = 0x39
 [TSL2591]
 name = "TSL2591"
 description = "High Dynamic Range Digital Light Sensor"
-module = ""
+module = "simoc_sam.sensors.tsl2591"
 i2c_address = 0x29
 
     [TSL2591.data.light]
@@ -173,7 +173,7 @@ i2c_address = 0x29
 [VEML7700]
 name = "VEML7700"
 description = "Ambient Light Sensor"
-module = ""
+module = "simoc_sam.sensors.veml7700"
 i2c_address = 0x10
 
     [VEML7700.data.light]

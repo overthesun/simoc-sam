@@ -8,6 +8,7 @@ import shutil
 import socket
 import pathlib
 import argparse
+import tempfile
 import functools
 import subprocess
 
@@ -17,8 +18,10 @@ except ModuleNotFoundError:
     # keep running if jinja2 is missing
     Template = None
 
+HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
 HOTSPOT_CFG = 'hotspot.nmconnection'
@@ -37,10 +40,10 @@ def cmd(func):
     COMMANDS[func.__name__] = func
     return func
 
-def run(args):
+def run(args, **kwargs):
     print('>>', ' '.join(args))
     print('-'*80)
-    result = subprocess.run(args)
+    result = subprocess.run(args, **kwargs)
     print('-'*80)
     print('<<', result)
     print()
@@ -61,8 +64,10 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            sys.exit('This commands needs to be executed as root.')
-        return func(*args, **kwargs)
+            os.execvp('sudo', ['sudo', sys.executable, *sys.argv])
+            return
+        else:
+            return func(*args, **kwargs)
     return inner
 
 def write_template(path, replacements):
@@ -94,8 +99,8 @@ def clean_venv():
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
 
-target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
-ipv4_re = re.compile('^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
+target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
+ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
 def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     """Copy the repository to a remote host using rsync."""
@@ -136,8 +141,8 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
-host_re = re.compile('^samrpi(\d+)$')
-address_re = re.compile('^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
+host_re = re.compile(r'^samrpi(\d+)$')
+address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
 def fix_ip():
     """Ensure that the bat0 IP matches the hostname."""
@@ -239,6 +244,35 @@ def teardown_nmconn(nmconn_file):
 
 @cmd
 @needs_root
+def setup_mqttbridge():
+    """Setup a systemd service that runs the mqttbridge."""
+    setup_systemd_service('mqttbridge')
+
+@cmd
+@needs_root
+def teardown_mqttbridge():
+    """Revert the changes made by the setup-mqttbridge command."""
+    teardown_systemd_service('mqttbridge')
+
+
+def setup_systemd_service(name):
+    # create a symlink to the given service, enable it, and start it
+    service_name = f'{name}.service'
+    (SYSTEMD_DIR / service_name).symlink_to(CONFIGS_DIR / service_name)
+    if not run(['systemctl', 'is-enabled', name]):
+        run(['systemctl', 'enable', name])
+    if not run(['systemctl', 'is-active', name]):
+        run(['systemctl', 'start', name])
+
+def teardown_systemd_service(name):
+    # stop, disable, and remove the symlink to the given service
+    run(['systemctl', 'stop', name])
+    run(['systemctl', 'disable', name])
+    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
+
+
+@cmd
+@needs_root
 def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
     if not shutil.which('nginx'):
@@ -315,6 +349,12 @@ def sensors_info():
     hostinfo.print_sensors_info()
 
 @cmd
+def services_info():
+    """Print status of SIMOC Live services and key system services."""
+    import hostinfo
+    hostinfo.print_services()
+
+@cmd
 def hosts(target=None):
     """Print info about the other hosts in the network."""
     import netinfo
@@ -350,6 +390,60 @@ def add_mcp_rules():
 def add_usb_rules():
     """Add Linux-specific rules for USB devices access."""
     return add_vernier_rules() and add_mcp_rules()
+
+
+@cmd
+@needs_root
+def install_touchscreen():
+    """Install the GeeekPi 3.5" LCD touchscreen."""
+    repo_name = 'LCD-show'
+    repo_url = f'https://github.com/goodtft/{repo_name}.git'
+    with tempfile.TemporaryDirectory() as tmpdir_name:
+        repo_path = pathlib.Path(tmpdir_name) / repo_name
+        script_path = repo_path / 'MHS35-show'
+        run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
+        os.chdir(repo_path)  # the script creates files in the cwd
+        run(['sed', '-i', '-e', '/hdmi_cvt / s/480 320/960 640/',
+             str(script_path)])  # update res (also: fbset -xres 960 -yres 640)
+        run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
+        run([str(script_path)])  # install the screen and reboot
+
+@cmd
+def initial_setup():
+    """Perform the initial setup of the Raspberry Pi."""
+    print('Instaling bash aliases...')
+    install_bash_aliases()
+    print('Removing empty home dirs...')
+    remove_home_dirs()
+    print('Updating system and installing deps...')
+    install_deps()
+    print('System updated, deps installed, home cleaned, aliases set up.')
+    print('Run <source ~/.bash_aliases> to install the aliases now.')
+
+def install_bash_aliases():
+    """Install the .bash_aliases file in the home dir."""
+    fname = 'bash_aliases'
+    try:
+        (HOME / f'.{fname}').symlink_to(SIMOC_SAM_DIR / fname)
+    except FileExistsError:
+        print(f'<~/.{fname}> already exists!')
+
+def remove_home_dirs():
+    """Remove unused default directories from the user's home."""
+    dirs = ['Bookshelf', 'Desktop', 'Documents', 'Downloads',
+            'Music', 'Pictures', 'Public', 'Templates', 'Videos']
+    for dir_name in dirs:
+        try:
+            (HOME / dir_name).rmdir()
+        except (FileNotFoundError, OSError):
+            pass  # skip missing dirs or dirs that are not empty
+
+def install_deps():
+    """Install dependencies using apt."""
+    packages = ['nmap', 'vim', 'tcpdump', 'mosquitto-clients', 'avahi-utils']
+    run(['sudo', 'apt', 'update'], check=True)
+    run(['sudo', 'apt', 'upgrade', '-y'], check=True)
+    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
 
 
 def create_help(cmds):
