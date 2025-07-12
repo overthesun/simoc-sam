@@ -1,5 +1,4 @@
 import json
-import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock, call
 
 import pytest
@@ -14,7 +13,6 @@ from simoc_sam.mqttbridge import MQTTBridge
 def server():
     """Create a MQTTBridge instance for testing."""
     server = MQTTBridge()
-    # Patch the sio attribute directly
     server.sio = MagicMock()
     yield server
 
@@ -285,6 +283,7 @@ async def test_emit_readings_with_logging(server, sio):
     """Test that emit_readings includes additional logging."""
     # Add some test data
     server.sensor_readings['test_sensor'] = [{'n': 1, 'timestamp': 'test'}]
+    server.sensors.add('test_sensor')  # Ensure sensors is non-empty
     server.subscribers = {'sub-1'}
 
     with patch('simoc_sam.mqttbridge.utils.parse_args') as mock_parse_args, \
