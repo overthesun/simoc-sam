@@ -310,11 +310,6 @@ def test(*args):
     pytest = str(VENV_DIR / 'bin' / 'pytest')
     return run([pytest, '-v', *args])
 
-@cmd
-@needs_venv
-def run_server():
-    """Run the sioserver."""
-    run([VENV_PY, '-m', 'simoc_sam.sioserver'])
 
 @cmd
 @needs_venv
