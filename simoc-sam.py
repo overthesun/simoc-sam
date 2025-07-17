@@ -244,15 +244,15 @@ def teardown_nmconn(nmconn_file):
 
 @cmd
 @needs_root
-def setup_mqttbridge():
-    """Setup a systemd service that runs the mqttbridge."""
-    setup_systemd_service('mqttbridge')
+def setup_siobridge():
+    """Setup a systemd service that runs the siobridge."""
+    setup_systemd_service('siobridge')
 
 @cmd
 @needs_root
-def teardown_mqttbridge():
-    """Revert the changes made by the setup-mqttbridge command."""
-    teardown_systemd_service('mqttbridge')
+def teardown_siobridge():
+    """Revert the changes made by the setup-siobridge command."""
+    teardown_systemd_service('siobridge')
 
 
 def setup_systemd_service(name):
