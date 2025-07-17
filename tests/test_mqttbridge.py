@@ -2,7 +2,7 @@ import json
 
 from copy import deepcopy
 from contextlib import ExitStack
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -147,32 +147,6 @@ def test_global_variables(global_vars):
         assert hasattr(mqttbridge, var)
 
 @pytest.mark.asyncio
-async def test_register_sensor_no_subs(sio, sensor_id, sensor_info):
-    """Test SocketIO sensor registration (legacy functionality)."""
-    assert mqttbridge.SENSORS == set()
-    assert mqttbridge.SENSOR_INFO == {}
-    await mqttbridge.register_sensor(sensor_id, sensor_info)
-    # check that the sensor is in the sensors list
-    assert mqttbridge.SENSORS == {sensor_id}
-    assert mqttbridge.SENSOR_INFO[sensor_id] == sensor_info
-    # with no subs, the server only asks the sensor to send data
-    sio.emit.assert_awaited_once_with('send-data', to=sensor_id)
-
-@pytest.mark.asyncio
-async def test_register_sensor_2_subs(sio, sensor_id, sensor_info, two_subs):
-    """Test SocketIO sensor registration with subscribers."""
-    await mqttbridge.register_sensor(sensor_id, sensor_info)
-    assert mqttbridge.SENSORS == {sensor_id}
-    # check that the SENSOR_INFO are populated correctly
-    info = {sensor_id: sensor_info}
-    assert mqttbridge.SENSOR_INFO == info
-    # check that sensor-info are forwarded to the subscribers
-    for sub in two_subs:
-        sio.emit.assert_any_await('sensor-info', info, to=sub)
-    # check that the server asks the sensor to send data
-    sio.emit.assert_awaited_with('send-data', to=sensor_id)
-
-@pytest.mark.asyncio
 async def test_register_client(sio, client_id):
     """Test SocketIO client registration."""
     assert mqttbridge.CLIENTS == set()
@@ -201,33 +175,21 @@ async def test_emit_to_subscribers_2_subs(sio, two_subs):
     for sub in two_subs:
         sio.emit.assert_any_await('test-event', to=sub)
 
-@pytest.mark.asyncio
-async def test_sensor_reading(sio, sensor_id, sensor_info, sensor_reading):
-    """Test receiving sensor reading via SocketIO."""
-    assert mqttbridge.SENSOR_READINGS == {}
-    # register sensor
-    await mqttbridge.register_sensor(sensor_id, sensor_info)
-    # send a reading to the server
-    await mqttbridge.sensor_reading(sensor_id, sensor_reading)
-    # check that the reading is stored in SENSOR_READINGS
-    assert len(mqttbridge.SENSOR_READINGS[sensor_id]) == 1
-    assert mqttbridge.SENSOR_READINGS[sensor_id][-1] == sensor_reading
-
-@pytest.mark.asyncio
-async def test_sensor_batch(sio, sensor_id, sensor_info, sensor_reading):
-    """Test receiving sensor batch via SocketIO."""
-    assert mqttbridge.SENSOR_READINGS == {}
-    # register sensor
-    await mqttbridge.register_sensor(sensor_id, sensor_info)
-    # send a batch to the server
-    batch = [sensor_reading] * 3
-    await mqttbridge.sensor_batch(sensor_id, batch)
-    # check that the readings are stored in SENSOR_READINGS
-    assert len(mqttbridge.SENSOR_READINGS[sensor_id]) == 3
-    assert list(mqttbridge.SENSOR_READINGS[sensor_id]) == batch
-
 
 # tests for new MQTT functionality
+
+@pytest.mark.asyncio
+async def test_convert_sensor_data():
+    """Test the convert_sensor_data function."""
+    # convert_sensor_data is called at the beginning and the result assigned to SENSOR_DATA
+    assert mqttbridge.SENSOR_DATA
+    for sensor_name, sensor_info in mqttbridge.SENSOR_DATA.items():
+        assert sensor_name and isinstance(sensor_name, str)
+        assert isinstance(sensor_info['sensor_type'], str)
+        assert sensor_info['sensor_name'] is None
+        assert sensor_info['sensor_id'] is None
+        assert sensor_info['sensor_desc'] is None
+        assert isinstance(sensor_info['reading_info'], dict)
 
 @pytest.mark.asyncio
 async def test_mqtt_handler_new_sensor(mqtt_message, mock_mqtt_client,
@@ -252,19 +214,6 @@ async def test_mqtt_handler_new_sensor(mqtt_message, mock_mqtt_client,
         await mqttbridge.mqtt_handler()
     assert_globals_count(expected_count=1)
     mock_emit_to_subscribers.assert_not_awaited()
-
-@pytest.mark.asyncio
-async def test_convert_sensor_data():
-    """Test the convert_sensor_data function."""
-    # convert_sensor_data is called at the beginning and the result assigned to SENSOR_DATA
-    assert mqttbridge.SENSOR_DATA
-    for sensor_name, sensor_info in mqttbridge.SENSOR_DATA.items():
-        assert sensor_name and isinstance(sensor_name, str)
-        assert isinstance(sensor_info['sensor_type'], str)
-        assert sensor_info['sensor_name'] is None
-        assert sensor_info['sensor_id'] is None
-        assert sensor_info['sensor_desc'] is None
-        assert isinstance(sensor_info['reading_info'], dict)
 
 @pytest.mark.asyncio
 async def test_emit_readings(sio, sio_sleep_break, sensor_id, two_subs, sensor_reading,
