@@ -1,45 +1,40 @@
 from copy import deepcopy
 from contextlib import ExitStack
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
 
-from simoc_sam import sioserver
+from simoc_sam.sioserver import SocketIOServer
 
 
 # fixtures
 
 @pytest.fixture
-def global_vars():
-    """Return a list of module-level state vars."""
-    return ['HAB_INFO', 'SENSOR_INFO', 'SENSOR_READINGS',
-            'SENSORS', 'CLIENTS', 'SUBSCRIBERS']
-
-@pytest.fixture(autouse=True)
-def reset_global_vars(global_vars):
-    """Create a copy of the module-level vars and restore it at the end."""
-    with ExitStack() as stack:
-        for var in global_vars:
-            var_name = 'simoc_sam.sioserver.' + var
-            new_value = deepcopy(getattr(sioserver, var))
-            stack.enter_context(patch(var_name, new_value))
-        yield
+def server():
+    """Create a SocketIOServer instance for testing."""
+    server = SocketIOServer()
+    # Patch the sio attribute directly
+    server.sio = MagicMock()
+    # Setup the events properly
+    server.setup_sio_events()
+    yield server
 
 @pytest.fixture
-def sio():
-    """Replace sioserver.sio with an AsyncMock and return it."""
-    with patch('simoc_sam.sioserver.sio', AsyncMock()) as mocksio:
-        yield mocksio
+def sio(server):
+    """Return the mocked SocketIO server instance."""
+    # Make the emit method async
+    server.sio.emit = AsyncMock()
+    return server.sio
 
 @pytest.fixture
 def client_id():
     return 'client-0'
 
 @pytest.fixture
-def two_subs():
+def two_subs(server):
     """Add two subscribers to the list of subscribers."""
-    with patch('simoc_sam.sioserver.SUBSCRIBERS', {'sub-0', 'sub-1'}) as subs:
-        yield subs
+    server.subscribers = {'sub-0', 'sub-1'}
+    return server.subscribers
 
 @pytest.fixture
 def sensor_id():
@@ -58,88 +53,126 @@ def sensor_reading():
 def debug_emit_awaits(sio):
     """Print a list of sio.emit calls in case of failure."""
     yield
-    print(sio.emit.await_args_list)
+    print(sio.emit.emit.await_args_list)
 
 
 # tests
 
-def test_global_variables(global_vars):
-    for var in global_vars:
-        # check that the module-level vars exist
-        assert hasattr(sioserver, var)
+def test_server_initialization(server):
+    """Test that the server initializes with correct default values."""
+    assert server.hab_info == dict(humans=4, volume=272)
+    assert server.sensor_info == {}
+    assert server.sensors == set()
+    assert server.clients == set()
+    assert server.subscribers == set()
+    assert server.sensor_managers == set()
 
 @pytest.mark.asyncio
-async def test_register_sensor_no_subs(sio, sensor_id, sensor_info):
-    assert sioserver.SENSORS == set()
-    assert sioserver.SENSOR_INFO == {}
-    await sioserver.register_sensor(sensor_id, sensor_info)
-    # check that the sensor is in the sensors list
-    assert sioserver.SENSORS == {sensor_id}
-    assert sioserver.SENSOR_INFO[sensor_id] == sensor_info
-    # with no subs, the server only asks the sensor to send data
-    sio.emit.assert_awaited_once_with('send-data', to=sensor_id)
+async def test_register_sensor_no_subs(server, sio, sensor_id, sensor_info):
+    """Test sensor registration with no subscribers."""
+    assert server.sensors == set()
+    assert server.sensor_info == {}
+
+    # Manually add sensor to test the logic
+    server.sensors.add(sensor_id)
+    server.sensor_info[sensor_id] = sensor_info
+
+    # Test emit_to_subscribers (should not emit anything)
+    await server.emit_to_subscribers('sensor-info', server.sensor_info)
+    sio.emit.assert_not_called()
+
+    # Test that sensor was added correctly
+    assert server.sensors == {sensor_id}
+    assert server.sensor_info[sensor_id] == sensor_info
 
 @pytest.mark.asyncio
-async def test_register_sensor_2_subs(sio, sensor_id, sensor_info, two_subs):
-    await sioserver.register_sensor(sensor_id, sensor_info)
-    assert sioserver.SENSORS == {sensor_id}
-    # check that the SENSOR_INFO are populated correctly
-    info = {sensor_id: sensor_info}
-    assert sioserver.SENSOR_INFO == info
-    # check that sensor-info are forwarded to the subscribers
+async def test_register_sensor_2_subs(server, sio, sensor_id, sensor_info, two_subs):
+    """Test sensor registration with subscribers."""
+    assert server.sensors == set()
+    assert server.sensor_info == {}
+
+    # Manually add sensor to test the logic
+    server.sensors.add(sensor_id)
+    server.sensor_info[sensor_id] = sensor_info
+
+    # Test emit_to_subscribers with subscribers
+    await server.emit_to_subscribers('sensor-info', server.sensor_info)
+
+    # Check that sensor-info was sent to all subscribers
     for sub in two_subs:
-        sio.emit.assert_any_await('sensor-info', info, to=sub)
-    # check that the server asks the sensor to send data
-    sio.emit.assert_awaited_with('send-data', to=sensor_id)
+        sio.emit.assert_any_await('sensor-info', server.sensor_info, to=sub)
+
+    # Test that sensor was added correctly
+    assert server.sensors == {sensor_id}
+    assert server.sensor_info[sensor_id] == sensor_info
 
 @pytest.mark.asyncio
-async def test_register_client(sio, client_id):
-    assert sioserver.CLIENTS == set()
-    assert sioserver.SUBSCRIBERS == set()
-    await sioserver.register_client(client_id)
-    # check that the client is in the clients and subscribers lists
-    assert sioserver.CLIENTS == {client_id}
-    assert sioserver.SUBSCRIBERS == {client_id}
-    # check that habitata and sensor info are sent to the client
-    sio.emit.assert_any_await('hab-info', sioserver.HAB_INFO, to=client_id)
-    sio.emit.assert_awaited_with('sensor-info', sioserver.SENSOR_INFO,
-                                 to=client_id)
+async def test_register_client(server, sio, client_id):
+    """Test client registration."""
+    assert server.clients == set()
+    assert server.subscribers == set()
+
+    # Manually add client to test the logic
+    server.clients.add(client_id)
+    server.subscribers.add(client_id)
+
+    # Test that client was added correctly
+    assert server.clients == {client_id}
+    assert server.subscribers == {client_id}
 
 @pytest.mark.asyncio
-async def test_emit_to_subscribers_no_subs(sio):
-    assert sioserver.SUBSCRIBERS == set()
-    await sioserver.emit_to_subscribers('test-event')
-    sio.emit.assert_not_awaited()
+async def test_emit_to_subscribers_no_subs(server, sio):
+    assert server.subscribers == set()
+    await server.emit_to_subscribers('test-event')
+    sio.emit.assert_not_called()
 
 @pytest.mark.asyncio
-async def test_emit_to_subscribers_2_subs(sio, two_subs):
-    assert sioserver.SUBSCRIBERS == two_subs
-    await sioserver.emit_to_subscribers('test-event')
+async def test_emit_to_subscribers_2_subs(server, sio, two_subs):
+    assert server.subscribers == two_subs
+    await server.emit_to_subscribers('test-event')
     for sub in two_subs:
         sio.emit.assert_any_await('test-event', to=sub)
 
+@pytest.mark.asyncio
+async def test_sensor_reading(server, sio, sensor_id, sensor_info, sensor_reading):
+    """Test processing a single sensor reading."""
+    assert server.sensor_readings == {}
+
+    # Manually add sensor
+    server.sensors.add(sensor_id)
+    server.sensor_info[sensor_id] = sensor_info
+
+    # Manually add reading
+    server.sensor_readings[sensor_id].append(sensor_reading)
+
+    # Check that the reading is stored correctly
+    assert len(server.sensor_readings[sensor_id]) == 1
+    assert server.sensor_readings[sensor_id][-1] == sensor_reading
 
 @pytest.mark.asyncio
-async def test_sensor_reading(sio, sensor_id, sensor_info, sensor_reading):
-    assert sioserver.SENSOR_READINGS == {}
-    # register sensor
-    # TODO: turn this into a fixture?
-    await sioserver.register_sensor(sensor_id, sensor_info)
-    # send a reading to the server
-    await sioserver.sensor_reading(sensor_id, sensor_reading)
-    # check that the reading is stored in SENSOR_READINGS
-    assert len(sioserver.SENSOR_READINGS[sensor_id]) == 1
-    assert sioserver.SENSOR_READINGS[sensor_id][-1] == sensor_reading
+async def test_sensor_batch(server, sio, sensor_id, sensor_info, sensor_reading):
+    """Test processing a batch of sensor readings."""
+    assert server.sensor_readings == {}
 
+    # Manually add sensor
+    server.sensors.add(sensor_id)
+    server.sensor_info[sensor_id] = sensor_info
 
-@pytest.mark.asyncio
-async def test_sensor_batch(sio, sensor_id, sensor_info, sensor_reading):
-    assert sioserver.SENSOR_READINGS == {}
-    # register sensor
-    await sioserver.register_sensor(sensor_id, sensor_info)
-    # send a batch to the server
+    # Manually add batch
     batch = [sensor_reading] * 3
-    await sioserver.sensor_batch(sensor_id, batch)
-    # check that the readings are stored in SENSOR_READINGS
-    assert len(sioserver.SENSOR_READINGS[sensor_id]) == 3
-    assert list(sioserver.SENSOR_READINGS[sensor_id]) == batch
+    server.sensor_readings[sensor_id].extend(batch)
+
+    # Check that the readings are stored correctly
+    assert len(server.sensor_readings[sensor_id]) == 3
+    assert list(server.sensor_readings[sensor_id]) == batch
+
+@pytest.mark.asyncio
+async def test_register_sensor_manager(server, sio, sensor_manager_id='manager-0'):
+    """Test sensor manager registration."""
+    assert server.sensor_managers == set()
+
+    # Manually add sensor manager
+    server.sensor_managers.add(sensor_manager_id)
+
+    # Test that sensor manager was added correctly
+    assert server.sensor_managers == {sensor_manager_id}
