@@ -120,11 +120,11 @@ def to_csv(batch):
 async def main(host=SIO_HOST, port=SIO_PORT):
     """Connect to the server and register as a client."""
     # connect to the server and wait
+    print(f'Connecting to <{host}:{port}>...')
     await sio.connect(f'http://{host}:{port}')
     await sio.wait()
 
 
 if __name__ == '__main__':
-    parser = utils.get_addr_argparser()
-    args = parser.parse_args()
-    asyncio.run(main(args.host, args.port))
+    host, port = utils.get_sioserver_addr()
+    asyncio.run(main(host, port))
