@@ -10,7 +10,7 @@ tomli==2.2.1
 hidapi==0.14.0.post4
 Adafruit-Blinka==8.62.0
 adafruit-circuitpython-scd30==2.2.13
-adafruit-circuitpython-scd4x==1.4.5
+adafruit-circuitpython-scd4x==1.4.8
 adafruit-circuitpython-sgp30==3.0.10
 adafruit-circuitpython-bme680==3.7.11
 adafruit-circuitpython-tsl2591==1.4.2
