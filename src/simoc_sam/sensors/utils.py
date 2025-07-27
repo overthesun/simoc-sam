@@ -151,7 +151,10 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
             host, port = args.host, args.port
             mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
             mqttwrapper.start(host, port)
-            mqttwrapper.send_data()
+            try:
+                mqttwrapper.send_data()
+            except KeyboardInterrupt:
+                print('Sensor stopped')
             mqttwrapper.stop()
         else:
             for reading in sensor.iter_readings(delay=args.delay):

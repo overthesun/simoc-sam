@@ -120,11 +120,22 @@ def to_csv(batch):
 async def main(host=SIO_HOST, port=SIO_PORT):
     """Connect to the server and register as a client."""
     # connect to the server and wait
-    print(f'Connecting to <{host}:{port}>...')
-    await sio.connect(f'http://{host}:{port}')
-    await sio.wait()
+    for n in range(10):
+        print(f'Connecting to <{host}:{port}>...')
+        try:
+            await sio.connect(f'http://{host}:{port}')
+            await sio.wait()
+            break  # after a successful connection
+        except socketio.exceptions.ConnectionError as err:
+            print(f'Failed to connect (attempt {n+1}): {err}')
+            await asyncio.sleep(5)
+    else:
+        print(f'Giving up after {n+1} attempts')
 
 
 if __name__ == '__main__':
     host, port = utils.get_sioserver_addr()
-    asyncio.run(main(host, port))
+    try:
+        asyncio.run(main(host, port))
+    except asyncio.exceptions.CancelledError:
+        print('Client stopped')
