@@ -122,7 +122,7 @@ def parse_args(arguments=None, *, read_delay=10):
                         dest='delay', metavar='DELAY', type=float,
                         help='How many seconds between readings.')
     parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Enable verbose output for sensor/SocketIO/MQTT.')
+                        help='Enable verbose output for sensor/MQTT.')
     parser.add_argument('--verbose-sensor', action='store_true',
                         help='Enable verbose output for the sensor.')
     parser.add_argument('--verbose-mqtt', action='store_true',
