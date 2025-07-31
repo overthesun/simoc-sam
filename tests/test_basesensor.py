@@ -1,11 +1,11 @@
 import time
+import socket
 
-from unittest.mock import AsyncMock, ANY
+from unittest.mock import AsyncMock, MagicMock, patch, Mock
 
 import pytest
 
-from simoc_sam.sensors.basesensor import BaseSensor, SIOWrapper
-
+from simoc_sam.sensors.basesensor import BaseSensor, MQTTWrapper
 
 READING = dict(co2=100, hum=50, temp=25)
 INFO = {
@@ -22,6 +22,25 @@ class MySensor(BaseSensor):
 @pytest.fixture
 def sensor():
     yield MySensor()
+
+@pytest.fixture
+def wrapper(sensor):
+    return MQTTWrapper(sensor, read_delay=0)
+
+@pytest.fixture
+def mock_print(wrapper):
+    with patch.object(wrapper, 'print') as mock_print:
+        yield mock_print
+
+@pytest.fixture(autouse=True)
+def patch_gethostname():
+    with patch('socket.gethostname', return_value='testhost'):
+        yield
+
+@pytest.fixture(autouse=True)
+def mock_paho_client():
+    with patch('paho.mqtt.client.Client', autospec=True) as mock_client:
+        yield mock_client
 
 def test_abstract_method():
     # this should fail if read_sensor_data is not implemented
@@ -80,36 +99,64 @@ def test_reading_num(sensor):
     readings = list(sensor.iter_readings(delay=0, n=5))
     assert sensor.reading_num == 10
 
+# MQTTWrapper tests
 
-# SIOWrapper tests
-@pytest.mark.asyncio
-async def test_siowrapper(sensor):
-    siowrapper = SIOWrapper(sensor, read_delay=0)
-    # mock the socketio.AsyncClient instance
-    siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
-    # start the client and check it connects to the server
-    await siowrapper.start('localhost', 8081)
-    sio_ac.connect.assert_awaited_with('http://localhost:8081')
-    # check that sensor registers itself on connect
-    await siowrapper.connect()
-    sensor_info = {'sensor_type': 'TestSensor', 'sensor_name': 'TestSensor',
-                   'sensor_id': sensor.sensor_id, 'sensor_desc': None,
-                   'reading_info': INFO}
-    sio_ac.emit.assert_awaited_with('register-sensor', sensor_info)
-    # request 2 readings and check that at least a reading has been sent
-    await siowrapper.send_data(n=2)
-    sio_ac.emit.assert_awaited_with('sensor-reading', ANY)
-    # check emitted events
-    calls = sio_ac.emit.await_args_list
-    assert len(calls) == 3
-    expected_events = ['register-sensor', 'sensor-reading', 'sensor-reading']
-    assert [c.args[0] for c in calls] == expected_events
+def test_mqttwrapper_init(sensor):
+    # test with custom args
+    wrapper = MQTTWrapper(sensor, read_delay=10, verbose=True)
+    assert wrapper.sensor is sensor
+    assert wrapper.read_delay == 10
+    assert wrapper.verbose is True
+    assert wrapper.topic == f'sam/testhost/{sensor.sensor_name}'
+    assert wrapper.log_fname.endswith(f'sam_testhost_{sensor.sensor_name}.jsonl')
 
-@pytest.mark.asyncio
-async def test_siowrapper_custom_addr(sensor):
-    siowrapper = SIOWrapper(sensor, read_delay=0)
-    # mock the socketio.AsyncClient instance
-    siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
-    # start the client and check it connects to the server
-    await siowrapper.start('anotherhost', 666)
-    sio_ac.connect.assert_awaited_with('http://anotherhost:666')
+def test_mqttwrapper_connect_start_stop(wrapper):
+    mqttc = wrapper.mqttc
+    wrapper.connect('localhost', 1883)
+    mqttc.connect.assert_called_with('localhost', 1883)
+    wrapper.start('localhost', 1883)
+    mqttc.loop_start.assert_called_once()
+    mqttc.connect.assert_called_with('localhost', 1883)
+    wrapper.stop()
+    mqttc.loop_stop.assert_called_once()
+
+def test_mqttwrapper_on_connect_and_disconnect(wrapper, mock_print):
+    wrapper.verbose = True
+    wrapper.on_connect(None, None, None, 0)
+    mock_print.assert_any_call("Connected to MQTT broker")
+    wrapper.on_connect(None, None, None, 1)
+    mock_print.assert_any_call("Connection failed with code 1")
+    wrapper.on_disconnect(None, None, None)
+    mock_print.assert_any_call("Disconnected from MQTT broker")
+
+def test_mqttwrapper_send_data(wrapper, mock_print):
+    mqttc = wrapper.mqttc
+    wrapper.log = Mock()
+    wrapper.send_data(n=2)
+    assert mqttc.publish.call_count == 2
+    for call in mqttc.publish.call_args_list:
+        assert call.kwargs['payload'] is not None
+        assert call.args[0] == wrapper.topic
+    assert wrapper.log.call_count == 2
+    assert mock_print.call_count >= 2
+
+def test_mqttwrapper_send_data_publish_error(wrapper, mock_print):
+    mqttc = wrapper.mqttc
+    wrapper.log = Mock()
+    mqttc.publish.side_effect = RuntimeError("fail")
+    wrapper.send_data(n=1)
+    mock_print.assert_any_call('No longer connected to the server (fail)...')
+
+def test_mqttwrapper_log_success_and_failure(wrapper, tmp_path, mock_print):
+    payload = '{"foo": 1}'
+    wrapper.log_fname = str(tmp_path / "testlog.jsonl")
+    wrapper.log(payload)
+    with open(wrapper.log_fname) as f:
+        lines = f.readlines()
+    assert lines[-1].strip() == payload
+    # test for nonexisting file
+    wrapper.log_fname = "/nonexistent/path/testlog.jsonl"
+    wrapper.log(payload)
+    assert mock_print.call_count == 1
+    assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
+
