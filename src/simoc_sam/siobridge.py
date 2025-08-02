@@ -4,18 +4,20 @@
 
 import json
 import copy
+import socket
 import asyncio
+import ipaddress
 import traceback
 import configparser
 
 from datetime import datetime
 from collections import defaultdict, deque
 
+import aiomqtt
 import socketio
+import netifaces
 
 from aiohttp import web
-
-import aiomqtt
 
 from .sensors import utils
 
@@ -42,17 +44,34 @@ SENSOR_DATA = convert_sensor_data()
 SENSOR_INFO = {}
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
-SENSOR_MANAGERS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
 
-# The web client will include the Origin header with their host:port
-# (e.g. localhost:8080), so we should accept that explicitly.
+def get_host_ips():
+    """Return a list of IPs and hostnames for the current host."""
+    hostname = socket.gethostname()
+    ips = {hostname, 'localhost', '127.0.0.1'}  # init with known IPs/hostnames
+    # find all local private networks we are in and our IP in those networks
+    for interface in netifaces.interfaces():
+        addrs = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
+        for addr in addrs:
+            ip = addr.get('addr')
+            if ip and ipaddress.ip_address(ip).is_private:
+                ips.add(ip)  # only add IPs in the private range
+    return ips
+
+# Use dynamic CORS settings for hosts to avoid CORS issues
+# The origin is sent by the web client with the Origin header and
+# will correspond to one of the IPs or hostnames of the machine
+# (e.g. localhost:8080, sambridge:8080, 10.0.0.100:8080,
+# assuming the client is running on port 8080).
+# Therefore we need to find and explicitly allow all these IPs,
+# as long as they are in the same (private) network.
 # The sensors and the Python client don't send the Origin header,
 # and they work without being allowed explicitly.
-allowed_origins = [f'http://{SIO_HOST}:8080', f'http://{SIO_HOST}:8081']
-print(allowed_origins)
+allowed_origins = [f'http://{ip}:8080' for ip in get_host_ips()]
+print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
 
