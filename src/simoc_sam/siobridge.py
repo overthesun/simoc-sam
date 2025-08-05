@@ -61,15 +61,23 @@ def get_host_ips():
                 ips.add(ip)  # only add IPs in the private range
     return ips
 
-# Use dynamic CORS settings for hosts to avoid CORS issues
-# The origin is sent by the web client with the Origin header and
-# will correspond to one of the IPs or hostnames of the machine
-# (e.g. localhost:8080, sambridge:8080, 10.0.0.100:8080,
-# assuming the client is running on port 8080).
-# Therefore we need to find and explicitly allow all these IPs,
-# as long as they are in the same (private) network.
-# The sensors and the Python client don't send the Origin header,
-# and they work without being allowed explicitly.
+# Use dynamic CORS settings for hosts to avoid CORS issues.
+# This is mostly needed for SIMOC web since the sensors and Python
+# clients don't send the Origin header and no CORS validation happens.
+# When SIMOC web is running on the local machine, it can be reached
+# through a browser both from the local machine itself or from any
+# other machine in any of the networks this machine is in by using
+# the IP or hostname that the local machine has on those networks.
+# Since the browser will send the IP/hostname used to connect to this
+# machine through the Origin header (which is used for CORS validation),
+# the value might be different depending on where the browser is running
+# (it could be localhost or 127.0.0.1 if it's on the same machine,
+# or 192.168.0.1, 10.0.0.1, etc. if it's connecting to this machine
+# from another device in one of the other private networks).
+# Therefore we need to find all the IPs/hostnames that point to
+# this machine in the different networks and explicitly allow them.
+# The port is also used for CORS validation, and must match the
+# port used by SIMOC web (8080 is used by default).
 allowed_origins = [f'http://{ip}:8080' for ip in get_host_ips()]
 print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
