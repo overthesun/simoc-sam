@@ -4,18 +4,20 @@
 
 import json
 import copy
+import socket
 import asyncio
+import ipaddress
 import traceback
 import configparser
 
 from datetime import datetime
 from collections import defaultdict, deque
 
+import aiomqtt
 import socketio
+import netifaces
 
 from aiohttp import web
-
-import aiomqtt
 
 from .sensors import utils
 
@@ -42,17 +44,42 @@ SENSOR_DATA = convert_sensor_data()
 SENSOR_INFO = {}
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
 SENSORS = set()
-SENSOR_MANAGERS = set()
 CLIENTS = set()
 SUBSCRIBERS = set()
 
 
-# The web client will include the Origin header with their host:port
-# (e.g. localhost:8080), so we should accept that explicitly.
-# The sensors and the Python client don't send the Origin header,
-# and they work without being allowed explicitly.
-allowed_origins = [f'http://{SIO_HOST}:8080', f'http://{SIO_HOST}:8081']
-print(allowed_origins)
+def get_host_ips():
+    """Return a list of IPs and hostnames for the current host."""
+    hostname = socket.gethostname()
+    ips = {hostname, 'localhost', '127.0.0.1'}  # init with known IPs/hostnames
+    # find all local private networks we are in and our IP in those networks
+    for interface in netifaces.interfaces():
+        addrs = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
+        for addr in addrs:
+            ip = addr.get('addr')
+            if ip and ipaddress.ip_address(ip).is_private:
+                ips.add(ip)  # only add IPs in the private range
+    return ips
+
+# Use dynamic CORS settings for hosts to avoid CORS issues.
+# This is mostly needed for SIMOC web since the sensors and Python
+# clients don't send the Origin header and no CORS validation happens.
+# When SIMOC web is running on the local machine, it can be reached
+# through a browser both from the local machine itself or from any
+# other machine in any of the networks this machine is in by using
+# the IP or hostname that the local machine has on those networks.
+# Since the browser will send the IP/hostname used to connect to this
+# machine through the Origin header (which is used for CORS validation),
+# the value might be different depending on where the browser is running
+# (it could be localhost or 127.0.0.1 if it's on the same machine,
+# or 192.168.0.1, 10.0.0.1, etc. if it's connecting to this machine
+# from another device in one of the other private networks).
+# Therefore we need to find all the IPs/hostnames that point to
+# this machine in the different networks and explicitly allow them.
+# The port is also used for CORS validation, and must match the
+# port used by SIMOC web (8080 is used by default).
+allowed_origins = [f'http://{ip}:8080' for ip in get_host_ips()]
+print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
 
