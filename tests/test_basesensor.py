@@ -108,7 +108,7 @@ def test_mqttwrapper_init(sensor):
     assert wrapper.read_delay == 10
     assert wrapper.verbose is True
     assert wrapper.topic == f'sam/testhost/{sensor.sensor_name}'
-    assert wrapper.log_fname.endswith(f'sam_testhost_{sensor.sensor_name}.jsonl')
+    assert str(wrapper.log_fname).endswith(f'sam_testhost_{sensor.sensor_name}.jsonl')
 
 def test_mqttwrapper_connect_start_stop(wrapper):
     mqttc = wrapper.mqttc

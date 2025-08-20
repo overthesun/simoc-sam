@@ -2,7 +2,7 @@ import asyncio
 
 from contextlib import ExitStack
 
-from .basesensor import SIOWrapper
+from .basesensor import MQTTWrapper
 from .utils import parse_args
 
 def start_sensors(sensor_classes):
@@ -14,9 +14,9 @@ def start_sensors(sensor_classes):
             sensors = []
             for (sensor_cls, device, kwargs) in sensor_classes:
                 sensors.append(stack.enter_context(sensor_cls(verbose=v, device=device, **kwargs)))
-            delay, verbose = args.delay, args.verbose_sio
+            delay, verbose = args.delay, args.verbose_mqtt
             host, port = args.host, args.port
-            wrappers = [SIOWrapper(sensor, read_delay=delay, verbose=verbose)
+            wrappers = [MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
                         for sensor in sensors]
             await asyncio.gather(*[wrapper.start(host, port) for wrapper in wrappers])
     asyncio.run(start_concurrently())

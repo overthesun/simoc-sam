@@ -18,6 +18,9 @@ except ModuleNotFoundError:
     # keep running if jinja2 is missing
     Template = None
 
+from simoc_sam import config
+
+
 HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
@@ -285,7 +288,8 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    write_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
+    dist_dir = config.simoc_web_dist_dir
+    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
