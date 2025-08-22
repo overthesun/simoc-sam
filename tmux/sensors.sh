@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Starts a tmux session with 4 panes, one for each sensor (SCD30, BMe688, SGP30)
+# Start a tmux session with 4 panes, one for each sensor (SCD30, BME688, SGP30)
 # and an empty terminal (for a 4th sensor, debugging, etc.)
 # Requires tmux and an MQTT broker (mosquitto).
 # Launch with `sam run-tmux sensors`.
