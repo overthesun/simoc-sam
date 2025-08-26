@@ -5,8 +5,8 @@ This file tries to import the default vars from defaults.py,
 then looks for a user config file in ~/.config/simoc-sam/config.py
 and loads user overrides.
 
-defaults.py shouldn't be imported directly by other modules,
-that should just do `import config` and `config.var` to get
+defaults.py shouldn't be imported directly by other modules --
+they should just do `import config` and use `config.var` to get
 either the default value or the one specified by the user.
 """
 
