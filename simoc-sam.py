@@ -445,6 +445,47 @@ def install_deps():
     run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
 
 
+@cmd
+def create_config():
+    """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""
+    # create simoc-sam dir in .~/.config
+    config_dir = HOME / '.config' / 'simoc-sam'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    # copy the default config.py file in there
+    source_config = pathlib.Path(config.__file__).parent / 'defaults.py'
+    dest_config = config_dir / 'config.py'
+    shutil.copy2(source_config, dest_config)
+    print(f'User config file created in: {dest_config}')
+    # create symlink in current directory
+    symlink_path = SIMOC_SAM_DIR / 'config.py'
+    if symlink_path.exists():
+        print(f'{symlink_path} already exists.')
+        return
+    try:
+        symlink_path.symlink_to(dest_config)
+        print(f'Symlink to user config file created in: {symlink_path}')
+        print('You can now edit it to change the project configuration.')
+    except OSError as e:
+        print(f'Failed to create symlink: {e}')
+
+
+@cmd
+def clean_config():
+    """Remove the user config symlink and user config file."""
+    # remove symlink
+    symlink_path = SIMOC_SAM_DIR / 'config.py'
+    if symlink_path.is_symlink():
+        symlink_path.unlink()
+        print(f'Removed symlink: {symlink_path}')
+    elif symlink_path.exists():
+        print(f'{symlink_path} exists but is not a symlink. Skipping removal.')
+    # remove the ~/.config/simoc-sam dir (since it only contains the user config file)
+    config_dir = HOME / '.config' / 'simoc-sam'
+    if config_dir.exists():
+        shutil.rmtree(config_dir)
+        print(f'Removed config directory: {config_dir}')
+
+
 def create_help(cmds):
     help = ['Full list of available commands:']
     for cmd, func in cmds.items():
