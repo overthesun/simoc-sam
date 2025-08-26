@@ -1,8 +1,9 @@
 #!/bin/sh
 
-# Starts a tmux session with a Mock sensor generating data, a SIO bridge
+# Start a tmux session with a Mock sensor generating data, a SIO bridge
 # that receives the MQTT data and converts them for Socket IO, and an
-# SIO client that receives them.  Requires tmux and an MQTT broker (mosquitto).
+# SIO client that receives and prints them.
+# Requires tmux and an MQTT broker (mosquitto).
 # Launch with `sam run-tmux mqtt`.
 
 # set vars
