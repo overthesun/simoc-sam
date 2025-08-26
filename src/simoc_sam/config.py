@@ -1,38 +1,35 @@
 """
-Configuration variables for SIMOC Live.
+Configuration variables handling for SIMOC Live.
 
-Edit this file to change the configuration.
+This file tries to import the default vars from defaults.py,
+then looks for a user config file in ~/.config/simoc-sam/config.py
+and loads user overrides.
+
+defaults.py shouldn't be imported directly by other modules,
+that should just do `import config` and `config.var` to get
+either the default value or the one specified by the user.
 """
 
 from pathlib import Path
 
 
-# Data collection
-sensor_read_delay = 10.0
+# load default vars
+from .defaults import *
 
+# load user overrides (if the user config exists)
+def load_user_config(config_path):
+    if not config_path.exists():
+        return
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("user_config", config_path)
+    user_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(user_config)
+    # override only existing vars
+    globals().update({
+        k: getattr(user_config, k)
+        for k in dir(user_config)
+        if not k.startswith("_") and k in globals()
+    })
 
-# MQTT configuration
-mqtt_topic_location = 'sam'
-mqtt_host = 'localhost'
-mqtt_port = 1883
-mqtt_reconnect_delay = 5.0
-
-
-# SIMOC Web / SIO bridge configuration
-sio_host = 'localhost'
-sio_port = 8081
-mqtt_topic_sub = f'{mqtt_topic_location}/#'
-simoc_web_port = 8080  # used for CORS validation
-simoc_web_dist_dir = Path.home() / 'dist'
-
-
-# Verbosity and logging
-verbose_sensor = False
-verbose_mqtt = False
-enable_jsonl_logging = True
-log_dir = Path.home() / 'logs'
-
-
-# HAB info
-humans = 4
-volume = 272
+user_config_path = Path.home() / ".config/simoc-sam/config.py"
+load_user_config(user_config_path)
