@@ -37,5 +37,6 @@ log_dir = Path.home() / 'logs'
 humans = 4
 volume = 272
 
+
 # remove non-config vars
 del Path
