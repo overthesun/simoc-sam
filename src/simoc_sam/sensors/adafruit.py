@@ -43,7 +43,7 @@ async def main():
             bus.deinit()
     print(sensors_classes)
     args = utils.parse_args()
-    delay, verbose = args.delay, args.verbose_sio
+    delay, verbose = args.delay, args.verbose_mqtt
     host, port = args.host, args.port
     with ExitStack() as stack:
         sensors = [stack.enter_context(sensor_cls(verbose=args.verbose_sensor))

@@ -18,6 +18,9 @@ except ModuleNotFoundError:
     # keep running if jinja2 is missing
     Template = None
 
+from simoc_sam import config
+
+
 HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
@@ -285,7 +288,8 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    write_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
+    dist_dir = config.simoc_web_dist_dir
+    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
@@ -439,6 +443,47 @@ def install_deps():
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
     run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
+
+
+@cmd
+def create_config():
+    """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""
+    # create simoc-sam dir in .~/.config
+    config_dir = HOME / '.config' / 'simoc-sam'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    # copy the default config.py file in there
+    source_config = pathlib.Path(config.__file__).parent / 'defaults.py'
+    dest_config = config_dir / 'config.py'
+    shutil.copy2(source_config, dest_config)
+    print(f'User config file created in: {dest_config}')
+    # create symlink in current directory
+    symlink_path = SIMOC_SAM_DIR / 'config.py'
+    if symlink_path.exists():
+        print(f'{symlink_path} already exists.')
+        return
+    try:
+        symlink_path.symlink_to(dest_config)
+        print(f'Symlink to user config file created in: {symlink_path}')
+        print('You can now edit it to change the project configuration.')
+    except OSError as e:
+        print(f'Failed to create symlink: {e}')
+
+
+@cmd
+def clean_config():
+    """Remove the user config symlink and user config file."""
+    # remove symlink
+    symlink_path = SIMOC_SAM_DIR / 'config.py'
+    if symlink_path.is_symlink():
+        symlink_path.unlink()
+        print(f'Removed symlink: {symlink_path}')
+    elif symlink_path.exists():
+        print(f'{symlink_path} exists but is not a symlink. Skipping removal.')
+    # remove the ~/.config/simoc-sam dir (since it only contains the user config file)
+    config_dir = HOME / '.config' / 'simoc-sam'
+    if config_dir.exists():
+        shutil.rmtree(config_dir)
+        print(f'Removed config directory: {config_dir}')
 
 
 def create_help(cmds):

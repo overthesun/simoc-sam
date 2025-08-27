@@ -7,10 +7,11 @@ import datetime
 import socketio
 
 from .sensors import utils
+from . import config
 
 
 # default host:port of the sioserver
-SIO_HOST, SIO_PORT = utils.get_sioserver_addr()
+SIO_HOST, SIO_PORT = config.sio_host, config.sio_port
 
 sio = socketio.AsyncClient()
 
@@ -134,8 +135,7 @@ async def main(host=SIO_HOST, port=SIO_PORT):
 
 
 if __name__ == '__main__':
-    host, port = utils.get_sioserver_addr()
     try:
-        asyncio.run(main(host, port))
+        asyncio.run(main())
     except asyncio.exceptions.CancelledError:
         print('Client stopped')

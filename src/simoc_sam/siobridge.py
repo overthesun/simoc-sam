@@ -1,14 +1,9 @@
-# TODO: this file was copied from the sioserver.py and adapted
-# to work with MQTT.  Some of the code is unused and should
-# be removed.
-
 import json
 import copy
 import socket
 import asyncio
 import ipaddress
 import traceback
-import configparser
 
 from datetime import datetime
 from collections import defaultdict, deque
@@ -20,12 +15,13 @@ import netifaces
 from aiohttp import web
 
 from .sensors import utils
+from . import config
 
 
 # default host:port of the server
-SIO_HOST, SIO_PORT = utils.get_sioserver_addr()
+SIO_HOST, SIO_PORT = config.sio_host, config.sio_port
 # default host:port of the MQTT broker
-MQTT_HOST, MQTT_PORT = utils.get_mqtt_addr()
+MQTT_HOST, MQTT_PORT = config.mqtt_host, config.mqtt_port
 
 def convert_sensor_data():
     info = {}
@@ -39,7 +35,7 @@ def convert_sensor_data():
         }
     return info
 
-HAB_INFO = dict(humans=4, volume=272)
+HAB_INFO = dict(humans=config.humans, volume=config.volume)
 SENSOR_DATA = convert_sensor_data()
 SENSOR_INFO = {}
 SENSOR_READINGS = defaultdict(lambda: deque(maxlen=10))
@@ -78,7 +74,8 @@ def get_host_ips():
 # this machine in the different networks and explicitly allow them.
 # The port is also used for CORS validation, and must match the
 # port used by SIMOC web (8080 is used by default).
-allowed_origins = [f'http://{ip}:8080' for ip in get_host_ips()]
+port = config.simoc_web_port
+allowed_origins = [f'http://{ip}:{port}' for ip in get_host_ips()]
 print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
@@ -101,13 +98,6 @@ def disconnect(sid):
 
 
 # new clients events
-
-def get_sensor_info_from_cfg(sensor_id, cfg_file='config.cfg'):
-    config = configparser.ConfigParser()
-    config.read(cfg_file)
-    for name, section in config.items():
-        if name.lower() == sensor_id.lower():
-            return dict(section)
 
 @sio.on('register-client')
 async def register_client(sid):
@@ -168,9 +158,9 @@ async def emit_readings():
 async def mqtt_handler():
     args = utils.parse_args()
     mqtt_broker = args.host or MQTT_HOST
-    topic_sub = args.mqtt_topic
+    topic_sub = args.mqtt_topic_sub or config.mqtt_topic_sub
     print(SENSOR_INFO)
-    interval = 5  # Seconds
+    interval = config.mqtt_reconnect_delay
     while True:
         try:
             # the client is supposed to be reusable, so it should be possible
@@ -184,7 +174,7 @@ async def mqtt_handler():
                 async for message in client.messages:
                     topic = message.topic.value
                     print(topic)
-                    sam, host, sensor = topic.split('/')
+                    location, host, sensor = topic.split('/')
                     sensor_id = f'{host}.{sensor}'
                     if sensor_id not in SENSOR_INFO:
                         SENSORS.add(sensor_id)
