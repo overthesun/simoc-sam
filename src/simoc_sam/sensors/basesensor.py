@@ -70,6 +70,8 @@ class BaseSensor(ABC):
     def print_reading(self, reading):
         data = []
         for name, info in self.reading_info.items():
+            if name not in reading:
+                continue
             value = reading[name]
             if isinstance(value, float):
                 value = format(value, '.1f')
@@ -128,6 +130,8 @@ class MQTTWrapper:
         hostname = socket.gethostname()
         self.topic = f'{location}/{hostname}/{sensor.sensor_name}'
         self.log_fname = config.log_dir / f'{self.topic.replace("/", "_")}.jsonl'
+        if config.enable_jsonl_logging:
+            config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
