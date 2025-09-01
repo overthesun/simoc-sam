@@ -35,10 +35,11 @@ START_TIME = time.monotonic()
 # =================== HELPERS ===================
 def read_latest_entry(filepath):
     try:
-        with open(filepath, "r") as f:
-            for line in reversed(f.read().splitlines()):
-                if line.strip():
-                    return json.loads(line)
+        with open(filepath) as f:
+            for line in f:
+                pass
+            if line.strip():
+                return json.loads(line)
     except Exception as err:
         print(err)
     return {}
