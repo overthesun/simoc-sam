@@ -4,7 +4,7 @@ import socket
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import utils
+from ..sensors import utils
 from .. import config
 
 board = utils.import_board()
