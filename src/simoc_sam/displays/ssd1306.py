@@ -1,23 +1,18 @@
-import os
 import json
 import time
-import board
-import digitalio
+import socket
+
 from PIL import Image, ImageDraw, ImageFont
+
+from . import utils
+from .. import config
+
+board = utils.import_board()
+import digitalio
 import adafruit_ssd1306
 
-# =================== CONFIG ===================
-WIDTH = 128
-HEIGHT = 64
-LOG_DIR = "/home/pi/logs"
 
-FILES = {
-    "BME688": "sam_samrpi1_BME688.jsonl",
-    "SCD30":  "sam_samrpi1_SCD-30.jsonl",
-    "BNO045": "sam_sambridge1_BNO085.jsonl"
-}
-
-# =================== OLED INIT ===================
+WIDTH, HEIGHT = 128, 64
 oled_reset = digitalio.DigitalInOut(board.D4)
 oled = adafruit_ssd1306.SSD1306_I2C(
     WIDTH, HEIGHT, board.I2C(), addr=0x3D, reset=oled_reset
@@ -79,8 +74,8 @@ def draw_page(oled, values):
     # --- Sensor Data ---
     y = 34  # leave blank line after uptime
     line_spacing = 14
-    for v in values:
-        draw.text((0, y), v, font=font_small, fill=255)
+    for value in values:
+        draw.text((0, y), value, font=font_small, fill=255)
         y += line_spacing
 
     # Rotate for OLED orientation
@@ -93,10 +88,12 @@ def main():
     oled.fill(0)
     oled.show()
 
+    log_dir = config.log_dir
+    prefix = f'{config.mqtt_topic_location}_{socket.gethostname()}_'
     while True:
-        scd_data = read_latest_entry(os.path.join(LOG_DIR, FILES["SCD30"]))
-        bme_data = read_latest_entry(os.path.join(LOG_DIR, FILES["BME688"]))
-        bno_data = read_latest_entry(os.path.join(LOG_DIR, FILES["BNO045"]))
+        scd_data = read_latest_entry(log_dir / f'{prefix}SCD-30.jsonl')
+        bme_data = read_latest_entry(log_dir / f'{prefix}BME668.jsonl')
+        bno_data = read_latest_entry(log_dir / f'{prefix}BNO085.jsonl')
 
         values = format_values(scd_data, bme_data, bno_data)
         draw_page(oled, values)
