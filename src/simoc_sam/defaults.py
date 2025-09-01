@@ -1,6 +1,6 @@
 """
 Default settings for SIMOC Live.
-This file is copied to ~/.config/myapp/config.py for user overrides,
+This file is copied to ~/.config/simoc-sam/config.py for user overrides,
 with a symlink pointing to it for easier editing/discoverability.
 """
 
