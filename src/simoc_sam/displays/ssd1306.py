@@ -91,7 +91,7 @@ def main():
     prefix = f'{config.mqtt_topic_location}_{socket.gethostname()}_'
     while True:
         scd_data = read_latest_entry(log_dir / f'{prefix}SCD-30.jsonl')
-        bme_data = read_latest_entry(log_dir / f'{prefix}BME668.jsonl')
+        bme_data = read_latest_entry(log_dir / f'{prefix}BME688.jsonl')
         bno_data = read_latest_entry(log_dir / f'{prefix}BNO085.jsonl')
 
         values = format_values(scd_data, bme_data, bno_data)
