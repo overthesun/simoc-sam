@@ -17,3 +17,6 @@ adafruit-circuitpython-tsl2591==1.4.2
 adafruit-circuitpython-veml7700==2.0.2
 adafruit-circuitpython-bno08x==1.2.10
 godirect==1.1.4
+
+# displays
+adafruit-circuitpython-ssd1306==3.0.3
