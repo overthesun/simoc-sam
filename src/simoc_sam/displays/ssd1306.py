@@ -27,7 +27,6 @@ font_header = ImageFont.truetype(
 # Record system start time for uptime
 START_TIME = time.monotonic()
 
-# =================== HELPERS ===================
 def read_latest_entry(filepath):
     try:
         with open(filepath) as f:
@@ -83,7 +82,7 @@ def draw_page(oled, values):
     oled.image(image)
     oled.show()
 
-# =================== MAIN LOOP ===================
+
 def main():
     oled.fill(0)
     oled.show()
