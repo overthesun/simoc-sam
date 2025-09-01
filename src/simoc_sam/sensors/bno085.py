@@ -36,25 +36,31 @@ class BNO085(BaseSensor):
         self.bno = bno = BNO08X_I2C(self.i2c)
         self.enable_features()
 
-    def enable_features(self):
-        features = [
-            'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
-            'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
-            # 'GRAVITY',
-            'LINEAR_ACCELERATION',
-            'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
-            # 'GEOMAGNETIC_ROTATION_VECTOR',
-            # 'STABILITY_CLASSIFIER', 'ACTIVITY_CLASSIFIER',
-            # 'STEP_COUNTER', 'SHAKE_DETECTOR'
-        ]
+    def enable_features(self, features=None):
+        """Enable all requested features."""
+        # some features are currently not enabled
+        # uncomment them here and in read_sensor_data below to use them
+        if features is None:
+            features = [
+                'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
+                'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
+                # 'GRAVITY',
+                'LINEAR_ACCELERATION',
+                'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
+                # 'GEOMAGNETIC_ROTATION_VECTOR',
+                # 'STABILITY_CLASSIFIER', 'ACTIVITY_CLASSIFIER',
+                # 'STEP_COUNTER', 'SHAKE_DETECTOR'
+            ]
         enabled = 0
         print(f'Enabling {len(features)} features...')
         for feature in features:
             enabled += self.enable_feature(feature)
         print(f'{enabled} features enabled')
+        # if we can't enable all requested features abort and quit
         assert enabled == len(features)
 
     def enable_feature(self, feature_name):
+        """Enable a single feature (retrying in case of failure)."""
         feature = getattr(adafruit_bno08x, f'BNO_REPORT_{feature_name}')
         print(f'  Enabling {feature_name}...', end=' ')
         for attempt in range(10):
@@ -70,8 +76,13 @@ class BNO085(BaseSensor):
         return 0
 
     def read_attribute(self, attr_name):
-        # 4 placeholder values since all attributes have 3-4 values
-        default = ['EEE', 'EEE', 'EEE', 'EEE']
+        """Try to read an attribute (retrying in case of failure)."""
+        # define placeholder value used when the attributes can't be read
+        if attr_name in {'activity_classification', 'stability_classification',
+                         'steps', 'shake'}:
+            default = 'EEE'  # these attrs expect a scalar value (int/str)
+        else:
+            default = ['EEE', 'EEE', 'EEE', 'EEE']  # the others have 3/4 values
         for attempt in range(5):
             try:
                 return getattr(self.bno, attr_name, default)
