@@ -267,6 +267,25 @@ def teardown_systemd_service(name):
 
 @cmd
 @needs_root
+def setup_sensors(sensors=None):
+    """Setup systemd services that run the sensors."""
+    if sensors:
+        sensors = sensors.split(',')
+    else:
+        sensors = config.sensors
+    for sensor in sensors:
+        setup_systemd_service(f'sensor-runner@{sensor}')
+
+@cmd
+@needs_root
+def teardown_sensors():
+    """Revert the changes made by the setup-sensors command."""
+    for sensor in config.sensors:
+        teardown_systemd_service(f'sensor-runner@{sensor}')
+
+
+@cmd
+@needs_root
 def setup_siobridge():
     """Setup a systemd service that runs the siobridge."""
     setup_systemd_service('siobridge')
@@ -452,7 +471,7 @@ def install_deps():
 @cmd
 def create_config():
     """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""
-    # create simoc-sam dir in .~/.config
+    # create simoc-sam dir in ~/.config
     config_dir = HOME / '.config' / 'simoc-sam'
     config_dir.mkdir(parents=True, exist_ok=True)
     # copy the default config.py file in there
