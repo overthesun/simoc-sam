@@ -251,8 +251,11 @@ def setup_systemd_service(name):
         target_name = f'{name.split("@")[0]}@.service'
     else:
         target_name = f'{name}.service'
-    service_name = f'{name}.service'
-    (SYSTEMD_DIR / service_name).symlink_to(CONFIGS_DIR / target_name)
+    service_path = SYSTEMD_DIR / f'{name}.service'
+    if service_path.exists():
+        print(f'{service_path} already exists -- recreating it...')
+        service_path.unlink()
+    service_path.symlink_to(CONFIGS_DIR / target_name)
     if not run(['systemctl', 'is-enabled', name]):
         run(['systemctl', 'enable', name])
     if not run(['systemctl', 'is-active', name]):
