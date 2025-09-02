@@ -247,8 +247,12 @@ def teardown_nmconn(nmconn_file):
 
 def setup_systemd_service(name):
     # create a symlink to the given service, enable it, and start it
+    if '@' in name:
+        target_name = f'{name.split("@")[0]}@.service'
+    else:
+        target_name = f'{name}.service'
     service_name = f'{name}.service'
-    (SYSTEMD_DIR / service_name).symlink_to(CONFIGS_DIR / service_name)
+    (SYSTEMD_DIR / service_name).symlink_to(CONFIGS_DIR / target_name)
     if not run(['systemctl', 'is-enabled', name]):
         run(['systemctl', 'enable', name])
     if not run(['systemctl', 'is-active', name]):
