@@ -245,19 +245,6 @@ def teardown_nmconn(nmconn_file):
         run(['systemctl', 'disable', 'NetworkManager'])
 
 
-@cmd
-@needs_root
-def setup_siobridge():
-    """Setup a systemd service that runs the siobridge."""
-    setup_systemd_service('siobridge')
-
-@cmd
-@needs_root
-def teardown_siobridge():
-    """Revert the changes made by the setup-siobridge command."""
-    teardown_systemd_service('siobridge')
-
-
 def setup_systemd_service(name):
     # create a symlink to the given service, enable it, and start it
     service_name = f'{name}.service'
@@ -272,6 +259,19 @@ def teardown_systemd_service(name):
     run(['systemctl', 'stop', name])
     run(['systemctl', 'disable', name])
     pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
+
+
+@cmd
+@needs_root
+def setup_siobridge():
+    """Setup a systemd service that runs the siobridge."""
+    setup_systemd_service('siobridge')
+
+@cmd
+@needs_root
+def teardown_siobridge():
+    """Revert the changes made by the setup-siobridge command."""
+    teardown_systemd_service('siobridge')
 
 
 @cmd
