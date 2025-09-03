@@ -245,6 +245,48 @@ def teardown_nmconn(nmconn_file):
         run(['systemctl', 'disable', 'NetworkManager'])
 
 
+def setup_systemd_service(name):
+    # create a symlink to the given service, enable it, and start it
+    if '@' in name:
+        target_name = f'{name.split("@")[0]}@.service'
+    else:
+        target_name = f'{name}.service'
+    service_path = SYSTEMD_DIR / f'{name}.service'
+    if service_path.exists():
+        print(f'{service_path} already exists -- recreating it...')
+        service_path.unlink()
+    service_path.symlink_to(CONFIGS_DIR / target_name)
+    if not run(['systemctl', 'is-enabled', name]):
+        run(['systemctl', 'enable', name])
+    if not run(['systemctl', 'is-active', name]):
+        run(['systemctl', 'start', name])
+
+def teardown_systemd_service(name):
+    # stop, disable, and remove the symlink to the given service
+    run(['systemctl', 'stop', name])
+    run(['systemctl', 'disable', name])
+    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
+
+
+@cmd
+@needs_root
+def setup_sensors(sensors=None):
+    """Setup systemd services that run the sensors."""
+    if sensors:
+        sensors = sensors.split(',')
+    else:
+        sensors = config.sensors
+    for sensor in sensors:
+        setup_systemd_service(f'sensor-runner@{sensor}')
+
+@cmd
+@needs_root
+def teardown_sensors():
+    """Revert the changes made by the setup-sensors command."""
+    for sensor in config.sensors:
+        teardown_systemd_service(f'sensor-runner@{sensor}')
+
+
 @cmd
 @needs_root
 def setup_siobridge():
@@ -256,22 +298,6 @@ def setup_siobridge():
 def teardown_siobridge():
     """Revert the changes made by the setup-siobridge command."""
     teardown_systemd_service('siobridge')
-
-
-def setup_systemd_service(name):
-    # create a symlink to the given service, enable it, and start it
-    service_name = f'{name}.service'
-    (SYSTEMD_DIR / service_name).symlink_to(CONFIGS_DIR / service_name)
-    if not run(['systemctl', 'is-enabled', name]):
-        run(['systemctl', 'enable', name])
-    if not run(['systemctl', 'is-active', name]):
-        run(['systemctl', 'start', name])
-
-def teardown_systemd_service(name):
-    # stop, disable, and remove the symlink to the given service
-    run(['systemctl', 'stop', name])
-    run(['systemctl', 'disable', name])
-    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
 
 
 @cmd
@@ -448,7 +474,7 @@ def install_deps():
 @cmd
 def create_config():
     """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""
-    # create simoc-sam dir in .~/.config
+    # create simoc-sam dir in ~/.config
     config_dir = HOME / '.config' / 'simoc-sam'
     config_dir.mkdir(parents=True, exist_ok=True)
     # copy the default config.py file in there
