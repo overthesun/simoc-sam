@@ -7,7 +7,8 @@ with a symlink pointing to it for easier editing/discoverability.
 from pathlib import Path
 
 
-# Data collection
+# Sensors and data collection
+sensors = ['bme688', 'scd30', 'sgp30']
 sensor_read_delay = 10.0
 
 
