@@ -122,23 +122,23 @@ def test_log(sensor, tmp_path):
         mock_print.assert_called_once()
         assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
 
-def test_print_reading(sensor, monkeypatch):
+def test_print_reading(sensor):
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(READING)
+        mock_print.assert_called_once()
+
+def test_iter_readings_logs(sensor, monkeypatch):
     from simoc_sam import config
-    with patch.object(sensor, 'log') as mock_log, \
-         patch.object(sensor, 'print') as mock_print:
-        # test that both print and log are called once
-        sensor.print_reading(READING)
-        mock_print.assert_called_once()
-        mock_log.assert_called_once()
-        mock_log.assert_called_with(json.dumps(READING))
-        # reset mocks
-        mock_print.reset_mock()
-        mock_log.reset_mock()
-        # disable logging and test that only print is called
-        monkeypatch.setattr(config, "enable_jsonl_logging", False)
-        sensor.print_reading(READING)
+    # Test with logging enabled
+    monkeypatch.setattr(config, "enable_jsonl_logging", True)
+    with patch.object(sensor, 'log') as mock_log:
+        readings = list(sensor.iter_readings(delay=0, n=3))
+        assert mock_log.call_count == 3
+    # Test with logging disabled
+    monkeypatch.setattr(config, "enable_jsonl_logging", False)
+    with patch.object(sensor, 'log') as mock_log:
+        readings = list(sensor.iter_readings(delay=0, n=3))
         mock_log.assert_not_called()
-        mock_print.assert_called_once()
 
 
 # MQTTWrapper tests

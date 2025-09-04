@@ -80,8 +80,6 @@ class BaseSensor(ABC):
             self.print(f'Unable to write log file: {err}')
 
     def print_reading(self, reading):
-        if config.enable_jsonl_logging:
-            self.log(json.dumps(reading))
         data = []
         for name, info in self.reading_info.items():
             if name not in reading:
@@ -121,6 +119,8 @@ class BaseSensor(ABC):
                 data['timestamp'] = self.get_timestamp()
             if add_n:
                 data['n'] = self.reading_num
+            if config.enable_jsonl_logging:
+                self.log(json.dumps(data))
             yield data
             self.reading_num += 1
             if not read_forever:
