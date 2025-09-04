@@ -268,21 +268,26 @@ def teardown_systemd_service(name):
 
 @cmd
 @needs_root
-def setup_sensors(sensors=None):
+def setup_or_teardown_sensors(function, sensors=None):
     """Setup systemd services that run the sensors."""
     if sensors:
         sensors = sensors.split(',')
     else:
         sensors = config.sensors
     for sensor in sensors:
-        setup_systemd_service(f'sensor-runner@{sensor}')
+        function(f'sensor-runner@{sensor}')
 
 @cmd
 @needs_root
-def teardown_sensors():
+def setup_sensors(sensors=None):
+    """Setup systemd services that run the sensors."""
+    setup_or_teardown_sensors(setup_systemd_service, sensors)
+
+@cmd
+@needs_root
+def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
-    for sensor in config.sensors:
-        teardown_systemd_service(f'sensor-runner@{sensor}')
+    setup_or_teardown_sensors(teardown_systemd_service, sensors)
 
 
 @cmd
