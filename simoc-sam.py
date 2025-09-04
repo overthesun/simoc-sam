@@ -251,11 +251,13 @@ def setup_systemd_service(name):
         target_name = f'{name.split("@")[0]}@.service'
     else:
         target_name = f'{name}.service'
+    target_path = CONFIGS_DIR / target_name
     service_path = SYSTEMD_DIR / f'{name}.service'
     if service_path.exists():
         print(f'{service_path} already exists -- recreating it...')
         service_path.unlink()
-    service_path.symlink_to(CONFIGS_DIR / target_name)
+    service_path.symlink_to(target_path)
+    print(f'Created symlink {service_path} → {target_path}.')
     run(['systemctl', 'enable', name])  # ensure that the service starts on boot
     run(['systemctl', 'start', name])
 
