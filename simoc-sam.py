@@ -251,15 +251,15 @@ def setup_systemd_service(name):
         target_name = f'{name.split("@")[0]}@.service'
     else:
         target_name = f'{name}.service'
+    target_path = CONFIGS_DIR / target_name
     service_path = SYSTEMD_DIR / f'{name}.service'
     if service_path.exists():
         print(f'{service_path} already exists -- recreating it...')
         service_path.unlink()
-    service_path.symlink_to(CONFIGS_DIR / target_name)
-    if not run(['systemctl', 'is-enabled', name]):
-        run(['systemctl', 'enable', name])
-    if not run(['systemctl', 'is-active', name]):
-        run(['systemctl', 'start', name])
+    service_path.symlink_to(target_path)
+    print(f'Created symlink {service_path} → {target_path}.')
+    run(['systemctl', 'enable', name])  # ensure that the service starts on boot
+    run(['systemctl', 'start', name])
 
 def teardown_systemd_service(name):
     # stop, disable, and remove the symlink to the given service
@@ -270,21 +270,26 @@ def teardown_systemd_service(name):
 
 @cmd
 @needs_root
-def setup_sensors(sensors=None):
+def setup_or_teardown_sensors(function, sensors=None):
     """Setup systemd services that run the sensors."""
     if sensors:
         sensors = sensors.split(',')
     else:
         sensors = config.sensors
     for sensor in sensors:
-        setup_systemd_service(f'sensor-runner@{sensor}')
+        function(f'sensor-runner@{sensor}')
 
 @cmd
 @needs_root
-def teardown_sensors():
+def setup_sensors(sensors=None):
+    """Setup systemd services that run the sensors."""
+    setup_or_teardown_sensors(setup_systemd_service, sensors)
+
+@cmd
+@needs_root
+def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
-    for sensor in config.sensors:
-        teardown_systemd_service(f'sensor-runner@{sensor}')
+    setup_or_teardown_sensors(teardown_systemd_service, sensors)
 
 @cmd
 @needs_root

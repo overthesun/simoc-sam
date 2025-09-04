@@ -1,11 +1,8 @@
 # This unit file is used to launch the sensors scripts on boot.
-# Symlink it with `ln -s configs/sensor-runner@.service
-# /etc/systemd/system/sensor-runner@.service` before using.
-# Use e.g. `systemctl enable sensor-runner@scd30.service`
-# to enable the service.
-# Once symlinked and enabled for each sensor, the services will
-# start automatically on boot.
-# They can be controlled with `start`/`stop`/`restart`/`status`.
+# Use the `sam setup-sensors` command to start and enable the services
+# so that they start automatically on boot; `sam teardown-sensors`
+# to stop and disable the services.
+# Manually, they can be controlled with `start`/`stop`/`restart`/`status`.
 # Use e.g. `journalctl -u sensor-runner@scd30.service -f` to
 # see the script output.
 # Use `journalctl -u 'sensor-runner@*' -f` to see the combined
