@@ -256,10 +256,8 @@ def setup_systemd_service(name):
         print(f'{service_path} already exists -- recreating it...')
         service_path.unlink()
     service_path.symlink_to(CONFIGS_DIR / target_name)
-    if not run(['systemctl', 'is-enabled', name]):
-        run(['systemctl', 'enable', name])
-    if not run(['systemctl', 'is-active', name]):
-        run(['systemctl', 'start', name])
+    run(['systemctl', 'enable', name])  # ensure that the service starts on boot
+    run(['systemctl', 'start', name])
 
 def teardown_systemd_service(name):
     # stop, disable, and remove the symlink to the given service
