@@ -39,6 +39,11 @@ class BaseSensor(ABC):
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
+        hostname = socket.gethostname()
+        fname = f'{config.location}_{hostname}_{self.sensor_name}.jsonl'
+        self.log_path = config.log_dir / fname
+        if config.enable_jsonl_logging:
+            config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
     def __enter__(self):
         # use this to initialize the sensor and return self
@@ -66,6 +71,13 @@ class BaseSensor(ABC):
         """Print the args if self.verbose is True"""
         if self.verbose:
             print(*args, **kwargs)
+
+    def log(self, payload):
+        try:
+            with open(self.log_path, 'a') as f:
+                f.write(f'{payload}\n')
+        except Exception as err:
+            self.print(f'Unable to write log file: {err}')
 
     def print_reading(self, reading):
         data = []
@@ -107,6 +119,8 @@ class BaseSensor(ABC):
                 data['timestamp'] = self.get_timestamp()
             if add_n:
                 data['n'] = self.reading_num
+            if config.enable_jsonl_logging:
+                self.log(json.dumps(data))
             yield data
             self.reading_num += 1
             if not read_forever:
@@ -118,7 +132,7 @@ class BaseSensor(ABC):
 
 class MQTTWrapper:
     def __init__(self, sensor, *, read_delay=config.sensor_read_delay,
-                 verbose=config.verbose_sensor, location=config.mqtt_topic_location):
+                 verbose=config.verbose_sensor, location=config.location):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
@@ -129,24 +143,11 @@ class MQTTWrapper:
         mqttc.on_disconnect = self.on_disconnect
         hostname = socket.gethostname()
         self.topic = f'{location}/{hostname}/{sensor.sensor_name}'
-        self.log_fname = config.log_dir / f'{self.topic.replace("/", "_")}.jsonl'
-        if config.enable_jsonl_logging:
-            config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
         if self.verbose:
             print(*args, **kwargs)
-
-    def log(self, payload):
-        # TODO: implement better logging
-        if not config.enable_jsonl_logging:
-            return
-        try:
-            with open(self.log_fname, 'a') as f:
-                f.write(f'{payload}\n')
-        except Exception as err:
-            self.print(f'Unable to write log file: {err}')
 
     def start(self, host, port):
         self.mqttc.loop_start()
@@ -191,7 +192,6 @@ class MQTTWrapper:
             try:
                 jreading = json.dumps(reading)
                 self.mqttc.publish(self.topic, payload=jreading)
-                self.log(jreading)  # TODO: move this somewhere else
                 self.print(reading)
             except Exception as err:
                 self.print(f'No longer connected to the server ({err})...')

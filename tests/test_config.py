@@ -5,10 +5,10 @@ from simoc_sam import defaults
 
 def test_default_vars():
     vars = [
-        'mqtt_host', 'mqtt_port', 'sio_host', 'sio_port', 'simoc_web_port',
-        'mqtt_topic_location', 'log_dir', 'simoc_web_dist_dir', 'sensor_read_delay',
-        'mqtt_reconnect_delay', 'verbose_sensor', 'verbose_mqtt',
-        'enable_jsonl_logging', 'humans', 'volume',
+        'location', 'humans', 'volume', 'sensors', 'sensor_read_delay',
+        'mqtt_host', 'mqtt_port', 'mqtt_reconnect_delay', 'sio_host', 'sio_port',
+        'mqtt_topic_sub', 'simoc_web_port', 'simoc_web_dist_dir',
+        'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging', 'log_dir',
     ]
     for var in vars:
         assert hasattr(config, var)

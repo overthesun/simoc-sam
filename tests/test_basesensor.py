@@ -1,7 +1,7 @@
 import time
-import socket
+import json
 
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
+from unittest.mock import patch
 
 import pytest
 
@@ -17,6 +17,7 @@ class MySensor(BaseSensor):
     sensor_type = 'TestSensor'
     reading_info = INFO
     def read_sensor_data(self):
+        self.print_reading(READING)
         return dict(READING)
 
 @pytest.fixture
@@ -42,6 +43,9 @@ def mock_paho_client():
     with patch('paho.mqtt.client.Client', autospec=True) as mock_client:
         yield mock_client
 
+
+# BaseSensor tests
+
 def test_abstract_method():
     # this should fail if read_sensor_data is not implemented
     class BrokenSensorSubclass(BaseSensor):
@@ -57,6 +61,9 @@ def test_name_type():
     with MySensor(name='HAL 9000') as sensor:
         assert sensor.sensor_type == 'TestSensor'
         assert sensor.sensor_name == 'HAL 9000'
+
+def test_log_path(sensor):
+    assert str(sensor.log_path).endswith('/sam_testhost_TestSensor.jsonl')
 
 def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
@@ -99,6 +106,41 @@ def test_reading_num(sensor):
     readings = list(sensor.iter_readings(delay=0, n=5))
     assert sensor.reading_num == 10
 
+def test_log(sensor, tmp_path):
+    payload = '{"foo": 1}'
+    sensor.log_path = tmp_path / "testlog.jsonl"
+    sensor.log(payload)
+    with open(sensor.log_path) as f:
+        lines = f.readlines()
+    assert lines[-1].strip() == payload
+    # test for nonexisting file
+    sensor.log_path = "/nonexistent/path/testlog.jsonl"
+    # Patch sensor.print to check error message
+    from unittest.mock import patch
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.log(payload)
+        mock_print.assert_called_once()
+        assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
+
+def test_print_reading(sensor):
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(READING)
+        mock_print.assert_called_once()
+
+def test_iter_readings_logs(sensor, monkeypatch):
+    from simoc_sam import config
+    # Test with logging enabled
+    monkeypatch.setattr(config, "enable_jsonl_logging", True)
+    with patch.object(sensor, 'log') as mock_log:
+        readings = list(sensor.iter_readings(delay=0, n=3))
+        assert mock_log.call_count == 3
+    # Test with logging disabled
+    monkeypatch.setattr(config, "enable_jsonl_logging", False)
+    with patch.object(sensor, 'log') as mock_log:
+        readings = list(sensor.iter_readings(delay=0, n=3))
+        mock_log.assert_not_called()
+
+
 # MQTTWrapper tests
 
 def test_mqttwrapper_init(sensor):
@@ -108,7 +150,6 @@ def test_mqttwrapper_init(sensor):
     assert wrapper.read_delay == 10
     assert wrapper.verbose is True
     assert wrapper.topic == f'sam/testhost/{sensor.sensor_name}'
-    assert str(wrapper.log_fname).endswith(f'sam_testhost_{sensor.sensor_name}.jsonl')
 
 def test_mqttwrapper_connect_start_stop(wrapper):
     mqttc = wrapper.mqttc
@@ -131,32 +172,15 @@ def test_mqttwrapper_on_connect_and_disconnect(wrapper, mock_print):
 
 def test_mqttwrapper_send_data(wrapper, mock_print):
     mqttc = wrapper.mqttc
-    wrapper.log = Mock()
     wrapper.send_data(n=2)
     assert mqttc.publish.call_count == 2
     for call in mqttc.publish.call_args_list:
         assert call.kwargs['payload'] is not None
         assert call.args[0] == wrapper.topic
-    assert wrapper.log.call_count == 2
     assert mock_print.call_count >= 2
 
 def test_mqttwrapper_send_data_publish_error(wrapper, mock_print):
     mqttc = wrapper.mqttc
-    wrapper.log = Mock()
     mqttc.publish.side_effect = RuntimeError("fail")
     wrapper.send_data(n=1)
     mock_print.assert_any_call('No longer connected to the server (fail)...')
-
-def test_mqttwrapper_log_success_and_failure(wrapper, tmp_path, mock_print):
-    payload = '{"foo": 1}'
-    wrapper.log_fname = str(tmp_path / "testlog.jsonl")
-    wrapper.log(payload)
-    with open(wrapper.log_fname) as f:
-        lines = f.readlines()
-    assert lines[-1].strip() == payload
-    # test for nonexisting file
-    wrapper.log_fname = "/nonexistent/path/testlog.jsonl"
-    wrapper.log(payload)
-    assert mock_print.call_count == 1
-    assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
-
