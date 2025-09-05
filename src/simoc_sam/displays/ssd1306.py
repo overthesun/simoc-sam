@@ -57,7 +57,7 @@ def format_values(data_scd, data_bme, data_bno):
     ]
 
 def format_uptime():
-    t = int(time.monotonic() - START_TIME)
+    t = int(time.monotonic())
     hm, s = divmod(t, 60)
     h, m = divmod(hm, 60)
     return f"Rt: {h:02}:{m:02}:{s:02}"
