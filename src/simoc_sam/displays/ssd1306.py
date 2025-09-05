@@ -24,9 +24,6 @@ font_header = ImageFont.truetype(
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14
 )
 
-# Record system start time for uptime
-START_TIME = time.monotonic()
-
 def read_latest_entry(filepath):
     try:
         with open(filepath) as f:
