@@ -47,13 +47,13 @@ def format_values(data_scd, data_bme, data_bno):
     accy = data_bno.get("accel_y", "--")
     accz = data_bno.get("accel_z", "--")
     return [
-        f"CO2: {co2:.0f}",
-        f"Tmp: {temp:.1f}",
-        f"Hum: {hum:.1f}",
-        f"Prs: {pres:.1f}",
-        f"A-x: {accx:.2f}",
-        f"A-y: {accy:.2f}",
-        f"A-z: {accz:.2f}"
+        "CO2: " + f"{co2:.0f}" if isinstance(co2, float) else str(co2),
+        "Tmp: " + f"{temp:.1f}" if isinstance(temp, float) else str(temp),
+        "Hum: " + f"{hum:.1f}" if isinstance(hum, float) else str(hum),
+        "Prs: " + f"{pres:.1f}" if isinstance(pres, float) else str(pres),
+        "A-x: " + f"{accx:.2f}" if isinstance(accx, float) else str(accx),
+        "A-y: " + f"{accy:.2f}" if isinstance(accy, float) else str(accy),
+        "A-z: " + f"{accz:.2f}" if isinstance(accz, float) else str(accz),
     ]
 
 def format_uptime():
