@@ -19,4 +19,5 @@ adafruit-circuitpython-bno08x==1.2.10
 godirect==1.1.4
 
 # displays
+pillow==11.3.0
 adafruit-circuitpython-ssd1306==2.12.21
