@@ -67,7 +67,8 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            os.execvp('sudo', ['sudo', sys.executable, *sys.argv])
+            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
+                               sys.executable, *sys.argv])
             return
         else:
             return func(*args, **kwargs)
