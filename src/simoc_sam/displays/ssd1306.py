@@ -39,13 +39,13 @@ def read_latest_entry(filepath):
     return {}
 
 def format_values(data_scd, data_bme, data_bno):
-    co2 = data_scd.get("co2", 0.0)
-    temp = data_scd.get("temperature", 0.0)
-    hum = data_scd.get("humidity", 0.0)
-    pres = data_bme.get("pressure", 0.0)
-    accx = data_bno.get("accel_x", 0.0)
-    accy = data_bno.get("accel_y", 0.0)
-    accz = data_bno.get("accel_z", 0.0)
+    co2 = data_scd.get("co2", "--")
+    temp = data_scd.get("temperature", "--")
+    hum = data_scd.get("humidity", "--")
+    pres = data_bme.get("pressure", "--")
+    accx = data_bno.get("accel_x", "--")
+    accy = data_bno.get("accel_y", "--")
+    accz = data_bno.get("accel_z", "--")
     return [
         f"CO2: {co2:.0f}",
         f"Tmp: {temp:.1f}",
