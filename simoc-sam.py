@@ -18,7 +18,11 @@ except ModuleNotFoundError:
     # keep running if jinja2 is missing
     Template = None
 
-from simoc_sam import config
+try:
+    from simoc_sam import config
+except ModuleNotFoundError:
+    # keep running if simoc_sam is not installed yet
+    config = None
 
 
 HOME = pathlib.Path.home()
