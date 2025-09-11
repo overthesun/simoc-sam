@@ -522,6 +522,43 @@ def clean_config():
         print(f'Removed config directory: {config_dir}')
 
 
+@cmd
+def update():
+    """Update the repository by pulling from the remote master branch."""
+    # Check if the repository is clean (no uncommitted changes)
+    print('Checking repository status...')
+    result = subprocess.run(['git', 'status', '--porcelain'], 
+                          capture_output=True, text=True)
+    if result.returncode != 0:
+        print('Error: Failed to check git status.')
+        return False
+    
+    if result.stdout.strip():
+        print('Error: Repository has uncommitted changes.')
+        print('Please commit or stash your changes before updating.')
+        print('Uncommitted changes:')
+        print(result.stdout)
+        return False
+    
+    # Check if we are on the master branch
+    print('Checking current branch...')
+    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
+                          capture_output=True, text=True)
+    if result.returncode != 0:
+        print('Error: Failed to check current branch.')
+        return False
+    
+    current_branch = result.stdout.strip()
+    if current_branch != 'master':
+        print(f'Error: Not on master branch (currently on: {current_branch}).')
+        print('Please switch to the master branch before updating.')
+        return False
+    
+    # Perform git pull
+    print('Repository is clean and on master branch. Updating...')
+    return run(['git', 'pull'])
+
+
 def create_help(cmds):
     help = ['Full list of available commands:']
     for cmd, func in cmds.items():
