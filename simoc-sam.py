@@ -526,20 +526,21 @@ def clean_config():
 def update():
     """Update the code to the latest version."""
     # Check if we are on the master branch first
+    master = 'master'
     print('Checking current branch...')
-    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
-                          capture_output=True, text=True)
+    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                            capture_output=True, text=True)
     if result.returncode != 0:
         print('Error: Failed to check current branch.')
         return False
     current_branch = result.stdout.strip()
-    if current_branch != 'master':
-        print(f'Error: Not on master branch (currently on: {current_branch}).')
-        print('Please switch to the master branch before updating.')
+    if current_branch != master:
+        print(f'Error: Not on `{master}` branch (currently on: `{current_branch}`).')
+        print(f'Please switch to `{master}` (`git switch {master}`) before updating.')
         return False
     # Perform git pull
-    print('On master branch. Updating...')
-    return run(['git', 'pull'])
+    print('Updating code to the latest version...')
+    return run(['git', 'pull', 'origin', master])
 
 
 def create_help(cmds):
