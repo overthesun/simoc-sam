@@ -88,7 +88,7 @@ class BaseSensor(ABC):
             if isinstance(value, float):
                 value = format(value, '.1f')
             data.append(f"{info['label']}: {value}{info['unit']}")
-        self.print(f"[{self.sensor_type}] {': '.join(data)}")
+        self.print(f"[{self.sensor_type}] {'; '.join(data)}")
 
     @abstractmethod
     def read_sensor_data(self):
