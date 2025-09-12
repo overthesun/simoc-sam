@@ -8,6 +8,7 @@ import shutil
 import socket
 import pathlib
 import argparse
+import tempfile
 import functools
 import subprocess
 
@@ -17,8 +18,17 @@ except ModuleNotFoundError:
     # keep running if jinja2 is missing
     Template = None
 
+try:
+    from simoc_sam import config
+except ModuleNotFoundError:
+    # keep running if simoc_sam is not installed yet
+    config = None
+
+
+HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
 MESH_CFG = 'mesh.nmconnection'
@@ -38,10 +48,10 @@ def cmd(func):
     COMMANDS[func.__name__] = func
     return func
 
-def run(args):
+def run(args, **kwargs):
     print('>>', ' '.join(args))
     print('-'*80)
-    result = subprocess.run(args)
+    result = subprocess.run(args, **kwargs)
     print('-'*80)
     print('<<', result)
     print()
@@ -62,8 +72,11 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            sys.exit('This commands needs to be executed as root.')
-        return func(*args, **kwargs)
+            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
+                               sys.executable, *sys.argv])
+            return
+        else:
+            return func(*args, **kwargs)
     return inner
 
 def write_template(path, replacements):
@@ -95,8 +108,8 @@ def clean_venv():
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
 
-target_re = re.compile('^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
-ipv4_re = re.compile('^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
+target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
+ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
 def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     """Copy the repository to a remote host using rsync."""
@@ -137,8 +150,8 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
-host_re = re.compile('^samrpi(\d+)$')
-address_re = re.compile('^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
+host_re = re.compile(r'^samrpi(\d+)$')
+address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
 def fix_ip():
     """Ensure that the bat0 IP matches the hostname."""
@@ -260,6 +273,66 @@ def teardown_nmconn(nmconn_file):
         run(['systemctl', 'disable', 'NetworkManager'])
 
 
+def setup_systemd_service(name):
+    # create a symlink to the given service, enable it, and start it
+    if '@' in name:
+        target_name = f'{name.split("@")[0]}@.service'
+    else:
+        target_name = f'{name}.service'
+    target_path = CONFIGS_DIR / target_name
+    service_path = SYSTEMD_DIR / f'{name}.service'
+    if service_path.exists():
+        print(f'{service_path} already exists -- recreating it...')
+        service_path.unlink()
+    service_path.symlink_to(target_path)
+    print(f'Created symlink {service_path} → {target_path}.')
+    run(['systemctl', 'enable', name])  # ensure that the service starts on boot
+    run(['systemctl', 'start', name])
+
+def teardown_systemd_service(name):
+    # stop, disable, and remove the symlink to the given service
+    run(['systemctl', 'stop', name])
+    run(['systemctl', 'disable', name])
+    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
+
+
+@cmd
+@needs_root
+def setup_or_teardown_sensors(function, sensors=None):
+    """Setup systemd services that run the sensors."""
+    if sensors:
+        sensors = sensors.split(',')
+    else:
+        sensors = config.sensors
+    for sensor in sensors:
+        function(f'sensor-runner@{sensor}')
+
+@cmd
+@needs_root
+def setup_sensors(sensors=None):
+    """Setup systemd services that run the sensors."""
+    setup_or_teardown_sensors(setup_systemd_service, sensors)
+
+@cmd
+@needs_root
+def teardown_sensors(sensors=None):
+    """Revert the changes made by the setup-sensors command."""
+    setup_or_teardown_sensors(teardown_systemd_service, sensors)
+
+
+@cmd
+@needs_root
+def setup_siobridge():
+    """Setup a systemd service that runs the siobridge."""
+    setup_systemd_service('siobridge')
+
+@cmd
+@needs_root
+def teardown_siobridge():
+    """Revert the changes made by the setup-siobridge command."""
+    teardown_systemd_service('siobridge')
+
+
 @cmd
 @needs_root
 def setup_nginx():
@@ -274,7 +347,8 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    write_template(simoc_live, dict(hostname=HOSTNAME))  # update hostname
+    dist_dir = config.simoc_web_dist_dir
+    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start nginx
@@ -299,11 +373,6 @@ def test(*args):
     pytest = str(VENV_DIR / 'bin' / 'pytest')
     return run([pytest, '-v', *args])
 
-@cmd
-@needs_venv
-def run_server():
-    """Run the sioserver."""
-    run([VENV_PY, '-m', 'simoc_sam.sioserver'])
 
 @cmd
 @needs_venv
@@ -336,6 +405,12 @@ def sensors_info():
     """Print info about the connected sensors."""
     import hostinfo
     hostinfo.print_sensors_info()
+
+@cmd
+def services_info():
+    """Print status of SIMOC Live services and key system services."""
+    import hostinfo
+    hostinfo.print_services()
 
 @cmd
 def hosts(target=None):
@@ -373,6 +448,101 @@ def add_mcp_rules():
 def add_usb_rules():
     """Add Linux-specific rules for USB devices access."""
     return add_vernier_rules() and add_mcp_rules()
+
+
+@cmd
+@needs_root
+def install_touchscreen():
+    """Install the GeeekPi 3.5" LCD touchscreen."""
+    repo_name = 'LCD-show'
+    repo_url = f'https://github.com/goodtft/{repo_name}.git'
+    with tempfile.TemporaryDirectory() as tmpdir_name:
+        repo_path = pathlib.Path(tmpdir_name) / repo_name
+        script_path = repo_path / 'MHS35-show'
+        run(['git', 'clone', repo_url, str(repo_path)])  # clone repo
+        os.chdir(repo_path)  # the script creates files in the cwd
+        run(['sed', '-i', '-e', '/hdmi_cvt / s/480 320/960 640/',
+             str(script_path)])  # update res (also: fbset -xres 960 -yres 640)
+        run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
+        run([str(script_path)])  # install the screen and reboot
+
+@cmd
+def initial_setup():
+    """Perform the initial setup of the Raspberry Pi."""
+    print('Instaling bash aliases...')
+    install_bash_aliases()
+    print('Removing empty home dirs...')
+    remove_home_dirs()
+    print('Updating system and installing deps...')
+    install_deps()
+    print('System updated, deps installed, home cleaned, aliases set up.')
+    print('Run <source ~/.bash_aliases> to install the aliases now.')
+
+def install_bash_aliases():
+    """Install the .bash_aliases file in the home dir."""
+    fname = 'bash_aliases'
+    try:
+        (HOME / f'.{fname}').symlink_to(SIMOC_SAM_DIR / fname)
+    except FileExistsError:
+        print(f'<~/.{fname}> already exists!')
+
+def remove_home_dirs():
+    """Remove unused default directories from the user's home."""
+    dirs = ['Bookshelf', 'Desktop', 'Documents', 'Downloads',
+            'Music', 'Pictures', 'Public', 'Templates', 'Videos']
+    for dir_name in dirs:
+        try:
+            (HOME / dir_name).rmdir()
+        except (FileNotFoundError, OSError):
+            pass  # skip missing dirs or dirs that are not empty
+
+def install_deps():
+    """Install dependencies using apt."""
+    packages = ['nmap', 'vim', 'tcpdump', 'mosquitto-clients', 'avahi-utils']
+    run(['sudo', 'apt', 'update'], check=True)
+    run(['sudo', 'apt', 'upgrade', '-y'], check=True)
+    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
+
+
+@cmd
+def create_config():
+    """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""
+    # create simoc-sam dir in ~/.config
+    config_dir = HOME / '.config' / 'simoc-sam'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    # copy the default config.py file in there
+    source_config = pathlib.Path(config.__file__).parent / 'defaults.py'
+    dest_config = config_dir / 'config.py'
+    shutil.copy2(source_config, dest_config)
+    print(f'User config file created in: {dest_config}')
+    # create symlink in current directory
+    symlink_path = SIMOC_SAM_DIR / 'config.py'
+    if symlink_path.exists():
+        print(f'{symlink_path} already exists.')
+        return
+    try:
+        symlink_path.symlink_to(dest_config)
+        print(f'Symlink to user config file created in: {symlink_path}')
+        print('You can now edit it to change the project configuration.')
+    except OSError as e:
+        print(f'Failed to create symlink: {e}')
+
+
+@cmd
+def clean_config():
+    """Remove the user config symlink and user config file."""
+    # remove symlink
+    symlink_path = SIMOC_SAM_DIR / 'config.py'
+    if symlink_path.is_symlink():
+        symlink_path.unlink()
+        print(f'Removed symlink: {symlink_path}')
+    elif symlink_path.exists():
+        print(f'{symlink_path} exists but is not a symlink. Skipping removal.')
+    # remove the ~/.config/simoc-sam dir (since it only contains the user config file)
+    config_dir = HOME / '.config' / 'simoc-sam'
+    if config_dir.exists():
+        shutil.rmtree(config_dir)
+        print(f'Removed config directory: {config_dir}')
 
 
 def create_help(cmds):

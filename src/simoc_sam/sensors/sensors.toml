@@ -58,7 +58,7 @@ i2c_address = 0x62
 
     [SCD-41.data.co2]
     unit = "ppm"
-    label = "CO2 Concentration"
+    label = "CO2"
     description = "CO2 Concentration"
 
     [SCD-41.data.temperature]
@@ -90,7 +90,7 @@ i2c_address = 0x58
     [SGP30.data.h2]
     unit = "ppm"
     label = "Hydrogen"
-    description =  "Hydrogen Concentration"
+    description = "Hydrogen Concentration"
 
     [SGP30.data.ethanol]
     unit = "ppm"
@@ -152,7 +152,7 @@ i2c_address = 0x39
 [TSL2591]
 name = "TSL2591"
 description = "High Dynamic Range Digital Light Sensor"
-module = ""
+module = "simoc_sam.sensors.tsl2591"
 i2c_address = 0x29
 
     [TSL2591.data.light]
@@ -173,10 +173,191 @@ i2c_address = 0x29
 [VEML7700]
 name = "VEML7700"
 description = "Ambient Light Sensor"
-module = ""
+module = "simoc_sam.sensors.veml7700"
 i2c_address = 0x10
 
     [VEML7700.data.light]
     unit = "lux"
     label = "Light"
     description = "Ambient Light"
+
+[BNO085]
+name = "BNO085"
+description = "Adafruit BNO085 9-DOF Orientation IMU Sensor"
+module = "simoc_sam.sensors.bno085"
+i2c_address = 0x4A
+
+    [BNO085.data.raw_accel_x]
+    unit = ""
+    label = "Raw Accel X"
+    description = "Raw accelerometer X"
+    [BNO085.data.raw_accel_y]
+    unit = ""
+    label = "Raw Accel Y"
+    description = "Raw accelerometer Y"
+    [BNO085.data.raw_accel_z]
+    unit = ""
+    label = "Raw Accel Z"
+    description = "Raw accelerometer Z"
+
+    [BNO085.data.raw_gyro_x]
+    unit = ""
+    label = "Raw Gyro X"
+    description = "Raw gyroscope X"
+    [BNO085.data.raw_gyro_y]
+    unit = ""
+    label = "Raw Gyro Y"
+    description = "Raw gyroscope Y"
+    [BNO085.data.raw_gyro_z]
+    unit = ""
+    label = "Raw Gyro Z"
+    description = "Raw gyroscope Z"
+
+    [BNO085.data.raw_mag_x]
+    unit = ""
+    label = "Raw Mag X"
+    description = "Raw magnetometer X"
+    [BNO085.data.raw_mag_y]
+    unit = ""
+    label = "Raw Mag Y"
+    description = "Raw magnetometer Y"
+    [BNO085.data.raw_mag_z]
+    unit = ""
+    label = "Raw Mag Z"
+    description = "Raw magnetometer Z"
+
+    [BNO085.data.accel_x]
+    unit = "m/s²"
+    label = "Accel X"
+    description = "Acceleration X"
+    [BNO085.data.accel_y]
+    unit = "m/s²"
+    label = "Accel Y"
+    description = "Acceleration Y"
+    [BNO085.data.accel_z]
+    unit = "m/s²"
+    label = "Accel Z"
+    description = "Acceleration Z"
+
+    [BNO085.data.gyro_x]
+    unit = "rad/s"
+    label = "Gyro X"
+    description = "Gyroscope X"
+    [BNO085.data.gyro_y]
+    unit = "rad/s"
+    label = "Gyro Y"
+    description = "Gyroscope Y"
+    [BNO085.data.gyro_z]
+    unit = "rad/s"
+    label = "Gyro Z"
+    description = "Gyroscope Z"
+
+    [BNO085.data.mag_x]
+    unit = "uT"
+    label = "Mag X"
+    description = "Magnetometer X"
+    [BNO085.data.mag_y]
+    unit = "uT"
+    label = "Mag Y"
+    description = "Magnetometer Y"
+    [BNO085.data.mag_z]
+    unit = "uT"
+    label = "Mag Z"
+    description = "Magnetometer Z"
+
+    [BNO085.data.gravity_x]
+    unit = "m/s²"
+    label = "Gravity X"
+    description = "Gravity vector X"
+    [BNO085.data.gravity_y]
+    unit = "m/s²"
+    label = "Gravity Y"
+    description = "Gravity vector Y"
+    [BNO085.data.gravity_z]
+    unit = "m/s²"
+    label = "Gravity Z"
+    description = "Gravity vector Z"
+
+    [BNO085.data.linear_accel_x]
+    unit = "m/s²"
+    label = "Linear Accel X"
+    description = "Linear acceleration X"
+    [BNO085.data.linear_accel_y]
+    unit = "m/s²"
+    label = "Linear Accel Y"
+    description = "Linear acceleration Y"
+    [BNO085.data.linear_accel_z]
+    unit = "m/s²"
+    label = "Linear Accel Z"
+    description = "Linear acceleration Z"
+
+    [BNO085.data.quat_i]
+    unit = ""
+    label = "Quat i"
+    description = "Quaternion i"
+    [BNO085.data.quat_j]
+    unit = ""
+    label = "Quat j"
+    description = "Quaternion j"
+    [BNO085.data.quat_k]
+    unit = ""
+    label = "Quat k"
+    description = "Quaternion k"
+    [BNO085.data.quat_real]
+    unit = ""
+    label = "Quat real"
+    description = "Quaternion real"
+
+    [BNO085.data.game_quat_i]
+    unit = ""
+    label = "Game Quat i"
+    description = "Game quaternion i"
+    [BNO085.data.game_quat_j]
+    unit = ""
+    label = "Game Quat j"
+    description = "Game quaternion j"
+    [BNO085.data.game_quat_k]
+    unit = ""
+    label = "Game Quat k"
+    description = "Game quaternion k"
+    [BNO085.data.game_quat_real]
+    unit = ""
+    label = "Game Quat real"
+    description = "Game quaternion real"
+
+    [BNO085.data.geomag_quat_i]
+    unit = ""
+    label = "Geomag Quat i"
+    description = "Geomagnetic quaternion i"
+    [BNO085.data.geomag_quat_j]
+    unit = ""
+    label = "Geomag Quat j"
+    description = "Geomagnetic quaternion j"
+    [BNO085.data.geomag_quat_k]
+    unit = ""
+    label = "Geomag Quat k"
+    description = "Geomagnetic quaternion k"
+    [BNO085.data.geomag_quat_real]
+    unit = ""
+    label = "Geomag Quat real"
+    description = "Geomagnetic quaternion real"
+
+    [BNO085.data.stability_classification]
+    unit = ""
+    label = "Stability"
+    description = "Stability classification"
+
+    [BNO085.data.activity_classification]
+    unit = ""
+    label = "Activity"
+    description = "Activity classification"
+
+    [BNO085.data.steps]
+    unit = ""
+    label = "Steps"
+    description = "Step count"
+
+    [BNO085.data.shake]
+    unit = ""
+    label = "Shake"
+    description = "Shake detection flag"

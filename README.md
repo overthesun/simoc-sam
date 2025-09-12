@@ -1,8 +1,9 @@
-# SIMOC SAM
-This repository contains a Docker container that include a sample
-socketio server and client that will be the foundation of the socketio
-server used in SAM.
+# SIMOC Live
+This repository contains the code for the live backend used in
+[SAM](https://samb2.space/) to collect live sensors data.
 
+The configurations and scripts are generally installed and executed
+on Raspberry Pi 4/5 and 0s using the `simoc-sam.py` script.
 
 ## Using the `simoc-sam.py` script
 
@@ -13,10 +14,9 @@ the venv.
 
 You can see the full list of commands with `python simoc-sam.py -h`,
 and you can run them with `python simoc-sam.py COMMAND`:
-* `run-server` will start the `sioserver`
-* `run-tmux` will launch the selected `tmux` script (`mqtt` or `sio`)
+* `initial-setup` will initialize an RPi 0 image
 * `test` will execute the tests using `pytest`
-* `info` will print host info about the network and sensors
+* `info` will print host info about the network, sensors, and services
 * `hosts` will print information about the other hosts in the network
 
 
@@ -34,16 +34,11 @@ section for an example).
 
 ## Installation and dependencies
 
-If you are using the `simoc-sam.py` script, you only need Python.
+If you are using the `simoc-sam.py` script, depending on the command,
+you might need some additional dependencies that can be installed with:
 
-If you are using the Docker container (see below),  you need to have
-Docker installed.
-
-If you are running the Python client or server outside the container,
-you need to install the `aiohttp` (only used by the server) and
-`python-socketio` (used by both) packages using:
 ```sh
-python3 -m pip install python-socketio aiohttp
+python3 -m pip install -r requirements.txt
 ```
 
 Additionally, for the `tmux/` scripts you will need to install `tmux` with
@@ -51,6 +46,9 @@ Additionally, for the `tmux/` scripts you will need to install `tmux` with
 
 
 ## Docker container usage
+
+**Note**: Docker deployment is no longer supported for the time being.
+<!--
 To build the Docker image using the `Dockerfile` included in the repo, run:
 
 ```sh
@@ -79,25 +77,13 @@ docker run --rm -it -p 8081:8080 -v `pwd`:/sioserver sioserver
 ```
 After this you can edit the client and just reload the page to see the changes.
 If you modify the server you will have to restart it.
+-->
 
-
-## Connecting to the server
-The repository includes two socketio clients:
-* A JS one in `index.html`
-* A standalone Python one (`sioclient.py`)
-
-To access the JS client simply open http://0.0.0.0:8081/ in the browser,
-with the server running inside or outside the Docker container.
-
-To run the Python client run `python3 sioclient.py`.  You can run
-the server inside the container and the Python client inside or outside.
-
-Regardless of the setup you choose, you must ensure that you are using the
-correct port either in the URL (for the JS client) or as a command line
-argument (for the Python client).  By default the server will serve on
-port `8081`, unless you specified a different port with e.g. `-p 8082:8080`
-while running the server inside the container.
-
+## Connecting to the MQTT broker
+The repository includes a SocketIO bridge and a SocketIO client
+(`siobridge.py` and `sioclient.py`) that can be used to test the
+MQTT->SocketIO conversion.  They can both be launched (together with
+a Mock Sensor) by running `python3 simoc-sam.py run-tmux mqtt`.
 
 ## TL;DR
 This is a summary of the commands you need to run everything.
@@ -107,11 +93,6 @@ Start everything with:
 ```sh
 sudo apt install tmux
 python3 simoc-sam.py run-tmux
-```
-
-Start the server with:
-```sh
-python3 simoc-sam.py run-server
 ```
 
 Start the sensor(s)/client(s):
@@ -125,7 +106,9 @@ user@host:path$
 You can run multiple sensors/clients on multiple terminal tabs
 (you have to activate the `venv` in each of them).
 
+<!--
 ### Docker
+
 If you want to use Docker, do the initial setup (only needed once):
 ```sh
 # build the image
@@ -159,22 +142,11 @@ broadcasting them to all the connected clients.  You can open
 http://0.0.0.0:8081/ to access the web client too.  You can also run
 multiple sensors and clients at once.  If you restart the server, the
 sensors and Python clients should reconnect automatically.
-
+-->
 
 ## Testing
 
 Run the tests in the `venv` with:
 ```
 python simoc-sam.py test
-```
-
-If you want to run them manually outside the `venv`, install
-dependencies:
-```
-sudo pip install -U pytest pytest-asyncio
-```
-
-And then run the tests:
-```
-pytest -v
 ```

@@ -1,3 +1,7 @@
+# TODO:
+# * verify if this script still works
+# * add unit tests if it does, remove it otherwise
+
 import os
 import asyncio
 import importlib
@@ -5,7 +9,7 @@ import importlib
 from contextlib import ExitStack
 
 from . import utils
-from .basesensor import SIOWrapper
+from .basesensor import MQTTWrapper
 
 board = utils.import_board()
 
@@ -39,13 +43,13 @@ async def main():
             bus.deinit()
     print(sensors_classes)
     args = utils.parse_args()
-    delay, verbose = args.delay, args.verbose_sio
+    delay, verbose = args.delay, args.verbose_mqtt
     host, port = args.host, args.port
     with ExitStack() as stack:
         sensors = [stack.enter_context(sensor_cls(verbose=args.verbose_sensor))
                    for sensor_cls in sensors_classes]
-        siowrappers = [SIOWrapper(sensor, read_delay=delay, verbose=verbose)
+        mqttwrappers = [MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
                        for sensor in sensors]
-        await asyncio.gather(*[siow.start(host, port) for siow in siowrappers])
+        await asyncio.gather(*[mqttw.start(host, port) for mqttw in mqttwrappers])
 
 asyncio.run(main())

@@ -2,14 +2,12 @@ import time
 import json
 import random
 import socket
-import asyncio
 
 from datetime import datetime
 from abc import ABC, abstractmethod
 
-import socketio
-
 import paho.mqtt.client as mqtt
+from .. import config
 
 
 def random_id(length=6):
@@ -41,6 +39,11 @@ class BaseSensor(ABC):
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
+        hostname = socket.gethostname()
+        fname = f'{config.location}_{hostname}_{self.sensor_name}.jsonl'
+        self.log_path = config.log_dir / fname
+        if config.enable_jsonl_logging:
+            config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
     def __enter__(self):
         # use this to initialize the sensor and return self
@@ -69,14 +72,23 @@ class BaseSensor(ABC):
         if self.verbose:
             print(*args, **kwargs)
 
+    def log(self, payload):
+        try:
+            with open(self.log_path, 'a') as f:
+                f.write(f'{payload}\n')
+        except Exception as err:
+            self.print(f'Unable to write log file: {err}')
+
     def print_reading(self, reading):
         data = []
         for name, info in self.reading_info.items():
+            if name not in reading:
+                continue
             value = reading[name]
             if isinstance(value, float):
                 value = format(value, '.1f')
             data.append(f"{info['label']}: {value}{info['unit']}")
-        self.print(f"[{self.sensor_type}] {': '.join(data)}")
+        self.print(f"[{self.sensor_type}] {'; '.join(data)}")
 
     @abstractmethod
     def read_sensor_data(self):
@@ -107,6 +119,8 @@ class BaseSensor(ABC):
                 data['timestamp'] = self.get_timestamp()
             if add_n:
                 data['n'] = self.reading_num
+            if config.enable_jsonl_logging:
+                self.log(json.dumps(data))
             yield data
             self.reading_num += 1
             if not read_forever:
@@ -116,57 +130,9 @@ class BaseSensor(ABC):
             time.sleep(delay)
 
 
-class SIOWrapper:
-    def __init__(self, sensor, *, read_delay=10, verbose=False):
-        self.sensor = sensor
-        self.read_delay = read_delay  # how long to wait between readings
-        self.verbose = verbose  # toggle verbose output
-        # instantiate the AsyncClient and register events
-        self.sio = sio = socketio.AsyncClient()
-        sio.event(self.connect)
-        sio.event(self.disconnect)
-        sio.on('send-data')(self.send_data)
-
-    def print(self, *args, **kwargs):
-        """Receive and print if self.verbose is true."""
-        if self.verbose:
-            print(*args, **kwargs)
-
-    async def start(self, host, port):
-        """Open the connection with the sio server."""
-        # connect to the server and wait
-        await self.sio.connect(f'http://{host}:{port}')
-        await self.sio.wait()
-
-    async def connect(self):
-        """Called when the sensor connects to the server."""
-        self.print('Connected to server')
-        self.print('Registering sensor')
-        sensor_info = self.sensor.sensor_info()
-        await self.sio.emit('register-sensor', sensor_info)
-
-    async def disconnect(self):
-        """Called when the sensor disconnects from the server."""
-        self.print('Server disconnected')
-
-    async def send_data(self, n=0):
-        """Called when the server requests data, runs in an endless loop."""
-        self.print('Server requested data')
-        # set the delay to 0 because iter_readings uses blocking time.sleep
-        # and replace it with a non-blocking asyncio.sleep in the for loop
-        readings = self.sensor.iter_readings(delay=0, n=n)
-        for reading in readings:
-            try:
-                await self.sio.emit('sensor-reading', reading)
-            except socketio.exceptions.BadNamespaceError:
-                print('No longer connected to the server...')
-                return
-            # wait for the next sensor reading
-            await asyncio.sleep(self.read_delay)
-
-
 class MQTTWrapper:
-    def __init__(self, sensor, *, read_delay=10, verbose=False):
+    def __init__(self, sensor, *, read_delay=config.sensor_read_delay,
+                 verbose=config.verbose_sensor, location=config.location):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
@@ -176,21 +142,12 @@ class MQTTWrapper:
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
         hostname = socket.gethostname()
-        self.topic = f'sam/{hostname}/{sensor.sensor_name}'
-        self.log_fname = f'/home/pi/logs/{self.topic.replace("/", "_")}.jsonl'
+        self.topic = f'{location}/{hostname}/{sensor.sensor_name}'
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
         if self.verbose:
             print(*args, **kwargs)
-
-    def log(self, payload):
-        # TODO: implement better logging
-        try:
-            with open(self.log_fname, 'a') as f:
-                f.write(f'{payload}\n')
-        except Exception as err:
-            self.print(f'Unable to write log file: {err}')
 
     def start(self, host, port):
         self.mqttc.loop_start()
@@ -213,7 +170,7 @@ class MQTTWrapper:
         # disconnect_flags, but we are not using it so it's ok
         self.print("Disconnected from MQTT broker")
 
-    def connect(self, host, port, *, attempts=100, retry_delay=5):
+    def connect(self, host, port):
         """Called when the sensor connects to the server."""
         try:
             self.print(f'Connecting to MQTT broker at {host}:{port}...')
@@ -230,14 +187,11 @@ class MQTTWrapper:
         self.print('Server requested data')
         # set the delay to 0 because iter_readings uses blocking time.sleep
         # and replace it with a non-blocking asyncio.sleep in the for loop
-        readings = self.sensor.iter_readings(delay=0, n=n)
+        readings = self.sensor.iter_readings(delay=self.read_delay, n=n)
         for reading in readings:
             try:
                 jreading = json.dumps(reading)
                 self.mqttc.publish(self.topic, payload=jreading)
-                self.log(jreading)  # TODO: move this somewhere else
                 self.print(reading)
             except Exception as err:
                 self.print(f'No longer connected to the server ({err})...')
-            # wait for the next sensor reading
-            time.sleep(self.read_delay)

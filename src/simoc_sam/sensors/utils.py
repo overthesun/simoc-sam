@@ -1,7 +1,6 @@
 import os
 import sys
 import pathlib
-import asyncio
 import argparse
 import subprocess
 
@@ -9,7 +8,8 @@ from typing import Dict, Any
 from datetime import datetime
 from dataclasses import dataclass, field
 
-from .basesensor import SIOWrapper, MQTTWrapper
+from .basesensor import MQTTWrapper
+from .. import config
 
 import tomli
 
@@ -97,16 +97,6 @@ def import_busio():
     except RuntimeError:
         sys.exit("Failed to import 'busio', is the sensor plugged in?")
 
-def get_mqtt_addr():
-    addr = os.environ.get('MQTTSERVER_ADDR', 'sambridge1:1883')
-    host, port = addr.split(':')
-    return host, int(port)
-
-def get_sioserver_addr():
-    addr = os.environ.get('SIOSERVER_ADDR', 'localhost:8081')
-    host, port = addr.split(':')
-    return host, int(port)
-
 
 def get_addr_argparser():
     parser = argparse.ArgumentParser()
@@ -116,35 +106,33 @@ def get_addr_argparser():
     return parser
 
 
-def parse_args(arguments=None, *, read_delay=10):
+def parse_args(arguments=None):
     parser = get_addr_argparser()
-    parser.add_argument('-d', '--read-delay', default=read_delay,
+    parser.add_argument('-d', '--read-delay', default=config.sensor_read_delay,
                         dest='delay', metavar='DELAY', type=float,
                         help='How many seconds between readings.')
     parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Enable verbose output for sensor/SocketIO/MQTT.')
+                        help='Enable verbose output for sensor/MQTT.')
     parser.add_argument('--verbose-sensor', action='store_true',
                         help='Enable verbose output for the sensor.')
     parser.add_argument('--verbose-mqtt', action='store_true',
                         help='Enable verbose output for MQTT.')
-    parser.add_argument('--verbose-sio', action='store_true',
-                        help='Enable verbose output for SocketIO.')
     parser.add_argument('--mqtt', action='store_true',
                         help='Run the sensor with MQTT.')
     # TODO: put this in a separate parser
-    parser.add_argument('--mqtt-topic', default='sam/#',
+    parser.add_argument('--mqtt-topic-sub', default=config.mqtt_topic_sub,
                         help='The MQTT topic to subscribe to.')
-    parser.add_argument('--sio', action='store_true',
-                        help='Run the sensor with SocketIO.')
     args = parser.parse_args(arguments)
-    if args.mqtt and args.sio:
-        parser.error('--mqtt and --sio can not be used together.')
-    if (args.sio or args.mqtt) and (not args.host or not args.port):
-        host, port = get_mqtt_addr() if args.mqtt else get_sioserver_addr()
-        args.host = args.host or host
-        args.port = args.port or port
-    if args.verbose:
-        args.verbose_sensor = args.verbose_sio = args.verbose_mqtt = True
+    if args.mqtt and (not args.host or not args.port):
+        args.host = args.host or config.mqtt_host
+        args.port = args.port or config.mqtt_port
+
+    # Set verbose flags from config if not specified
+    if not args.verbose and not args.verbose_sensor and not args.verbose_mqtt:
+        args.verbose_sensor = config.verbose_sensor
+        args.verbose_mqtt = config.verbose_mqtt
+    elif args.verbose:
+        args.verbose_sensor = args.verbose_mqtt = True
     return args
 
 
@@ -154,16 +142,16 @@ def start_sensor(sensor_cls, *pargs, **kwargs):
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:
         if args.mqtt:
             delay, verbose = args.delay, args.verbose_mqtt
+            location = config.location
             host, port = args.host, args.port
-            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
+            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose,
+                                      location=location)
             mqttwrapper.start(host, port)
-            mqttwrapper.send_data()
+            try:
+                mqttwrapper.send_data()
+            except KeyboardInterrupt:
+                print('Sensor stopped')
             mqttwrapper.stop()
-        elif args.sio:
-            delay, verbose = args.delay, args.verbose_sio
-            host, port = args.host, args.port
-            siowrapper = SIOWrapper(sensor, read_delay=delay, verbose=verbose)
-            asyncio.run(siowrapper.start(host, port))
         else:
             for reading in sensor.iter_readings(delay=args.delay):
                 pass  # the sensor already prints the readings when verbose
