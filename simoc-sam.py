@@ -107,6 +107,28 @@ def clean_venv():
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
 
+
+@cmd
+def update():
+    """Update the code to the latest version."""
+    # Check if we are on the master branch first
+    master = 'master'
+    print('Checking current branch...')
+    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        print('Error: Failed to check current branch.')
+        return False
+    current_branch = result.stdout.strip()
+    if current_branch != master:
+        print(f'Error: Not on `{master}` branch (currently on: `{current_branch}`).')
+        print(f'Please switch to `{master}` (`git switch {master}`) before updating.')
+        return False
+    # Perform git pull
+    print('Updating code to the latest version...')
+    return run(['git', 'pull', 'origin', master])
+
+
 target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
 ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
 @cmd
@@ -520,27 +542,6 @@ def clean_config():
     if config_dir.exists():
         shutil.rmtree(config_dir)
         print(f'Removed config directory: {config_dir}')
-
-
-@cmd
-def update():
-    """Update the code to the latest version."""
-    # Check if we are on the master branch first
-    master = 'master'
-    print('Checking current branch...')
-    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                            capture_output=True, text=True)
-    if result.returncode != 0:
-        print('Error: Failed to check current branch.')
-        return False
-    current_branch = result.stdout.strip()
-    if current_branch != master:
-        print(f'Error: Not on `{master}` branch (currently on: `{current_branch}`).')
-        print(f'Please switch to `{master}` (`git switch {master}`) before updating.')
-        return False
-    # Perform git pull
-    print('Updating code to the latest version...')
-    return run(['git', 'pull', 'origin', master])
 
 
 def create_help(cmds):
