@@ -113,7 +113,6 @@ def update():
     """Update the code to the latest version."""
     # Check if we are on the master branch first
     master = 'master'
-    print('Checking current branch...')
     result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                             capture_output=True, text=True)
     if result.returncode != 0:
@@ -126,7 +125,12 @@ def update():
         return False
     # Perform git pull
     print('Updating code to the latest version...')
-    return run(['git', 'pull', 'origin', master])
+    success = run(['git', 'pull', 'origin', master])
+    if success:
+        print('Code updated successfully.')
+    else:
+        print('Update failed: see error log above for details.')
+    return success
 
 
 target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
