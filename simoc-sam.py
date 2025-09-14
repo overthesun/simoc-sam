@@ -111,21 +111,16 @@ def clean_venv():
 @cmd
 def update():
     """Update the code to the latest version."""
-    # Check if we are on the master branch first
-    master = 'master'
-    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                            capture_output=True, text=True)
-    if result.returncode != 0:
-        print('Error: Failed to check current branch.')
+    # get the current branch
+    try:
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                         cwd=SIMOC_SAM_DIR, text=True).strip()
+    except subprocess.CalledProcessError:
+        print(f'Error: Failed to get the current branch.')
         return False
-    current_branch = result.stdout.strip()
-    if current_branch != master:
-        print(f'Error: Not on `{master}` branch (currently on: `{current_branch}`).')
-        print(f'Please switch to `{master}` (`git switch {master}`) before updating.')
-        return False
-    # Perform git pull
-    print('Updating code to the latest version...')
-    success = run(['git', 'pull', 'origin', master])
+    # perform git pull
+    print(f'Updating code to the latest version (current branch: {branch!r}).')
+    success = run(['git', 'pull', 'origin', branch], cwd=SIMOC_SAM_DIR)
     if success:
         print('Code updated successfully.')
     else:
