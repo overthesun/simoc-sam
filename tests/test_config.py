@@ -41,15 +41,18 @@ def test_user_config_override(tmp_path, monkeypatch):
     user_config_dir = tmp_path / '.config' / 'simoc-sam'
     user_config_dir.mkdir(parents=True)
     user_config_path = user_config_dir / 'config.py'
-    user_config_path.write_text('mqtt_host = "overridden_host"\n')
+    user_config_path.write_text('mqtt_host = "overridden_host"\n'
+                                'location = "custom_location"\n')
     # Monkeypatch $HOME to tmp_path to test user config loading
     monkeypatch.setenv('HOME', str(tmp_path))
     importlib.reload(config)
     assert config.mqtt_host == "overridden_host"
+    assert config.location == "custom_location"
     # test that it falls back on the default
     monkeypatch.setenv('HOME', '/not/a/real/dir')
     importlib.reload(config)
     assert config.mqtt_host is defaults.mqtt_host
+    assert config.location == 'testhost'
     # test load_user_config directly
     config.load_user_config(user_config_path)
     assert config.mqtt_host == "overridden_host"
