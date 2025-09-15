@@ -1,11 +1,12 @@
 import time
-import json
+import importlib
 
 from unittest.mock import patch
 
 import pytest
 
-from simoc_sam.sensors.basesensor import BaseSensor, MQTTWrapper
+from simoc_sam import config
+from simoc_sam.sensors import basesensor
 
 READING = dict(co2=100, hum=50, temp=25)
 INFO = {
@@ -13,7 +14,7 @@ INFO = {
     'temp': dict(label='Temperature', unit='°C'),
     'rel_hum': dict(label='Relative Humidity', unit='%'),
 }
-class MySensor(BaseSensor):
+class MySensor(basesensor.BaseSensor):
     sensor_type = 'TestSensor'
     reading_info = INFO
     def read_sensor_data(self):
@@ -26,7 +27,7 @@ def sensor():
 
 @pytest.fixture
 def wrapper(sensor):
-    return MQTTWrapper(sensor, read_delay=0)
+    return basesensor.MQTTWrapper(sensor, read_delay=0)
 
 @pytest.fixture
 def mock_print(wrapper):
@@ -35,8 +36,15 @@ def mock_print(wrapper):
 
 @pytest.fixture(autouse=True)
 def patch_gethostname():
-    with patch('socket.gethostname', return_value='testhost'):
+    with patch('socket.gethostname', return_value='testhost1'):
         yield
+
+@pytest.fixture(autouse=True)
+def reload_config():
+    # the logpath depends on config.location and hostname
+    importlib.reload(config)
+    importlib.reload(basesensor)
+    yield
 
 @pytest.fixture(autouse=True)
 def mock_paho_client():
@@ -48,7 +56,7 @@ def mock_paho_client():
 
 def test_abstract_method():
     # this should fail if read_sensor_data is not implemented
-    class BrokenSensorSubclass(BaseSensor):
+    class BrokenSensorSubclass(basesensor.BaseSensor):
         pass
     with pytest.raises(TypeError):
         s = BrokenSensorSubclass()
@@ -63,7 +71,7 @@ def test_name_type():
         assert sensor.sensor_name == 'HAL 9000'
 
 def test_log_path(sensor):
-    assert str(sensor.log_path).endswith('/sam_testhost_TestSensor.jsonl')
+    assert str(sensor.log_path).endswith('/testhost_testhost1_TestSensor.jsonl')
 
 def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
@@ -145,11 +153,11 @@ def test_iter_readings_logs(sensor, monkeypatch):
 
 def test_mqttwrapper_init(sensor):
     # test with custom args
-    wrapper = MQTTWrapper(sensor, read_delay=10, verbose=True)
+    wrapper = basesensor.MQTTWrapper(sensor, read_delay=10, verbose=True)
     assert wrapper.sensor is sensor
     assert wrapper.read_delay == 10
     assert wrapper.verbose is True
-    assert wrapper.topic == f'sam/testhost/{sensor.sensor_name}'
+    assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
 
 def test_mqttwrapper_connect_start_stop(wrapper):
     mqttc = wrapper.mqttc

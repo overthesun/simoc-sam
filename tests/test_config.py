@@ -1,11 +1,26 @@
 import importlib
 
+from unittest.mock import patch
+
+import pytest
+
 from simoc_sam import config
 from simoc_sam import defaults
 
+@pytest.fixture(autouse=True)
+def patch_gethostname():
+    with patch('socket.gethostname', return_value='testhost1'):
+        yield
+
+@pytest.fixture(autouse=True)
+def reload_configs():
+    importlib.reload(defaults)
+    importlib.reload(config)
+    yield
+
 def test_default_vars():
     vars = [
-        'location', 'humans', 'volume', 'sensors', 'sensor_read_delay',
+        'humans', 'volume', 'sensors', 'sensor_read_delay',
         'mqtt_host', 'mqtt_port', 'mqtt_reconnect_delay', 'sio_host', 'sio_port',
         'mqtt_topic_sub', 'simoc_web_port', 'simoc_web_dist_dir',
         'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging', 'log_dir',
@@ -14,6 +29,10 @@ def test_default_vars():
         assert hasattr(config, var)
         assert hasattr(defaults, var)
         assert getattr(config, var) is getattr(defaults, var)
+    # location is set from hostname when None
+    assert defaults.location is None
+    assert config.location == 'testhost'
+
 
 def test_user_config_override(tmp_path, monkeypatch):
     from simoc_sam import defaults
@@ -34,4 +53,3 @@ def test_user_config_override(tmp_path, monkeypatch):
     # test load_user_config directly
     config.load_user_config(user_config_path)
     assert config.mqtt_host == "overridden_host"
-

@@ -33,3 +33,9 @@ def load_user_config(config_path):
 
 user_config_path = Path.home() / ".config/simoc-sam/config.py"
 load_user_config(user_config_path)
+
+if location is None:
+    import socket
+    hostname = socket.gethostname()
+    # Remove trailing digits from the hostname to get the location
+    location = hostname.rstrip('0123456789')
