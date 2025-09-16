@@ -8,9 +8,9 @@ from pathlib import Path
 
 
 # HAB info
-location = 'sam'
-humans = 4
-volume = 272
+location = None
+humans = 0
+volume = 0
 
 
 # Sensors and data collection
