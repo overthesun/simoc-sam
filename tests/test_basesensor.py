@@ -35,12 +35,7 @@ def mock_print(wrapper):
         yield mock_print
 
 @pytest.fixture(autouse=True)
-def patch_gethostname():
-    with patch('socket.gethostname', return_value='testhost1'):
-        yield
-
-@pytest.fixture(autouse=True)
-def reload_config():
+def reload_basesensor():
     # the logpath depends on config.location and hostname
     importlib.reload(config)
     importlib.reload(basesensor)

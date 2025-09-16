@@ -1,22 +1,8 @@
 import importlib
 
-from unittest.mock import patch
-
-import pytest
-
 from simoc_sam import config
 from simoc_sam import defaults
 
-@pytest.fixture(autouse=True)
-def patch_gethostname():
-    with patch('socket.gethostname', return_value='testhost1'):
-        yield
-
-@pytest.fixture(autouse=True)
-def reload_configs():
-    importlib.reload(defaults)
-    importlib.reload(config)
-    yield
 
 def test_default_vars():
     vars = [
@@ -37,6 +23,7 @@ def test_default_vars():
 def test_user_config_override(tmp_path, monkeypatch):
     from simoc_sam import defaults
     assert config.mqtt_host is defaults.mqtt_host
+    assert config.location == 'testhost'
     # create an user config that overrides the mqtt_host
     user_config_dir = tmp_path / '.config' / 'simoc-sam'
     user_config_dir.mkdir(parents=True)
