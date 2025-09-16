@@ -39,3 +39,7 @@ if location is None:
     hostname = socket.gethostname()
     # Remove trailing digits from the hostname to get the location
     location = hostname.rstrip('0123456789')
+
+if mqtt_secure and not mqtt_certs_dir.exists():
+    print(f"Warning: MQTT secure is enabled but the certs dir "
+          f"<{mqtt_certs_dir}> does not exist.")

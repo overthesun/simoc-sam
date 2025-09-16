@@ -132,13 +132,20 @@ class BaseSensor(ABC):
 
 class MQTTWrapper:
     def __init__(self, sensor, *, read_delay=config.sensor_read_delay,
-                 verbose=config.verbose_sensor, location=config.location):
+                 verbose=config.verbose_sensor, location=config.location,
+                 secure=config.mqtt_secure, certs_dir=config.mqtt_certs_dir):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
         # aiomqtt still requires paho-mqtt 1.6
         # self.mqttc = mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.mqttc = mqttc = mqtt.Client()
+        if secure:
+            self.print("Using secure MQTT connection")
+            self.mqttc.tls_set(ca_certs=str(certs_dir / 'ca.crt'),
+                               certfile=str(certs_dir / 'client.crt'),
+                               keyfile=str(certs_dir / 'client.key'))
+            self.mqttc.tls_insecure_set(True)  # allow self-signed certs
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
         hostname = socket.gethostname()
