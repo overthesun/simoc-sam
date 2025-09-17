@@ -57,7 +57,7 @@ def test_user_config_override(user_config, monkeypatch):
 def test_path_variables_user_override(user_config):
     """Test that string paths are converted to Path objects."""
     # create user config that sets path vars with strings
-    vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
+    vars = config._path_vars
     paths = ['/custom/certs', '/custom/dist', '/custom/logs']
     config_text = '\n'.join(f'{var} = {path!r}' for var, path in zip(vars, paths))
     user_config.write_text(config_text)
