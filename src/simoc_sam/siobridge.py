@@ -266,7 +266,7 @@ async def log_handler():
 
 async def index(request):
     """Serve the client-side application."""
-    with open('index.html') as f:
+    with open(config.simoc_web_dist_dir / 'index.html') as f:
         return web.Response(text=f.read(), content_type='text/html')
 
 def create_app():
