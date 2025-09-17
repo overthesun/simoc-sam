@@ -145,7 +145,6 @@ class MQTTWrapper:
             self.mqttc.tls_set(ca_certs=str(certs_dir / 'ca.crt'),
                                certfile=str(certs_dir / 'client.crt'),
                                keyfile=str(certs_dir / 'client.key'))
-            self.mqttc.tls_insecure_set(True)  # allow self-signed certs
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
         hostname = socket.gethostname()

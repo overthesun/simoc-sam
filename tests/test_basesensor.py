@@ -199,7 +199,6 @@ def test_mqttwrapper_insecure_init(sensor):
     """Test MQTTWrapper initialization with secure=False (default)."""
     wrapper = basesensor.MQTTWrapper(sensor, secure=False)
     wrapper.mqttc.tls_set.assert_not_called()
-    wrapper.mqttc.tls_insecure_set.assert_not_called()
 
 def test_mqttwrapper_secure_init(sensor):
     """Test MQTTWrapper initialization with secure=True."""
@@ -211,4 +210,3 @@ def test_mqttwrapper_secure_init(sensor):
         certfile='/test/certs/client.crt',
         keyfile='/test/certs/client.key'
     )
-    wrapper.mqttc.tls_insecure_set.assert_called_once_with(True)
