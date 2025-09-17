@@ -57,14 +57,13 @@ def test_user_config_override(user_config, monkeypatch):
 def test_path_variables_user_override(user_config):
     """Test that string paths are converted to Path objects."""
     # create user config that sets path vars with strings
-    user_config.write_text('mqtt_certs_dir = "/custom/certs"\n'
-                           'simoc_web_dist_dir = "/custom/dist"\n'
-                           'log_dir = "/custom/logs"\n')
+    vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
+    paths = ['/custom/certs', '/custom/dist', '/custom/logs']
+    config_text = '\n'.join(f'{var} = {path!r}' for var, path in zip(vars, paths))
+    user_config.write_text(config_text)
     importlib.reload(config)
     # verify they are converted to Path objects
-    path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
-    expected_values = ['/custom/certs', '/custom/dist', '/custom/logs']
-    for var, expected in zip(path_vars, expected_values):
+    for var, path in zip(vars, paths):
         value = getattr(config, var)
         assert isinstance(value, Path)
-        assert str(value) == expected
+        assert str(value) == path
