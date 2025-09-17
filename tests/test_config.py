@@ -1,7 +1,21 @@
 import importlib
+from pathlib import Path
+
+import pytest
 
 from simoc_sam import config
 from simoc_sam import defaults
+
+
+@pytest.fixture
+def user_config(tmp_path, monkeypatch):
+    """Fixture that sets up user config directory and monkeypatches HOME."""
+    user_config_dir = tmp_path / '.config' / 'simoc-sam'
+    user_config_dir.mkdir(parents=True)
+    user_config_path = user_config_dir / 'config.py'
+    # set the home to tmp_path so that Path().home() points to tmp_path
+    monkeypatch.setenv('HOME', str(tmp_path))
+    return user_config_path
 
 
 def test_default_vars():
@@ -20,18 +34,13 @@ def test_default_vars():
     assert config.location == 'testhost'
 
 
-def test_user_config_override(tmp_path, monkeypatch):
+def test_user_config_override(user_config, monkeypatch):
     from simoc_sam import defaults
     assert config.mqtt_host is defaults.mqtt_host
     assert config.location == 'testhost'
     # create an user config that overrides the mqtt_host
-    user_config_dir = tmp_path / '.config' / 'simoc-sam'
-    user_config_dir.mkdir(parents=True)
-    user_config_path = user_config_dir / 'config.py'
-    user_config_path.write_text('mqtt_host = "overridden_host"\n'
-                                'location = "custom_location"\n')
-    # Monkeypatch $HOME to tmp_path to test user config loading
-    monkeypatch.setenv('HOME', str(tmp_path))
+    user_config.write_text('mqtt_host = "overridden_host"\n'
+                           'location = "custom_location"\n')
     importlib.reload(config)
     assert config.mqtt_host == "overridden_host"
     assert config.location == "custom_location"
@@ -41,5 +50,20 @@ def test_user_config_override(tmp_path, monkeypatch):
     assert config.mqtt_host is defaults.mqtt_host
     assert config.location == 'testhost'
     # test load_user_config directly
-    config.load_user_config(user_config_path)
+    config.load_user_config(user_config)
     assert config.mqtt_host == "overridden_host"
+
+
+def test_path_variables_user_override(user_config):
+    """Test that string paths are converted to Path objects."""
+    # create user config that sets path vars with strings
+    vars = config._path_vars
+    paths = ['/custom/certs', '/custom/dist', '/custom/logs']
+    config_text = '\n'.join(f'{var} = {path!r}' for var, path in zip(vars, paths))
+    user_config.write_text(config_text)
+    importlib.reload(config)
+    # verify they are converted to Path objects
+    for var, path in zip(vars, paths):
+        value = getattr(config, var)
+        assert isinstance(value, Path)
+        assert str(value) == path
