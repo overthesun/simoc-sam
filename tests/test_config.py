@@ -6,9 +6,9 @@ from simoc_sam import defaults
 
 def test_default_vars():
     vars = [
-        'humans', 'volume', 'sensors', 'sensor_read_delay',
-        'mqtt_host', 'mqtt_port', 'mqtt_reconnect_delay', 'sio_host', 'sio_port',
-        'mqtt_topic_sub', 'simoc_web_port', 'simoc_web_dist_dir',
+        'humans', 'volume', 'sensors', 'sensor_read_delay', 'mqtt_host',
+        'mqtt_port', 'mqtt_secure', 'mqtt_certs_dir', 'mqtt_reconnect_delay',
+        'sio_host', 'sio_port', 'mqtt_topic_sub', 'simoc_web_port', 'simoc_web_dist_dir',
         'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging', 'log_dir',
     ]
     for var in vars:

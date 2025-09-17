@@ -147,10 +147,17 @@ def test_iter_readings_logs(sensor, monkeypatch):
 # MQTTWrapper tests
 
 def test_mqttwrapper_init(sensor):
-    # test with custom args
-    wrapper = basesensor.MQTTWrapper(sensor, read_delay=10, verbose=True)
+    """Test that MQTTWrapper uses config defaults correctly."""
+    wrapper = basesensor.MQTTWrapper(sensor)
     assert wrapper.sensor is sensor
-    assert wrapper.read_delay == 10
+    assert wrapper.read_delay == config.sensor_read_delay
+    assert wrapper.verbose == config.verbose_sensor
+    assert wrapper.topic.startswith(config.location)
+    assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
+    # test with custom args
+    wrapper = basesensor.MQTTWrapper(sensor, read_delay=5, verbose=True)
+    assert wrapper.sensor is sensor
+    assert wrapper.read_delay == 5
     assert wrapper.verbose is True
     assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
 
@@ -187,3 +194,19 @@ def test_mqttwrapper_send_data_publish_error(wrapper, mock_print):
     mqttc.publish.side_effect = RuntimeError("fail")
     wrapper.send_data(n=1)
     mock_print.assert_any_call('No longer connected to the server (fail)...')
+
+def test_mqttwrapper_insecure_init(sensor):
+    """Test MQTTWrapper initialization with secure=False (default)."""
+    wrapper = basesensor.MQTTWrapper(sensor, secure=False)
+    wrapper.mqttc.tls_set.assert_not_called()
+
+def test_mqttwrapper_secure_init(sensor):
+    """Test MQTTWrapper initialization with secure=True."""
+    from pathlib import Path
+    certs_dir = Path('/test/certs')
+    wrapper = basesensor.MQTTWrapper(sensor, secure=True, certs_dir=certs_dir)
+    wrapper.mqttc.tls_set.assert_called_once_with(
+        ca_certs='/test/certs/ca.crt',
+        certfile='/test/certs/client.crt',
+        keyfile='/test/certs/client.key'
+    )
