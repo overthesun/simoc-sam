@@ -29,6 +29,7 @@ mqtt_reconnect_delay = 5.0
 # SIMOC Web / SIO bridge configuration
 sio_host = 'localhost'
 sio_port = 8081
+data_source = 'logs'  # 'mqtt' or 'logs'
 mqtt_topic_sub = f'{location}/#'
 simoc_web_port = 8080  # used for CORS validation
 simoc_web_dist_dir = Path.home() / 'dist'

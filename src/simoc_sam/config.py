@@ -57,3 +57,6 @@ if location is None:
 if mqtt_secure and not mqtt_certs_dir.exists():
     print(f"Warning: MQTT secure is enabled but the certs dir "
           f"<{mqtt_certs_dir}> does not exist.")
+
+if not enable_jsonl_logging and data_source == 'logs':
+    print("Warning: JSONL logging is disabled but data_source is 'logs'. ")
