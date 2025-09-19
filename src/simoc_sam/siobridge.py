@@ -254,8 +254,10 @@ async def log_handler():
     print(f'Starting log handler for directory: {log_dir}')
     print(f'Looking for sensors: {sensors}')
     tasks = []
+    # TODO: implement a proper fix
+    sensor_names = dict(scd30='SCD-30', sgp30='SGP30', bme688='BME688')
     for sensor in sensors:
-        log_file = get_log_path(sensor)
+        log_file = get_log_path(sensor_names.get(sensor, sensor))
         print(f'Log file for {sensor}: {log_file}')
         task = asyncio.create_task(process_sensor_log(sensor, log_file))
         tasks.append(task)
