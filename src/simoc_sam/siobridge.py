@@ -78,7 +78,7 @@ def get_host_ips():
 # The port is also used for CORS validation, and must match the
 # port used by SIMOC web (8080 is used by default).
 port = config.simoc_web_port
-allowed_origins = [f'http://{ip}:{port}' for ip in get_host_ips()]
+allowed_origins = [f'http://{ip}' for ip in get_host_ips()]
 print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
@@ -268,7 +268,7 @@ async def index(request):
 def create_app():
     app = web.Application()
     # app.router.add_static('/static', 'static')
-    app.router.add_get('/', index)
+    # app.router.add_get('/', index)
     return app
 
 async def init_app(app):
