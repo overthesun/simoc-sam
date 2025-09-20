@@ -224,7 +224,7 @@ async def read_jsonl_file(file_path):
 
 async def process_sensor_log(sensor, log_file):
     """Process a single sensor's log file continuously."""
-    sensor_id = f'file.{sensor}'
+    sensor_id = f'{socket.gethostname()}.{sensor}'
     # Ensure sensor info is available
     if sensor_id not in SENSOR_INFO:
         SENSORS.add(sensor_id)
@@ -257,9 +257,10 @@ async def log_handler():
     # TODO: implement a proper fix
     sensor_names = dict(scd30='SCD-30', sgp30='SGP30', bme688='BME688')
     for sensor in sensors:
-        log_file = get_log_path(sensor_names.get(sensor, sensor))
+        sensor_name = sensor_names.get(sensor, sensor)
+        log_file = get_log_path(sensor_name)
         print(f'Log file for {sensor}: {log_file}')
-        task = asyncio.create_task(process_sensor_log(sensor, log_file))
+        task = asyncio.create_task(process_sensor_log(sensor_name, log_file))
         tasks.append(task)
     await asyncio.gather(*tasks, return_exceptions=True)
 
