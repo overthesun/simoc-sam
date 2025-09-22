@@ -496,7 +496,8 @@ def remove_home_dirs():
 
 def install_deps():
     """Install dependencies using apt."""
-    packages = ['nmap', 'vim', 'tcpdump', 'mosquitto-clients', 'avahi-utils']
+    packages = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
+                'mosquitto-clients', 'avahi-utils']
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
     run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
