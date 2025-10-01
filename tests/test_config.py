@@ -29,7 +29,13 @@ def test_default_vars():
     for var in vars:
         assert hasattr(config, var)
         assert hasattr(defaults, var)
-        assert getattr(config, var) is getattr(defaults, var)
+        if var not in config._path_vars:
+            assert getattr(config, var) is getattr(defaults, var)
+        else:
+            # paths are either str or Path in defaults, but always Path in config
+            assert isinstance(getattr(defaults, var), (str, Path))
+            assert isinstance(getattr(config, var), Path)
+            assert str(getattr(config, var)) == str(getattr(defaults, var))
     # location is set from hostname when None
     assert defaults.location is None
     assert config.location == 'testhost'
