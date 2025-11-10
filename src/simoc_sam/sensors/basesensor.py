@@ -14,6 +14,10 @@ def random_id(length=6):
     """Return a random hexadecimal string of specified length"""
     return ''.join(random.choice('0123456789ABCDEF') for i in range(length))
 
+def get_log_path(sensor_name):
+    hostname = socket.gethostname()
+    fname = f'{config.location}_{hostname}_{sensor_name}.jsonl'
+    return config.log_dir / fname
 
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
@@ -39,9 +43,7 @@ class BaseSensor(ABC):
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
-        hostname = socket.gethostname()
-        fname = f'{config.location}_{hostname}_{self.sensor_name}.jsonl'
-        self.log_path = config.log_dir / fname
+        self.log_path = get_log_path(self.sensor_name)
         if config.enable_jsonl_logging:
             config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
