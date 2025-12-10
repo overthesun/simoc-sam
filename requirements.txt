@@ -7,7 +7,7 @@ jinja2==3.1.6
 tomli==2.3.0
 
 # sensor-related deps
-hidapi==0.14.0.post4
+hidapi==0.15.0
 Adafruit-Blinka==8.68.0
 adafruit-circuitpython-scd30==2.2.13
 adafruit-circuitpython-scd4x==1.4.5
