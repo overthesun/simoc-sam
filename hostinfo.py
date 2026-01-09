@@ -93,6 +93,29 @@ def print_sensors():
 
 # Services info
 
+def check_service_enabled_properly(service_name):
+    """Check if a service is properly enabled by verifying multi-user.target.wants symlink.
+    
+    Uses 'systemctl is-enabled --full' to check if the service has a symlink in
+    /etc/systemd/system/multi-user.target.wants/, which is required for the service
+    to actually start on boot.
+    """
+    try:
+        cmd = ['systemctl', 'is-enabled', '--full', f'{service_name}.service']
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # If the command fails, the service is not enabled
+        if result.returncode != 0:
+            return False
+            
+        # Check if the output contains the multi-user.target.wants symlink
+        return '/etc/systemd/system/multi-user.target.wants/' in result.stdout
+        
+    except Exception as e:
+        print(f"Error checking if {service_name} is properly enabled: {e}")
+        return False
+
+
 def check_journal_errors(service_name, n_lines=15):
     """Check for errors in the journal output of the given service."""
     try:
@@ -123,7 +146,7 @@ def get_all_running_services():
                 'state': info['ActiveState'],
                 'is_active': info['ActiveState'] == 'active',
                 'enabled': info['UnitFileState'],
-                'is_enabled': info['UnitFileState'] == 'enabled',
+                'is_enabled': check_service_enabled_properly(name),
                 'has_errors': check_journal_errors(info['Id']),
             })
         return all_services
