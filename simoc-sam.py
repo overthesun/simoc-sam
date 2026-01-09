@@ -31,6 +31,7 @@ CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
+MESH_CFG = 'mesh.nmconnection'
 HOTSPOT_CFG = 'hotspot.nmconnection'
 WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
@@ -203,6 +204,28 @@ def fix_ip():
         print('Restarting...')
         subprocess.run(['sudo', 'reboot'])
 
+@cmd
+@needs_root
+def setup_mesh(interface='wlan0', ssid='sam-mesh'):
+    """Setup a mesh network using NetworkManager and BATMAN."""
+    mesh_nmconn = NM_DIR / MESH_CFG
+    if mesh_nmconn.exists():
+        print('Mesh already set up.  Use `teardown-mesh` to remove.')
+        return
+    repls = dict(
+        conn_id='mesh', conn_uuid=uuid.uuid4(), conn_interface=interface,
+        conn_extra='autoconnect=true\nautoconnect-priority=100\n',
+        wifi_mode='ap', wifi_ssid=ssid, wifi_sec_extra='key-mgmt=none\n',
+        ipv4_method='manual', ipv4_extra='address1=172.27.0.10/24,172.27.0.1\n',
+        ipv6_extra='addr-gen-mode=\nmethod=ignore',
+    )
+    setup_nmconn(mesh_nmconn, repls)
+
+@cmd
+@needs_root
+def teardown_mesh():
+    """Revert the changes made by the setup-mesh command."""
+    teardown_nmconn(NM_DIR / MESH_CFG)
 
 @cmd
 @needs_root
