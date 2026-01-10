@@ -8,7 +8,7 @@ import pytest
 from simoc_sam import config
 from simoc_sam.sensors import basesensor
 
-READING = dict(co2=100, hum=50, temp=25)
+READING = dict(co2=100, rel_hum=50, temp=25)
 INFO = {
     'co2': dict(label='CO2', unit='ppm'),
     'temp': dict(label='Temperature', unit='°C'),
@@ -126,9 +126,23 @@ def test_log(sensor, tmp_path):
         assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
 
 def test_print_reading(sensor):
+    # Test basic printing functionality
     with patch.object(sensor, 'print') as mock_print:
         sensor.print_reading(READING)
-        mock_print.assert_called_once()
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 100ppm; Temperature: 25°C; Relative Humidity: 50%'
+    # Test with float values (should be formatted to 1 decimal place)
+    reading_with_floats = {'co2': 123.456, 'temp': 25.789, 'rel_hum': 50.123}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(reading_with_floats)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 123.5ppm; Temperature: 25.8°C; Relative Humidity: 50.1%'
+    # Test with missing fields (should skip them gracefully)
+    partial_reading = {'co2': 100}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(partial_reading)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 100ppm'
 
 def test_iter_readings_logs(sensor, monkeypatch):
     from simoc_sam import config
