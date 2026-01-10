@@ -143,6 +143,12 @@ def test_print_reading(sensor):
         sensor.print_reading(partial_reading)
         output = mock_print.call_args[0][0]
         assert output == '[TestSensor] CO2: 100ppm'
+    # Test with non existing fields (should skip them gracefully)
+    partial_reading = {'non-existing': 100, 'temp': 22}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(partial_reading)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] Temperature: 22°C'
 
 def test_iter_readings_logs(sensor, monkeypatch):
     from simoc_sam import config
