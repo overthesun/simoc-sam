@@ -1,19 +1,19 @@
-python-socketio==5.13.0
-aiohttp==3.12.15
+python-socketio==5.15.1
+aiohttp==3.13.3
 aiomqtt==2.4.0
 paho-mqtt==2.1.0
 netifaces==0.11.0
 jinja2==3.1.6
-tomli==2.2.1
+tomli==2.3.0
 
 # sensor-related deps
-hidapi==0.14.0.post4
-Adafruit-Blinka==8.65.0
-adafruit-circuitpython-scd30==2.2.13
-adafruit-circuitpython-scd4x==1.4.5
-adafruit-circuitpython-sgp30==3.0.10
-adafruit-circuitpython-bme680==3.7.11
-adafruit-circuitpython-tsl2591==1.4.2
-adafruit-circuitpython-veml7700==2.0.2
-adafruit-circuitpython-bno08x==1.2.10
-godirect==1.1.4
+hidapi==0.15.0
+Adafruit-Blinka==8.68.1
+adafruit-circuitpython-scd30==2.2.17
+adafruit-circuitpython-scd4x==1.4.9
+adafruit-circuitpython-sgp30==3.0.14
+adafruit-circuitpython-bme680==3.7.14
+adafruit-circuitpython-tsl2591==1.4.5
+adafruit-circuitpython-veml7700==2.2.0
+adafruit-circuitpython-bno08x==1.3.1
+godirect==1.2.1
