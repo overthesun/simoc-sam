@@ -5,6 +5,7 @@ import asyncio
 import ipaddress
 import traceback
 
+from pathlib import Path
 from datetime import datetime
 from collections import defaultdict, deque
 
@@ -15,6 +16,7 @@ import netifaces
 from aiohttp import web
 
 from .sensors import utils
+from .sensors.basesensor import get_log_path
 from . import config
 
 
@@ -47,7 +49,8 @@ SUBSCRIBERS = set()
 def get_host_ips():
     """Return a list of IPs and hostnames for the current host."""
     hostname = socket.gethostname()
-    ips = {hostname, 'localhost', '127.0.0.1'}  # init with known IPs/hostnames
+    # init with known IPs/hostnames
+    ips = {hostname, f'{hostname}.local', 'localhost', '127.0.0.1'}
     # find all local private networks we are in and our IP in those networks
     for interface in netifaces.interfaces():
         addrs = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
@@ -75,7 +78,7 @@ def get_host_ips():
 # The port is also used for CORS validation, and must match the
 # port used by SIMOC web (8080 is used by default).
 port = config.simoc_web_port
-allowed_origins = [f'http://{ip}:{port}' for ip in get_host_ips()]
+allowed_origins = [f'http://{ip}' for ip in get_host_ips()]
 print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
@@ -194,24 +197,98 @@ async def mqtt_handler():
             await asyncio.sleep(interval)
 
 
+async def read_jsonl_file(file_path):
+    """Async generator that waits for new lines appended to JSONL file (like tail -f)."""
+    try:
+        # If file doesn't exist, wait for it to be created
+        while not file_path.exists():
+            print(f'Waiting for log file to be created: {file_path}')
+            await asyncio.sleep(1)
+        print(f'Starting to monitor log file for new lines: {file_path}')
+        with open(file_path) as f:
+            # seek to end of file and monitor for new lines
+            f.seek(0, 2)
+            while True:
+                line = f.readline()
+                if line.strip():
+                    try:
+                        yield json.loads(line)
+                    except json.JSONDecodeError as e:
+                        print(f'Error parsing JSON from {file_path}: {e}')
+                        continue
+                else:
+                    # No new line, wait a bit before checking again
+                    await asyncio.sleep(1)
+    except Exception as e:
+        print(f'Error reading log file {file_path}: {e}')
+
+
+async def process_sensor_log(sensor, log_file):
+    """Process a single sensor's log file continuously."""
+    sensor_id = f'{socket.gethostname()}.{sensor}'
+    # Ensure sensor info is available
+    if sensor_id not in SENSOR_INFO:
+        SENSORS.add(sensor_id)
+        info = copy.deepcopy(SENSOR_DATA[sensor])
+        info['sensor_name'] = sensor_id
+        info['sensor_id'] = sensor_id
+        info['sensor_desc'] = f'{sensor} sensor from log file {log_file.name}'
+        SENSOR_INFO[sensor_id] = info
+        await emit_to_subscribers('sensor-info', SENSOR_INFO)
+    print(f'Starting to process log file for {sensor}: {log_file}')
+    # Read and process each line from the log file continuously
+    try:
+        async for reading in read_jsonl_file(log_file):
+            # Add the reading to SENSOR_READINGS
+            SENSOR_READINGS[sensor_id].append(reading)
+    except Exception as e:
+        print(f'Error processing log file for {sensor}: {e}')
+
+
+async def log_handler():
+    """Handle log files from config.log_dir and populate SENSOR_READINGS."""
+    log_dir = Path(config.log_dir)
+    sensors = config.sensors
+    if not log_dir.exists():
+        print(f'Log directory does not exist: {log_dir}')
+        return
+    print(f'Starting log handler for directory: {log_dir}')
+    print(f'Looking for sensors: {sensors}')
+    tasks = []
+    # TODO: implement a proper fix
+    sensor_names = dict(scd30='SCD-30', sgp30='SGP30', bme688='BME688')
+    for sensor in sensors:
+        sensor_name = sensor_names.get(sensor, sensor)
+        log_file = get_log_path(sensor_name)
+        print(f'Log file for {sensor}: {log_file}')
+        task = asyncio.create_task(process_sensor_log(sensor_name, log_file))
+        tasks.append(task)
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
 # app setup
 
 async def index(request):
     """Serve the client-side application."""
-    with open('index.html') as f:
+    with open(config.simoc_web_dist_dir / 'index.html') as f:
         return web.Response(text=f.read(), content_type='text/html')
 
 def create_app():
     app = web.Application()
     # app.router.add_static('/static', 'static')
-    app.router.add_get('/', index)
+    # app.router.add_get('/', index)
     return app
 
 async def init_app(app):
-    # Start the MQTT handler in the background
+    # Start handlers based on configuration
     sio.attach(app)
     sio.start_background_task(emit_readings)
-    asyncio.ensure_future(mqtt_handler())
+    if config.data_source == 'mqtt':
+        print('Starting MQTT handler for sensor data')
+        asyncio.ensure_future(mqtt_handler())
+    else:
+        print('Starting log handler for sensor data')
+        asyncio.ensure_future(log_handler())
     return app
 
 
