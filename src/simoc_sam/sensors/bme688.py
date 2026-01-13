@@ -6,7 +6,7 @@ board = utils.import_board()
 import adafruit_bme680
 
 
-BME688_DATA = utils.SENSOR_DATA['BME688']
+BME688_DATA = utils.SENSOR_DATA['bme688']
 
 class BME688(BaseSensor):
     """Represent a BME688 sensor"""

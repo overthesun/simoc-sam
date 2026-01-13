@@ -7,7 +7,7 @@ board = utils.import_board()
 import adafruit_veml7700
 
 
-VEML7700_DATA = utils.SENSOR_DATA['VEML7700']
+VEML7700_DATA = utils.SENSOR_DATA['veml7700']
 
 class VEML7700(BaseSensor):
     """Represent a VEML7700 sensor."""

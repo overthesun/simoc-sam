@@ -4,7 +4,7 @@ from . import utils
 from .basesensor import BaseSensor
 
 
-MOCK_DATA = utils.SENSOR_DATA['Mock']
+MOCK_DATA = utils.SENSOR_DATA['mock']
 
 class MockSensor(BaseSensor):
     """A mock sensor that generates random CO2/temperature/humidity data."""

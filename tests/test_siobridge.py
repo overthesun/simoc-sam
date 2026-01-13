@@ -45,7 +45,7 @@ def client_id():
 
 @pytest.fixture
 def sensor_id():
-    return 'Mock'
+    return 'mock'
 
 @pytest.fixture
 def sensor_info(sensor_id):

@@ -7,7 +7,7 @@ busio = utils.import_busio()
 import adafruit_scd30
 
 
-SCD30_DATA = utils.SENSOR_DATA['SCD-30']
+SCD30_DATA = utils.SENSOR_DATA['scd30']
 
 class SCD30(BaseSensor):
     """Represent a SCD-30 sensor."""

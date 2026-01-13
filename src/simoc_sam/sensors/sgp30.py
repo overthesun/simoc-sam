@@ -23,7 +23,7 @@ def tick_conversion_H2(signal_output):
     return 0.5 * (math.e**((signal_reference-signal_output)/512))
 
 
-SGP30_DATA = utils.SENSOR_DATA['SGP30']
+SGP30_DATA = utils.SENSOR_DATA['sgp30']
 
 class SGP30(BaseSensor):
     """Represent a SGP30 sensor."""

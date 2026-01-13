@@ -7,7 +7,7 @@ board = utils.import_board()
 import adafruit_tsl2591
 
 
-TSL2591_DATA = utils.SENSOR_DATA['TSL2591']
+TSL2591_DATA = utils.SENSOR_DATA['tsl2591']
 
 class TSL2591(BaseSensor):
     """Represent a TSL2591 sensor."""

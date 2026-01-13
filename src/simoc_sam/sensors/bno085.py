@@ -23,7 +23,7 @@ from adafruit_bno08x.i2c import BNO08X_I2C
 #   * note that soft/hard-resetting doesn't seem to solve this problem
 
 
-BNO085_DATA = utils.SENSOR_DATA['BNO085']
+BNO085_DATA = utils.SENSOR_DATA['bno085']
 
 class BNO085(BaseSensor):
     """Represent a BNO085 sensor."""

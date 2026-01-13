@@ -6,7 +6,7 @@ board = utils.import_board()
 import adafruit_scd4x
 
 
-SCD41_DATA = utils.SENSOR_DATA['SCD-41']
+SCD41_DATA = utils.SENSOR_DATA['scd41']
 
 class SCD41(BaseSensor):
     """Represent a SCD-4X sensor."""
