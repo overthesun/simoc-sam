@@ -186,7 +186,7 @@ async def test_convert_sensor_data():
     for sensor_name, sensor_info in siobridge.SENSOR_DATA.items():
         assert sensor_name and isinstance(sensor_name, str)
         assert isinstance(sensor_info['sensor_type'], str)
-        assert sensor_info['sensor_name'] is None
+        assert sensor_info['sensor_name'] == sensor_name
         assert sensor_info['sensor_id'] is None
         assert sensor_info['sensor_desc'] is None
         assert isinstance(sensor_info['reading_info'], dict)
