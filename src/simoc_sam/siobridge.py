@@ -175,7 +175,7 @@ async def mqtt_handler():
                     topic = message.topic.value
                     print(topic)
                     location, host, sensor = topic.split('/')
-                    sensor_id = topic.replace('/', '_')
+                    sensor_id = topic.replace('/', '.')
                     if sensor_id not in SENSOR_INFO:
                         SENSORS.add(sensor_id)
                         info = copy.deepcopy(SENSOR_DATA[sensor])
