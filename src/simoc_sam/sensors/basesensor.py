@@ -27,11 +27,11 @@ class BaseSensor(ABC):
         else:
             # type and reading_info must be manually set if not in sensors.toml
             if not (hasattr(cls, 'type') and hasattr(cls, 'reading_info')):
-                raise ValueError('Sensor must be added to sensors.toml or '
-                                 'type and reading_info must be set.')
+                raise ValueError(f'Sensor {cls.name!r} must be added to sensors.toml '
+                                 f'or type and reading_info must be set.')
         # auto-generate (sub)class docstring if not already set
         if cls.__doc__ is None or cls.__doc__ == BaseSensor.__doc__:
-            cls.__doc__ = f"Represent a {cls.type} sensor."
+            cls.__doc__ = f'Represent a {cls.type} sensor.'
 
     def __init__(self, *, description=None, verbose=False):
         """Initialize the sensor."""
