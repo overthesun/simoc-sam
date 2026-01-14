@@ -17,7 +17,7 @@ class BaseSensor(ABC):
         """Set sensor name, type, and reading info."""
         from . import utils
         super().__init_subclass__(**kwargs)
-        # subclasses can specify a custom name
+        # subclasses can specify a custom sensor name
         if not hasattr(cls, 'name'):
             cls.name = cls.__name__.lower()
         if cls.name in utils.SENSOR_DATA:
@@ -29,7 +29,7 @@ class BaseSensor(ABC):
             if not (hasattr(cls, 'type') and hasattr(cls, 'reading_info')):
                 raise ValueError('Sensor must be added to sensors.toml or '
                                  'type and reading_info must be set.')
-        # auto-generate docstring if not already set
+        # auto-generate (sub)class docstring if not already set
         if cls.__doc__ is None or cls.__doc__ == BaseSensor.__doc__:
             cls.__doc__ = f"Represent a {cls.type} sensor."
 
