@@ -28,7 +28,7 @@ def convert_sensor_data():
     for name, data in utils.SENSOR_DATA.items():
         info[name] = {
             'sensor_type': data.name,
-            'sensor_name': None,
+            'sensor_name': name,
             'sensor_id': None,
             'sensor_desc': None,
             'reading_info': data.data,
@@ -175,11 +175,10 @@ async def mqtt_handler():
                     topic = message.topic.value
                     print(topic)
                     location, host, sensor = topic.split('/')
-                    sensor_id = f'{host}.{sensor}'
+                    sensor_id = topic.replace('/', '_')
                     if sensor_id not in SENSOR_INFO:
                         SENSORS.add(sensor_id)
                         info = copy.deepcopy(SENSOR_DATA[sensor])
-                        info['sensor_name'] = sensor_id
                         info['sensor_id'] = sensor_id
                         info['sensor_desc'] = f'{sensor} sensor on {host}'
                         SENSOR_INFO[sensor_id] = info

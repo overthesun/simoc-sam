@@ -4,17 +4,14 @@ from . import utils
 from .basesensor import BaseSensor
 
 
-MOCK_DATA = utils.SENSOR_DATA['mock']
-
 class MockSensor(BaseSensor):
     """A mock sensor that generates random CO2/temperature/humidity data."""
-    sensor_type = MOCK_DATA.name
-    reading_info = MOCK_DATA.data
+    name = 'mock'  # override sensor name
 
-    def __init__(self, *, name=None, description=None, verbose=False,
+    def __init__(self, *, description=None, verbose=False,
                  base_co2=1000, base_temp=20, base_hum=50,
                  base_altitude=1000, base_pressure=900):
-        super().__init__(name=name, description=description, verbose=verbose)
+        super().__init__(description=description, verbose=verbose)
         self.co2_ppm = self.gen_values(base_co2, offset=50, range=(0, 5000))
         self.temp = self.gen_values(base_temp, offset=1, range=(0, 40))
         self.rel_hum = self.gen_values(base_hum, offset=3, range=(0, 100))
