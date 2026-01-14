@@ -15,7 +15,7 @@ class BaseSensor(ABC):
 
     def __init_subclass__(cls, **kwargs):
         """Set sensor name, type, and reading info."""
-        from . import utils
+        from . import utils  # import here to avoid circular import
         super().__init_subclass__(**kwargs)
         # subclasses can specify a custom sensor name
         if not hasattr(cls, 'name'):
