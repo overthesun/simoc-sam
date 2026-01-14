@@ -8,10 +8,9 @@ class MockSensor(BaseSensor):
     """A mock sensor that generates random CO2/temperature/humidity data."""
     name = 'mock'  # override sensor name
 
-    def __init__(self, *, description=None, verbose=False,
-                 base_co2=1000, base_temp=20, base_hum=50,
-                 base_altitude=1000, base_pressure=900):
-        super().__init__(description=description, verbose=verbose)
+    def __init__(self, *, base_co2=1000, base_temp=20, base_hum=50,
+                 base_altitude=1000, base_pressure=900, **kwargs):
+        super().__init__(**kwargs)
         self.co2_ppm = self.gen_values(base_co2, offset=50, range=(0, 5000))
         self.temp = self.gen_values(base_temp, offset=1, range=(0, 40))
         self.rel_hum = self.gen_values(base_hum, offset=3, range=(0, 100))
