@@ -30,7 +30,7 @@ class BaseSensor(ABC):
                 raise ValueError(f'Sensor {cls.name!r} must be added to sensors.toml '
                                  f'or type and reading_info must be set.')
         # auto-generate (sub)class docstring if not already set
-        if cls.__doc__ is None or cls.__doc__ == BaseSensor.__doc__:
+        if cls.__doc__ is None:
             cls.__doc__ = f'Represent a {cls.type} sensor.'
 
     def __init__(self, *, description=None, verbose=False):
