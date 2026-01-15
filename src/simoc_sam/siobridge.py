@@ -223,7 +223,6 @@ async def read_jsonl_file(file_path):
 
 async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
-    print('SENSOR_DATA:', SENSOR_DATA)
     log_file = get_log_path(sensor)
     sensor_id = get_sensor_id(sensor)
     # Ensure sensor info is available
