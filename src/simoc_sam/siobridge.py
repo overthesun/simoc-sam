@@ -249,8 +249,7 @@ async def log_handler():
     log_dir = Path(config.log_dir)
     sensors = config.sensors
     if not log_dir.exists():
-        print(f'Log directory does not exist: {log_dir}')
-        return
+        raise FileNotFoundError(f'Log directory does not exist: {log_dir}')
     print(f'Starting log handler for directory: {log_dir}')
     print(f'Looking for sensors: {sensors}')
     tasks = []
