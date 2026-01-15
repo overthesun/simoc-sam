@@ -242,6 +242,7 @@ async def process_sensor_log(sensor):
             SENSOR_READINGS[sensor_id].append(reading)
     except Exception as e:
         print(f'Error processing log file for {sensor}: {e}')
+        traceback.print_exc()
 
 
 async def log_handler():
