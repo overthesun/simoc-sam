@@ -203,7 +203,7 @@ async def read_jsonl_file(file_path):
             print(f'Waiting for log file to be created: {file_path}')
             await asyncio.sleep(1)
         print(f'Starting to monitor log file for new lines: {file_path}')
-        with open(file_path) as f:
+        with open(file_path, buffering=1) as f:
             # seek to end of file and monitor for new lines
             f.seek(0, 2)
             while True:
