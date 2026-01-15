@@ -15,7 +15,7 @@ INFO = {
     'rel_hum': dict(label='Relative Humidity', unit='%'),
 }
 class MySensor(basesensor.BaseSensor):
-    sensor_type = 'TestSensor'
+    type = 'TestSensor'
     reading_info = INFO
     def read_sensor_data(self):
         self.print_reading(READING)
@@ -52,7 +52,8 @@ def mock_paho_client():
 def test_abstract_method():
     # this should fail if read_sensor_data is not implemented
     class BrokenSensorSubclass(basesensor.BaseSensor):
-        pass
+        type = 'Broken'
+        reading_info = {}
     with pytest.raises(TypeError):
         s = BrokenSensorSubclass()
 
@@ -61,12 +62,12 @@ def test_context_manager():
         assert isinstance(sensor, MySensor)
 
 def test_name_type():
-    with MySensor(name='HAL 9000') as sensor:
-        assert sensor.sensor_type == 'TestSensor'
-        assert sensor.sensor_name == 'HAL 9000'
+    with MySensor(description='HAL 9000') as sensor:
+        assert sensor.type == 'TestSensor'
+        assert sensor.description == 'HAL 9000'
 
 def test_log_path(sensor):
-    assert str(sensor.log_path).endswith('/testhost_testhost1_TestSensor.jsonl')
+    assert str(sensor.log_path).endswith('/testhost_testhost1_mysensor.jsonl')
 
 def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
@@ -173,13 +174,13 @@ def test_mqttwrapper_init(sensor):
     assert wrapper.read_delay == config.sensor_read_delay
     assert wrapper.verbose == config.verbose_sensor
     assert wrapper.topic.startswith(config.location)
-    assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
+    assert wrapper.topic == f'testhost/testhost1/{sensor.name}'
     # test with custom args
     wrapper = basesensor.MQTTWrapper(sensor, read_delay=5, verbose=True)
     assert wrapper.sensor is sensor
     assert wrapper.read_delay == 5
     assert wrapper.verbose is True
-    assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
+    assert wrapper.topic == f'testhost/testhost1/{sensor.name}'
 
 def test_mqttwrapper_connect_start_stop(wrapper):
     mqttc = wrapper.mqttc

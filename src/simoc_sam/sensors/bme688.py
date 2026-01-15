@@ -6,16 +6,9 @@ board = utils.import_board()
 import adafruit_bme680
 
 
-BME688_DATA = utils.SENSOR_DATA['BME688']
-
 class BME688(BaseSensor):
-    """Represent a BME688 sensor"""
-    sensor_type = BME688_DATA.name
-    reading_info = BME688_DATA.data
-
-    def __init__(self, *, name=None, **kwargs):
-        """Initialize the sensor."""
-        super().__init__(name=name, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         i2c = board.I2C()
         self.sensor = adafruit_bme680.Adafruit_BME680_I2C(i2c, debug=False)
 
