@@ -467,13 +467,16 @@ def install_touchscreen():
 @cmd
 def initial_setup():
     """Perform the initial setup of the Raspberry Pi."""
-    print('Instaling bash aliases...')
+    print('Installing bash aliases...')
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
     print('Updating system and installing deps...')
     install_deps()
-    print('System updated, deps installed, home cleaned, aliases set up.')
+    print('Setting up virtualenv...')
+    create_venv()
+    print('System updated, deps installed, venv created, home cleaned, '
+          'aliases set up.')
     print('Run <source ~/.bash_aliases> to install the aliases now.')
 
 def install_bash_aliases():
