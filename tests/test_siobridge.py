@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from simoc_sam import siobridge
+from simoc_sam.sensors.basesensor import get_sensor_id
 
 
 # fixtures
@@ -45,7 +46,7 @@ def client_id():
 
 @pytest.fixture
 def sensor_id():
-    return 'mock'
+    return get_sensor_id('mock')
 
 @pytest.fixture
 def sensor_info(sensor_id):
@@ -83,10 +84,11 @@ def step_batch(sensor_id, sensor_reading):
     }]
 
 @pytest.fixture
-def mqtt_message(sensor_id):
+def mqtt_message():
     """Create a mock MQTT message."""
     message = MagicMock()
-    message.topic.value = f'sam/samrpi1/{sensor_id}'
+    # Topic format is location/hostname/sensor_name
+    message.topic.value = get_sensor_id('mock', '/')
     message.payload = json.dumps({
         'n': 1,
         'timestamp': '2022-03-04 03:58:02.771409',

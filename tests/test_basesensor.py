@@ -1,4 +1,5 @@
 import time
+import pathlib
 import importlib
 
 from unittest.mock import patch
@@ -46,6 +47,37 @@ def mock_paho_client():
     with patch('paho.mqtt.client.Client', autospec=True) as mock_client:
         yield mock_client
 
+# Module-level function tests
+
+def test_get_sensor_id():
+    """Test that get_sensor_id returns correctly formatted sensor ID."""
+    sensor_id = basesensor.get_sensor_id('scd30')
+    assert sensor_id == 'testhost.testhost1.scd30'
+    with patch('simoc_sam.config.location', 'sam'):
+        sensor_id = basesensor.get_sensor_id('scd30')
+        assert sensor_id == 'sam.testhost1.scd30'
+    with patch('simoc_sam.config.location', 'hab'), \
+         patch('socket.gethostname', return_value='samrpi2'):
+        sensor_id = basesensor.get_sensor_id('bme688')
+        assert sensor_id == 'hab.samrpi2.bme688'
+    # Test with custom separator
+    with patch('simoc_sam.config.location', 'sam'):
+        sensor_id = basesensor.get_sensor_id('mock', '/')
+        assert sensor_id == 'sam/testhost1/mock'
+        sensor_id = basesensor.get_sensor_id('sgp30', '_')
+        assert sensor_id == 'sam_testhost1_sgp30'
+
+def test_get_log_path_format():
+    """Test that get_log_path returns correctly formatted path."""
+    with patch('simoc_sam.config.location', 'sam'), \
+         patch('simoc_sam.config.log_dir', pathlib.Path('/tmp/logs')):
+        log_path = basesensor.get_log_path('scd30')
+        assert log_path == pathlib.Path('/tmp/logs/sam_testhost1_scd30.jsonl')
+    with patch('simoc_sam.config.location', 'sam'), \
+         patch('simoc_sam.config.log_dir', pathlib.Path('/var/logs')), \
+         patch('socket.gethostname', return_value='samrpi2'):
+        log_path = basesensor.get_log_path('bme688')
+        assert log_path == pathlib.Path('/var/logs/sam_samrpi2_bme688.jsonl')
 
 # BaseSensor tests
 

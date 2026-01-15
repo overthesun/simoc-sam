@@ -16,7 +16,7 @@ import netifaces
 from aiohttp import web
 
 from .sensors import utils
-from .sensors.basesensor import get_log_path
+from .sensors.basesensor import get_log_path, get_sensor_id
 from . import config
 
 
@@ -221,14 +221,15 @@ async def read_jsonl_file(file_path):
         print(f'Error reading log file {file_path}: {e}')
 
 
-async def process_sensor_log(sensor, log_file):
+async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
-    sensor_id = f'{socket.gethostname()}.{sensor}'
+    print('SENSOR_DATA:', SENSOR_DATA)
+    log_file = get_log_path(sensor)
+    sensor_id = get_sensor_id(sensor)
     # Ensure sensor info is available
     if sensor_id not in SENSOR_INFO:
         SENSORS.add(sensor_id)
         info = copy.deepcopy(SENSOR_DATA[sensor])
-        info['sensor_name'] = sensor_id
         info['sensor_id'] = sensor_id
         info['sensor_desc'] = f'{sensor} sensor from log file {log_file.name}'
         SENSOR_INFO[sensor_id] = info
@@ -253,13 +254,8 @@ async def log_handler():
     print(f'Starting log handler for directory: {log_dir}')
     print(f'Looking for sensors: {sensors}')
     tasks = []
-    # TODO: implement a proper fix
-    sensor_names = dict(scd30='SCD-30', sgp30='SGP30', bme688='BME688')
     for sensor in sensors:
-        sensor_name = sensor_names.get(sensor, sensor)
-        log_file = get_log_path(sensor_name)
-        print(f'Log file for {sensor}: {log_file}')
-        task = asyncio.create_task(process_sensor_log(sensor_name, log_file))
+        task = asyncio.create_task(process_sensor_log(sensor))
         tasks.append(task)
     await asyncio.gather(*tasks, return_exceptions=True)
 
