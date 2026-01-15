@@ -47,7 +47,8 @@ SUBSCRIBERS = set()
 def get_host_ips():
     """Return a list of IPs and hostnames for the current host."""
     hostname = socket.gethostname()
-    ips = {hostname, 'localhost', '127.0.0.1'}  # init with known IPs/hostnames
+    # init with known IPs/hostnames
+    ips = {hostname, f'{hostname}.local', 'localhost', '127.0.0.1'}
     # find all local private networks we are in and our IP in those networks
     for interface in netifaces.interfaces():
         addrs = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
