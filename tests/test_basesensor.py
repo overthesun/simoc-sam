@@ -255,8 +255,7 @@ def test_mqttwrapper_insecure_init(sensor):
 
 def test_mqttwrapper_secure_init(sensor):
     """Test MQTTWrapper initialization with secure=True."""
-    from pathlib import Path
-    certs_dir = Path('/test/certs')
+    certs_dir = pathlib.Path('/test/certs')
     wrapper = basesensor.MQTTWrapper(sensor, secure=True, certs_dir=certs_dir)
     wrapper.mqttc.tls_set.assert_called_once_with(
         ca_certs='/test/certs/ca.crt',
