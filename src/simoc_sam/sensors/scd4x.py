@@ -6,16 +6,9 @@ board = utils.import_board()
 import adafruit_scd4x
 
 
-SCD41_DATA = utils.SENSOR_DATA['SCD-41']
-
 class SCD41(BaseSensor):
-    """Represent a SCD-4X sensor."""
-    sensor_type = SCD41_DATA.name  # could be an SCD-40, but we only use SCD-41s
-    reading_info = SCD41_DATA.data
-
-    def __init__(self, *, name=None, description=None, verbose=False):
-        """Initialize the sensor."""
-        super().__init__(name=name, description=description, verbose=verbose)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         i2c = board.I2C()
         self.scd = adafruit_scd4x.SCD4X(i2c)
         self.scd.start_periodic_measurement()

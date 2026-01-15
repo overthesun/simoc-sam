@@ -1,363 +1,363 @@
-[Mock]
+[mock]
 name = "Mock"
 description = "A mock sensor used for testing."
 module = "simoc_sam.sensors.mocksensor"
 i2c_address = 0x00
 
-    [Mock.data.co2]
+    [mock.data.co2]
     unit = "ppm"
     label = "CO2"
     description = "CO2 Concentration"
 
-    [Mock.data.temperature]
+    [mock.data.temperature]
     unit = "°C"
     label = "Temperature"
     description = "Temperature"
 
-    [Mock.data.humidity]
+    [mock.data.humidity]
     unit = "%"
     label = "Humidity"
     description = "Relative Humidity"
 
-    [Mock.data.altitude]
+    [mock.data.altitude]
     unit = "m"
     label = "Altitude"
     description = "Altitude"
 
-    [Mock.data.pressure]
+    [mock.data.pressure]
     unit = "hPa"
     label = "Pressure"
     description = "Barometric Pressure"
 
-[SCD-30]
+[scd30]
 name = "SCD-30"
 description = "NDIR CO2, Temperature, and Humidity Sensor"
 module = "simoc_sam.sensors.scd30"
 i2c_address = 0x61
 
-    [SCD-30.data.co2]
+    [scd30.data.co2]
     unit = "ppm"
     label = "CO2"
     description = "CO2 Concentration"
 
-    [SCD-30.data.temperature]
+    [scd30.data.temperature]
     unit = "°C"
     label = "Temperature"
     description = "Temperature"
 
-    [SCD-30.data.humidity]
+    [scd30.data.humidity]
     unit = "%"
     label = "Humidity"
     description = "Relative Humidity"
 
-[SCD-41]
+[scd41]
 name = "SCD-41"
 description = "True CO2 Temperature and Humidity Sensor"
 module = "simoc_sam.sensors.scd4x"
 i2c_address = 0x62
 
-    [SCD-41.data.co2]
+    [scd41.data.co2]
     unit = "ppm"
     label = "CO2"
     description = "CO2 Concentration"
 
-    [SCD-41.data.temperature]
+    [scd41.data.temperature]
     unit = "°C"
     label = "Temperature"
     description = "Temperature"
 
-    [SCD-41.data.humidity]
+    [scd41.data.humidity]
     unit = "%"
     label = "Humidity"
     description = "Relative Humidity"
 
-[SGP30]
+[sgp30]
 name = "SGP30"
 description = "TVOC/eCO2 Gas Sensor"
 module = "simoc_sam.sensors.sgp30"
 i2c_address = 0x58
 
-    [SGP30.data.eco2]
+    [sgp30.data.eco2]
     unit = "ppm"
     label = "eCO2"
     description = "CO2 Equivalent Concentration"
 
-    [SGP30.data.tvoc]
+    [sgp30.data.tvoc]
     unit = "ppb"
     label = "TVOC"
     description = "Total Volatile Organic Compounds"
 
-    [SGP30.data.h2]
+    [sgp30.data.h2]
     unit = "ppm"
     label = "Hydrogen"
     description = "Hydrogen Concentration"
 
-    [SGP30.data.ethanol]
+    [sgp30.data.ethanol]
     unit = "ppm"
     label = "Ethanol"
     description = "Ethanol Concentration"
 
-[BME688]
+[bme688]
 name = "BME688"
 description = "Temperature, Humidity, Pressure, and Gas Sensor"
 module = "simoc_sam.sensors.bme688"
 i2c_address = 0x77
 
-    [BME688.data.temperature]
+    [bme688.data.temperature]
     unit = "°C"
     label = "Temperature"
     description = "Temperature"
 
-    [BME688.data.pressure]
+    [bme688.data.pressure]
     unit = "hPa"
     label = "Pressure"
     description = "Barometric Pressure"
 
-    [BME688.data.humidity]
+    [bme688.data.humidity]
     unit = "%"
     label = "Humidity"
     description = "Relative Humidity"
 
-    [BME688.data.gas_resistance]
+    [bme688.data.gas_resistance]
     unit = "Ohm"
     label = "Gas Res."
     description = "Gas Resistance (based on VOC)"
 
-    [BME688.data.altitude]
+    [bme688.data.altitude]
     unit = "m"
     label = "Altitude"
     description = "Altitude"
 
-[APDS9960]
+[apds9960]
 name = "APDS9960"
 description = "Proximity, Light, RGB, and Gesture Sensor"
 module = ""
 i2c_address = 0x39
 
-    [APDS9960.data.proximity]
+    [apds9960.data.proximity]
     unit = ""
     label = "Proximity"
     description = "Proximity"
 
-    [APDS9960.data.gesture]
+    [apds9960.data.gesture]
     unit = ""
     label = "Gesture"
     description = "Gesture"
 
-    [APDS9960.data.color]
+    [apds9960.data.color]
     unit = ""
     label = "Color"
     description = "Color"
 
-[TSL2591]
+[tsl2591]
 name = "TSL2591"
 description = "High Dynamic Range Digital Light Sensor"
 module = "simoc_sam.sensors.tsl2591"
 i2c_address = 0x29
 
-    [TSL2591.data.light]
+    [tsl2591.data.light]
     unit = "lux"
     label = "Light"
     description = "Light Intensity"
 
-    [TSL2591.data.visible]
+    [tsl2591.data.visible]
     unit = ""
     label = "Visible"
     description = "Visible Light Level"
 
-    [TSL2591.data.infrared]
+    [tsl2591.data.infrared]
     unit = ""
     label = "Infrared"
     description = "Infrared Light Level"
 
-[VEML7700]
+[veml7700]
 name = "VEML7700"
 description = "Ambient Light Sensor"
 module = "simoc_sam.sensors.veml7700"
 i2c_address = 0x10
 
-    [VEML7700.data.light]
+    [veml7700.data.light]
     unit = "lux"
     label = "Light"
     description = "Ambient Light"
 
-[BNO085]
+[bno085]
 name = "BNO085"
 description = "Adafruit BNO085 9-DOF Orientation IMU Sensor"
 module = "simoc_sam.sensors.bno085"
 i2c_address = 0x4A
 
-    [BNO085.data.raw_accel_x]
+    [bno085.data.raw_accel_x]
     unit = ""
     label = "Raw Accel X"
     description = "Raw accelerometer X"
-    [BNO085.data.raw_accel_y]
+    [bno085.data.raw_accel_y]
     unit = ""
     label = "Raw Accel Y"
     description = "Raw accelerometer Y"
-    [BNO085.data.raw_accel_z]
+    [bno085.data.raw_accel_z]
     unit = ""
     label = "Raw Accel Z"
     description = "Raw accelerometer Z"
 
-    [BNO085.data.raw_gyro_x]
+    [bno085.data.raw_gyro_x]
     unit = ""
     label = "Raw Gyro X"
     description = "Raw gyroscope X"
-    [BNO085.data.raw_gyro_y]
+    [bno085.data.raw_gyro_y]
     unit = ""
     label = "Raw Gyro Y"
     description = "Raw gyroscope Y"
-    [BNO085.data.raw_gyro_z]
+    [bno085.data.raw_gyro_z]
     unit = ""
     label = "Raw Gyro Z"
     description = "Raw gyroscope Z"
 
-    [BNO085.data.raw_mag_x]
+    [bno085.data.raw_mag_x]
     unit = ""
     label = "Raw Mag X"
     description = "Raw magnetometer X"
-    [BNO085.data.raw_mag_y]
+    [bno085.data.raw_mag_y]
     unit = ""
     label = "Raw Mag Y"
     description = "Raw magnetometer Y"
-    [BNO085.data.raw_mag_z]
+    [bno085.data.raw_mag_z]
     unit = ""
     label = "Raw Mag Z"
     description = "Raw magnetometer Z"
 
-    [BNO085.data.accel_x]
+    [bno085.data.accel_x]
     unit = "m/s²"
     label = "Accel X"
     description = "Acceleration X"
-    [BNO085.data.accel_y]
+    [bno085.data.accel_y]
     unit = "m/s²"
     label = "Accel Y"
     description = "Acceleration Y"
-    [BNO085.data.accel_z]
+    [bno085.data.accel_z]
     unit = "m/s²"
     label = "Accel Z"
     description = "Acceleration Z"
 
-    [BNO085.data.gyro_x]
+    [bno085.data.gyro_x]
     unit = "rad/s"
     label = "Gyro X"
     description = "Gyroscope X"
-    [BNO085.data.gyro_y]
+    [bno085.data.gyro_y]
     unit = "rad/s"
     label = "Gyro Y"
     description = "Gyroscope Y"
-    [BNO085.data.gyro_z]
+    [bno085.data.gyro_z]
     unit = "rad/s"
     label = "Gyro Z"
     description = "Gyroscope Z"
 
-    [BNO085.data.mag_x]
+    [bno085.data.mag_x]
     unit = "uT"
     label = "Mag X"
     description = "Magnetometer X"
-    [BNO085.data.mag_y]
+    [bno085.data.mag_y]
     unit = "uT"
     label = "Mag Y"
     description = "Magnetometer Y"
-    [BNO085.data.mag_z]
+    [bno085.data.mag_z]
     unit = "uT"
     label = "Mag Z"
     description = "Magnetometer Z"
 
-    [BNO085.data.gravity_x]
+    [bno085.data.gravity_x]
     unit = "m/s²"
     label = "Gravity X"
     description = "Gravity vector X"
-    [BNO085.data.gravity_y]
+    [bno085.data.gravity_y]
     unit = "m/s²"
     label = "Gravity Y"
     description = "Gravity vector Y"
-    [BNO085.data.gravity_z]
+    [bno085.data.gravity_z]
     unit = "m/s²"
     label = "Gravity Z"
     description = "Gravity vector Z"
 
-    [BNO085.data.linear_accel_x]
+    [bno085.data.linear_accel_x]
     unit = "m/s²"
     label = "Linear Accel X"
     description = "Linear acceleration X"
-    [BNO085.data.linear_accel_y]
+    [bno085.data.linear_accel_y]
     unit = "m/s²"
     label = "Linear Accel Y"
     description = "Linear acceleration Y"
-    [BNO085.data.linear_accel_z]
+    [bno085.data.linear_accel_z]
     unit = "m/s²"
     label = "Linear Accel Z"
     description = "Linear acceleration Z"
 
-    [BNO085.data.quat_i]
+    [bno085.data.quat_i]
     unit = ""
     label = "Quat i"
     description = "Quaternion i"
-    [BNO085.data.quat_j]
+    [bno085.data.quat_j]
     unit = ""
     label = "Quat j"
     description = "Quaternion j"
-    [BNO085.data.quat_k]
+    [bno085.data.quat_k]
     unit = ""
     label = "Quat k"
     description = "Quaternion k"
-    [BNO085.data.quat_real]
+    [bno085.data.quat_real]
     unit = ""
     label = "Quat real"
     description = "Quaternion real"
 
-    [BNO085.data.game_quat_i]
+    [bno085.data.game_quat_i]
     unit = ""
     label = "Game Quat i"
     description = "Game quaternion i"
-    [BNO085.data.game_quat_j]
+    [bno085.data.game_quat_j]
     unit = ""
     label = "Game Quat j"
     description = "Game quaternion j"
-    [BNO085.data.game_quat_k]
+    [bno085.data.game_quat_k]
     unit = ""
     label = "Game Quat k"
     description = "Game quaternion k"
-    [BNO085.data.game_quat_real]
+    [bno085.data.game_quat_real]
     unit = ""
     label = "Game Quat real"
     description = "Game quaternion real"
 
-    [BNO085.data.geomag_quat_i]
+    [bno085.data.geomag_quat_i]
     unit = ""
     label = "Geomag Quat i"
     description = "Geomagnetic quaternion i"
-    [BNO085.data.geomag_quat_j]
+    [bno085.data.geomag_quat_j]
     unit = ""
     label = "Geomag Quat j"
     description = "Geomagnetic quaternion j"
-    [BNO085.data.geomag_quat_k]
+    [bno085.data.geomag_quat_k]
     unit = ""
     label = "Geomag Quat k"
     description = "Geomagnetic quaternion k"
-    [BNO085.data.geomag_quat_real]
+    [bno085.data.geomag_quat_real]
     unit = ""
     label = "Geomag Quat real"
     description = "Geomagnetic quaternion real"
 
-    [BNO085.data.stability_classification]
+    [bno085.data.stability_classification]
     unit = ""
     label = "Stability"
     description = "Stability classification"
 
-    [BNO085.data.activity_classification]
+    [bno085.data.activity_classification]
     unit = ""
     label = "Activity"
     description = "Activity classification"
 
-    [BNO085.data.steps]
+    [bno085.data.steps]
     unit = ""
     label = "Steps"
     description = "Step count"
 
-    [BNO085.data.shake]
+    [bno085.data.shake]
     unit = ""
     label = "Shake"
     description = "Shake detection flag"
