@@ -22,7 +22,8 @@ def test_default_vars():
     vars = [
         'humans', 'volume', 'sensors', 'sensor_read_delay', 'mqtt_host',
         'mqtt_port', 'mqtt_secure', 'mqtt_certs_dir', 'mqtt_reconnect_delay',
-        'sio_host', 'sio_port', 'mqtt_topic_sub', 'simoc_web_port', 'simoc_web_dist_dir',
+        'sio_host', 'sio_port', 'data_source', 'mqtt_topic_sub',
+        'simoc_web_port', 'simoc_web_dist_dir',
         'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging', 'log_dir',
     ]
     for var in vars:
@@ -67,3 +68,11 @@ def test_path_variables_user_override(user_config):
         value = getattr(config, var)
         assert isinstance(value, Path)
         assert str(value) == path
+
+
+def test_config_warning_logs_without_jsonl(user_config, capsys):
+    """Test that config warns if data_source is 'logs' but logging is disabled."""
+    user_config.write_text('enable_jsonl_logging = False\ndata_source = "logs"\n')
+    importlib.reload(config)
+    captured = capsys.readouterr()
+    assert 'Warning: JSONL logging is disabled' in captured.out
