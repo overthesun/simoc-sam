@@ -62,9 +62,9 @@ def test_get_sensor_id():
         assert sensor_id == 'hab.samrpi2.bme688'
     # Test with custom separator
     with patch('simoc_sam.config.location', 'sam'):
-        sensor_id = basesensor.get_sensor_id('mock', '/')
+        sensor_id = basesensor.get_sensor_id('mock', sep='/')
         assert sensor_id == 'sam/testhost1/mock'
-        sensor_id = basesensor.get_sensor_id('sgp30', '_')
+        sensor_id = basesensor.get_sensor_id('sgp30', sep='_')
         assert sensor_id == 'sam_testhost1_sgp30'
 
 def test_get_log_path_format():

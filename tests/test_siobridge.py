@@ -88,7 +88,7 @@ def mqtt_message():
     """Create a mock MQTT message."""
     message = MagicMock()
     # Topic format is location/hostname/sensor_name
-    message.topic.value = get_sensor_id('mock', '/')
+    message.topic.value = get_sensor_id('mock', sep='/')
     message.payload = json.dumps({
         'n': 1,
         'timestamp': '2022-03-04 03:58:02.771409',

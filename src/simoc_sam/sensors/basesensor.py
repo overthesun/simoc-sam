@@ -10,15 +10,14 @@ import paho.mqtt.client as mqtt
 from .. import config
 
 
-def get_sensor_id(sensor_name, sep='.'):
+def get_sensor_id(sensor_name, *, sep='.'):
     """Generate a sensor id like location.hostname.sensor_name."""
     hostname = socket.gethostname()
     return f'{config.location}{sep}{hostname}{sep}{sensor_name}'
 
-
 def get_log_path(sensor_name):
-    fname = f'{get_sensor_id(sensor_name, "_")}.jsonl'
-    return config.log_dir / fname
+    sensor_id = get_sensor_id(sensor_name, sep='_')
+    return config.log_dir / f'{sensor_id}.jsonl'
 
 
 class BaseSensor(ABC):
@@ -157,7 +156,7 @@ class MQTTWrapper:
                                keyfile=str(certs_dir / 'client.key'))
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
-        self.topic = get_sensor_id(sensor.name, '/')
+        self.topic = get_sensor_id(sensor.name, sep='/')
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
