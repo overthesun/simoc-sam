@@ -35,8 +35,8 @@ HOTSPOT_CFG = 'hotspot.nmconnection'
 WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
-DEPS = 'requirements.txt'
-DEV_DEPS = 'dev-requirements.txt'
+DEPS = SIMOC_SAM_DIR / 'requirements.txt'
+DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
@@ -90,11 +90,11 @@ def create_venv():
         print('venv already exists -- aborting.')
         return
     return (
-        run([sys.executable, '-m', 'venv', 'venv']) and
+        run([sys.executable, '-m', 'venv', str(VENV_DIR)]) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
-        run([VENV_PY, '-m', 'pip', 'install', '-r', DEPS]) and
-        run([VENV_PY, '-m', 'pip', 'install', '-r', DEV_DEPS]) and
-        run([VENV_PY, '-m', 'pip', 'install', '-e', '.'])
+        run([VENV_PY, '-m', 'pip', 'install', '-r', str(DEPS)]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-r', str(DEV_DEPS)]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-e', str(SIMOC_SAM_DIR)])
     )
 
 @cmd
