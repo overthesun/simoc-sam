@@ -279,9 +279,11 @@ async def init_app(app):
     if config.data_source == 'mqtt':
         print('Starting MQTT handler for sensor data')
         asyncio.ensure_future(mqtt_handler())
-    else:
+    elif config.data_source == 'logs':
         print('Starting log handler for sensor data')
         asyncio.ensure_future(log_handler())
+    else:
+        raise ValueError(f"Unsupported data source: {config.data_source}")
     return app
 
 
