@@ -19,6 +19,7 @@ def get_log_path(sensor_name):
     sensor_id = get_sensor_id(sensor_name, sep='_')
     return config.log_dir / f'{sensor_id}.jsonl'
 
+
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
 
