@@ -35,8 +35,8 @@ HOTSPOT_CFG = 'hotspot.nmconnection'
 WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
-DEPS = 'requirements.txt'
-DEV_DEPS = 'dev-requirements.txt'
+DEPS = SIMOC_SAM_DIR / 'requirements.txt'
+DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
@@ -90,11 +90,11 @@ def create_venv():
         print('venv already exists -- aborting.')
         return
     return (
-        run([sys.executable, '-m', 'venv', 'venv']) and
+        run([sys.executable, '-m', 'venv', str(VENV_DIR)]) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
-        run([VENV_PY, '-m', 'pip', 'install', '-r', DEPS]) and
-        run([VENV_PY, '-m', 'pip', 'install', '-r', DEV_DEPS]) and
-        run([VENV_PY, '-m', 'pip', 'install', '-e', '.'])
+        run([VENV_PY, '-m', 'pip', 'install', '-r', str(DEPS)]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-r', str(DEV_DEPS)]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-e', str(SIMOC_SAM_DIR)])
     )
 
 @cmd
@@ -106,6 +106,27 @@ def clean_venv():
     print(f'Removing venv dir: {VENV_DIR}')
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
+
+
+@cmd
+def update():
+    """Update the code to the latest version."""
+    # get the current branch
+    try:
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                         cwd=SIMOC_SAM_DIR, text=True).strip()
+    except subprocess.CalledProcessError:
+        print(f'Error: Failed to get the current branch.')
+        return False
+    # perform git pull
+    print(f'Updating code to the latest version (current branch: {branch!r}).')
+    success = run(['git', 'pull', 'origin', branch], cwd=SIMOC_SAM_DIR)
+    if success:
+        print('Code updated successfully.')
+    else:
+        print('Update failed: see error log above for details.')
+    return success
+
 
 target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
 ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
@@ -469,13 +490,16 @@ def install_touchscreen():
 @cmd
 def initial_setup():
     """Perform the initial setup of the Raspberry Pi."""
-    print('Instaling bash aliases...')
+    print('Installing bash aliases...')
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
     print('Updating system and installing deps...')
     install_deps()
-    print('System updated, deps installed, home cleaned, aliases set up.')
+    print('Setting up virtualenv...')
+    create_venv()
+    print('System updated, deps installed, venv created, home cleaned, '
+          'aliases set up.')
     print('Run <source ~/.bash_aliases> to install the aliases now.')
 
 def install_bash_aliases():
@@ -498,7 +522,8 @@ def remove_home_dirs():
 
 def install_deps():
     """Install dependencies using apt."""
-    packages = ['nmap', 'vim', 'tcpdump', 'mosquitto-clients', 'avahi-utils']
+    packages = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
+                'mosquitto-clients', 'avahi-utils']
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
     run(['sudo', 'apt', 'install', '-y'] + packages, check=True)

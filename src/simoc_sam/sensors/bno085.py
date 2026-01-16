@@ -23,15 +23,9 @@ from adafruit_bno08x.i2c import BNO08X_I2C
 #   * note that soft/hard-resetting doesn't seem to solve this problem
 
 
-BNO085_DATA = utils.SENSOR_DATA['BNO085']
-
 class BNO085(BaseSensor):
-    """Represent a BNO085 sensor."""
-    sensor_type = BNO085_DATA.name
-    reading_info = BNO085_DATA.data
-
-    def __init__(self, *, name=None, description=None, verbose=False):
-        super().__init__(name=name, description=description, verbose=verbose)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.i2c = busio.I2C(board.SCL, board.SDA, frequency=800000)
         self.bno = bno = BNO08X_I2C(self.i2c)
         self.enable_features()

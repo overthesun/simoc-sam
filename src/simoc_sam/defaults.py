@@ -8,9 +8,9 @@ from pathlib import Path
 
 
 # HAB info
-location = 'sam'
-humans = 4
-volume = 272
+location = None
+humans = 0
+volume = 0
 
 
 # Sensors/display and data collection
@@ -22,13 +22,16 @@ sensor_read_delay = 10.0
 # MQTT configuration
 mqtt_host = 'localhost'
 mqtt_port = 1883
+mqtt_secure = False
+mqtt_certs_dir = Path.home() / '.mqttcerts'
 mqtt_reconnect_delay = 5.0
 
 
 # SIMOC Web / SIO bridge configuration
 sio_host = 'localhost'
 sio_port = 8081
-mqtt_topic_sub = f'{location}/#'
+data_source = 'logs'  # 'mqtt' or 'logs'
+mqtt_topic_sub = '#'
 simoc_web_port = 8080  # used for CORS validation
 simoc_web_dist_dir = Path.home() / 'dist'
 
