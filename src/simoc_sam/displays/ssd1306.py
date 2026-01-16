@@ -36,20 +36,10 @@ oled_reset = digitalio.DigitalInOut(board.D4)
 oled = adafruit_ssd1306.SSD1306_I2C(
     WIDTH, HEIGHT, board.I2C(), addr=0x3D, reset=oled_reset
 )
-<<<<<<< Updated upstream
-
-# Fonts
-font_small = ImageFont.load_default()
-font_header = ImageFont.truetype(
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14
-)
-
-=======
 font = ImageFont.load_default()
 START_TIME = time.monotonic()
 
 # =================== HELPERS ===================
->>>>>>> Stashed changes
 def read_latest_entry(filepath):
     """Return the latest JSON entry from a file, or empty dict."""
     if not os.path.exists(filepath):
@@ -63,37 +53,11 @@ def read_latest_entry(filepath):
         pass
     return {}
 
-<<<<<<< Updated upstream
-def format_values(data_scd, data_bme, data_bno):
-    co2 = data_scd.get("co2", "--")
-    temp = data_scd.get("temperature", "--")
-    hum = data_scd.get("humidity", "--")
-    pres = data_bme.get("pressure", "--")
-    accx = data_bno.get("accel_x", "--")
-    accy = data_bno.get("accel_y", "--")
-    accz = data_bno.get("accel_z", "--")
-    return [
-        "CO2: " + f"{co2:.0f}" if isinstance(co2, float) else str(co2),
-        "Tmp: " + f"{temp:.1f}" if isinstance(temp, float) else str(temp),
-        "Hum: " + f"{hum:.1f}" if isinstance(hum, float) else str(hum),
-        "Prs: " + f"{pres:.1f}" if isinstance(pres, float) else str(pres),
-        "A-x: " + f"{accx:.2f}" if isinstance(accx, float) else str(accx),
-        "A-y: " + f"{accy:.2f}" if isinstance(accy, float) else str(accy),
-        "A-z: " + f"{accz:.2f}" if isinstance(accz, float) else str(accz),
-    ]
-
-def format_uptime():
-    t = int(time.monotonic())
-    hm, s = divmod(t, 60)
-    h, m = divmod(hm, 60)
-    return f"Rt: {h:02}:{m:02}:{s:02}"
-=======
 def uptime():
     t = int(time.monotonic() - START_TIME)
     h, r = divmod(t, 3600)
     m, s = divmod(r, 60)
     return f"Up {h:02}:{m:02}:{s:02}"
->>>>>>> Stashed changes
 
 # =================== SENSOR VALUE COLLECTION ===================
 # def get_sensor_values():
