@@ -1,11 +1,15 @@
 import os
 import json
 import time
+
+from datetime import datetime
+
 import board
 import digitalio
-from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
-from datetime import datetime
+
+from PIL import Image, ImageDraw, ImageFont
+
 
 def parse_timestamp(ts_str):
     """Convert ISO string timestamp to float seconds since epoch."""
