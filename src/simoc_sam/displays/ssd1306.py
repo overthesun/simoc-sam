@@ -10,6 +10,8 @@ import adafruit_ssd1306
 
 from PIL import Image, ImageDraw, ImageFont
 
+from simoc_sam.sensors.basesensor import get_log_path
+
 
 def parse_timestamp(ts_str):
     """Convert ISO string timestamp to float seconds since epoch."""
@@ -22,15 +24,14 @@ def parse_timestamp(ts_str):
 # =================== CONFIG ===================
 WIDTH = 128
 HEIGHT = 64
-LOG_DIR = "/home/pi/logs"
 MAX_ROWS = 9  # Max total sensor rows displayed (excluding header)
 
 FILES = {
-    "SCD30": "SRS_SRS_SCD-30.jsonl",        # 2 rows: CO2, RH
-    "SGP30": "SRS_SRS_SGP30.jsonl",         # 1 row: TVOC
-    "BME688": "SRS_SRS_BME688.jsonl",       # 1 row: Pressure
-    "TSL": "SRS_SRS_TSL2591.jsonl",         # 1 row: TTL LIGHT
-    "BNO045": "sam_samrpi1_MockAccelerometer.jsonl",  # 3 rows: A-x, A-y, A-z
+    'SCD30': get_log_path('scd30'),               # 2 rows: CO2, RH
+    'SGP30': get_log_path('sgp30'),               # 1 row: TVOC
+    'BME688': get_log_path('bme688'),             # 1 row: Pressure
+    'TSL': get_log_path('tsl2591'),               # 1 row: TTL LIGHT
+    'BNO045': get_log_path('mockaccelerometer'),  # 3 rows: A-x, A-y, A-z
 }
 
 DISPLAY_ORDER = ["SCD30", "SGP30", "BME688", "TSL", "BNO045"]
@@ -69,7 +70,7 @@ def uptime():
 #     now = time.time()  # current real time in seconds
 
 #     for sensor in DISPLAY_ORDER:
-#         data = read_latest_entry(os.path.join(LOG_DIR, FILES[sensor]))
+#         data = read_latest_entry(FILES[sensor])
 #         if not data:
 #             continue
 
@@ -129,7 +130,7 @@ def get_sensor_values():
     values = []
 
     for sensor in DISPLAY_ORDER:
-        data = read_latest_entry(os.path.join(LOG_DIR, FILES[sensor]))
+        data = read_latest_entry(FILES[sensor])
         if not data:
             continue  # skip if no data at all
 
