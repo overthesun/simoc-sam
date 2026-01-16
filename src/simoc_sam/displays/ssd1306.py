@@ -157,7 +157,7 @@ def get_sensor_values():
                 val = data.get(axis, 0)
                 if isinstance(val, dict):
                     val = val.get("value", 0)
-                values.append(f"{axis.replace('acc','A-')}: {val:.2f}")
+                values.append(f"{axis.replace('linear_accel','A-')}: {val:.2f}")
 
         # Limit total rows
         if len(values) >= MAX_ROWS:
