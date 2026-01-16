@@ -19,11 +19,6 @@ def get_log_path(sensor_name):
     sensor_id = get_sensor_id(sensor_name, sep='_')
     return config.log_dir / f'{sensor_id}.jsonl'
 
-def get_log_path(sensor_name):
-    hostname = socket.gethostname()
-    fname = f'{config.location}_{hostname}_{sensor_name}.jsonl'
-    return config.log_dir / fname
-
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
 
