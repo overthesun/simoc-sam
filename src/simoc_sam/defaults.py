@@ -32,8 +32,7 @@ sio_host = 'localhost'
 sio_port = 8081
 data_source = 'logs'  # 'mqtt' or 'logs'
 mqtt_topic_sub = '#'
-simoc_web_port = 8080  # used for CORS validation
-simoc_web_dist_dir = Path.home() / 'dist'
+simoc_web_dist_dir = '/var/www/simoc'
 
 
 # Verbosity and logging
