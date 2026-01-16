@@ -197,9 +197,9 @@ async def mqtt_handler():
 
 
 async def read_jsonl_file(file_path):
-    """Async generator that waits for new lines appended to JSONL file (like tail -f)."""
+    """Async generator that yields new lines (like tail -f)."""
     try:
-        # If file doesn't exist, wait for it to be created
+        # if file doesn't exist, wait for it to be created
         while not file_path.exists():
             print(f'Waiting for log file to be created: {file_path}')
             await asyncio.sleep(1)
@@ -216,7 +216,7 @@ async def read_jsonl_file(file_path):
                         print(f'Error parsing JSON from {file_path}: {e}')
                         continue
                 else:
-                    # No new line, wait a bit before checking again
+                    # no new line, wait a bit before checking again
                     await asyncio.sleep(1)
     except Exception as e:
         print(f'Error reading log file {file_path}: {e}')
@@ -226,7 +226,7 @@ async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
     log_file = get_log_path(sensor)
     sensor_id = get_sensor_id(sensor)
-    # Ensure sensor info is available
+    # ensure sensor info is available
     if sensor_id not in SENSOR_INFO:
         SENSORS.add(sensor_id)
         info = copy.deepcopy(SENSOR_DATA[sensor])
@@ -235,10 +235,10 @@ async def process_sensor_log(sensor):
         SENSOR_INFO[sensor_id] = info
         await emit_to_subscribers('sensor-info', SENSOR_INFO)
     print(f'Starting to process log file for {sensor}: {log_file}')
-    # Read and process each line from the log file continuously
+    # read and process each line from the log file continuously
     try:
         async for reading in read_jsonl_file(log_file):
-            # Add the reading to SENSOR_READINGS
+            # add the reading to SENSOR_READINGS
             SENSOR_READINGS[sensor_id].append(reading)
     except Exception as e:
         print(f'Error processing log file for {sensor}: {e}')
@@ -246,7 +246,7 @@ async def process_sensor_log(sensor):
 
 
 async def log_handler():
-    """Handle log files from config.log_dir and populate SENSOR_READINGS."""
+    """Handle sensor data from log files."""
     log_dir = Path(config.log_dir)
     sensors = config.sensors
     if not log_dir.exists():
@@ -274,7 +274,7 @@ def create_app():
     return app
 
 async def init_app(app):
-    # Start handlers based on configuration
+    # start handlers based on configuration
     sio.attach(app)
     sio.start_background_task(emit_readings)
     if config.data_source == 'mqtt':
