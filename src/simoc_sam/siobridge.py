@@ -76,8 +76,8 @@ def get_host_ips():
 # Therefore we need to find all the IPs/hostnames that point to
 # this machine in the different networks and explicitly allow them.
 # The port is also used for CORS validation, and must match the
-# port used by SIMOC web (8080 is used by default).
-port = config.simoc_web_port
+# port used by SIMOC web. By default SIMOC web uses port 80,
+# so no port is added.
 allowed_origins = [f'http://{ip}' for ip in get_host_ips()]
 print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
@@ -260,15 +260,8 @@ async def log_handler():
 
 # app setup
 
-async def index(request):
-    """Serve the client-side application."""
-    with open('index.html') as f:
-        return web.Response(text=f.read(), content_type='text/html')
-
 def create_app():
     app = web.Application()
-    # app.router.add_static('/static', 'static')
-    # app.router.add_get('/', index)
     return app
 
 async def init_app(app):
