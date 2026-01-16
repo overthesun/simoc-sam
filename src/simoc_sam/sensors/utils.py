@@ -20,7 +20,7 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     n = r.pop('n')
     dt = datetime.strptime(r.pop('timestamp'), '%Y-%m-%d %H:%M:%S.%f')
     timestamp = dt.strftime(time_fmt)
-    sensor_name = sensor_info['sensor_name'] if sensor_info else '-'
+    sensor_id = sensor_info['sensor_id'] if sensor_info else '-'
     reading_info = sensor_info['reading_info'] if sensor_info else None
     result = []
     for key, value in r.items():
@@ -30,7 +30,7 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
             label = reading_info[key]['label']
             unit = ' ' + reading_info[key]['unit']
         result.append(f'{label}: {v}{unit}')
-    return f'{sensor_name}|{timestamp}|{n:<3}  {"; ".join(result)}'
+    return f'{sensor_id}|{timestamp}|{n:<3}  {"; ".join(result)}'
 
 
 def get_sensor_i2c_bus(sensor_i2c_addr, *args, **kwargs):

@@ -16,7 +16,7 @@ import netifaces
 from aiohttp import web
 
 from .sensors import utils
-from .sensors.basesensor import get_log_path
+from .sensors.basesensor import get_log_path, get_sensor_id
 from . import config
 
 
@@ -30,7 +30,7 @@ def convert_sensor_data():
     for name, data in utils.SENSOR_DATA.items():
         info[name] = {
             'sensor_type': data.name,
-            'sensor_name': None,
+            'sensor_name': name,
             'sensor_id': None,
             'sensor_desc': None,
             'reading_info': data.data,
@@ -178,11 +178,10 @@ async def mqtt_handler():
                     topic = message.topic.value
                     print(topic)
                     location, host, sensor = topic.split('/')
-                    sensor_id = f'{host}.{sensor}'
+                    sensor_id = topic.replace('/', '.')
                     if sensor_id not in SENSOR_INFO:
                         SENSORS.add(sensor_id)
                         info = copy.deepcopy(SENSOR_DATA[sensor])
-                        info['sensor_name'] = sensor_id
                         info['sensor_id'] = sensor_id
                         info['sensor_desc'] = f'{sensor} sensor on {host}'
                         SENSOR_INFO[sensor_id] = info
@@ -198,14 +197,14 @@ async def mqtt_handler():
 
 
 async def read_jsonl_file(file_path):
-    """Async generator that waits for new lines appended to JSONL file (like tail -f)."""
+    """Async generator that yields new lines (like tail -f)."""
     try:
-        # If file doesn't exist, wait for it to be created
+        # if file doesn't exist, wait for it to be created
         while not file_path.exists():
             print(f'Waiting for log file to be created: {file_path}')
             await asyncio.sleep(1)
         print(f'Starting to monitor log file for new lines: {file_path}')
-        with open(file_path) as f:
+        with open(file_path, buffering=1) as f:
             # seek to end of file and monitor for new lines
             f.seek(0, 2)
             while True:
@@ -217,51 +216,44 @@ async def read_jsonl_file(file_path):
                         print(f'Error parsing JSON from {file_path}: {e}')
                         continue
                 else:
-                    # No new line, wait a bit before checking again
+                    # no new line, wait a bit before checking again
                     await asyncio.sleep(1)
     except Exception as e:
         print(f'Error reading log file {file_path}: {e}')
 
-
-async def process_sensor_log(sensor, log_file):
+async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
-    sensor_id = f'{socket.gethostname()}.{sensor}'
-    # Ensure sensor info is available
+    log_file = get_log_path(sensor)
+    sensor_id = get_sensor_id(sensor)
+    # ensure sensor info is available
     if sensor_id not in SENSOR_INFO:
         SENSORS.add(sensor_id)
         info = copy.deepcopy(SENSOR_DATA[sensor])
-        info['sensor_name'] = sensor_id
         info['sensor_id'] = sensor_id
         info['sensor_desc'] = f'{sensor} sensor from log file {log_file.name}'
         SENSOR_INFO[sensor_id] = info
         await emit_to_subscribers('sensor-info', SENSOR_INFO)
     print(f'Starting to process log file for {sensor}: {log_file}')
-    # Read and process each line from the log file continuously
+    # read and process each line from the log file continuously
     try:
         async for reading in read_jsonl_file(log_file):
-            # Add the reading to SENSOR_READINGS
+            # add the reading to SENSOR_READINGS
             SENSOR_READINGS[sensor_id].append(reading)
     except Exception as e:
         print(f'Error processing log file for {sensor}: {e}')
-
+        traceback.print_exc()
 
 async def log_handler():
-    """Handle log files from config.log_dir and populate SENSOR_READINGS."""
+    """Handle sensor data from log files."""
     log_dir = Path(config.log_dir)
     sensors = config.sensors
     if not log_dir.exists():
-        print(f'Log directory does not exist: {log_dir}')
-        return
+        raise FileNotFoundError(f'Log directory does not exist: {log_dir}')
     print(f'Starting log handler for directory: {log_dir}')
     print(f'Looking for sensors: {sensors}')
     tasks = []
-    # TODO: implement a proper fix
-    sensor_names = dict(scd30='SCD-30', sgp30='SGP30', bme688='BME688')
     for sensor in sensors:
-        sensor_name = sensor_names.get(sensor, sensor)
-        log_file = get_log_path(sensor_name)
-        print(f'Log file for {sensor}: {log_file}')
-        task = asyncio.create_task(process_sensor_log(sensor_name, log_file))
+        task = asyncio.create_task(process_sensor_log(sensor))
         tasks.append(task)
     await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -280,15 +272,17 @@ def create_app():
     return app
 
 async def init_app(app):
-    # Start handlers based on configuration
+    # start handlers based on configuration
     sio.attach(app)
     sio.start_background_task(emit_readings)
     if config.data_source == 'mqtt':
         print('Starting MQTT handler for sensor data')
         asyncio.ensure_future(mqtt_handler())
-    else:
+    elif config.data_source == 'logs':
         print('Starting log handler for sensor data')
         asyncio.ensure_future(log_handler())
+    else:
+        raise ValueError(f"Unsupported data source: {config.data_source}")
     return app
 
 

@@ -35,8 +35,8 @@ HOTSPOT_CFG = 'hotspot.nmconnection'
 WIFI_CFG = 'wifi.nmconnection'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
-DEPS = 'requirements.txt'
-DEV_DEPS = 'dev-requirements.txt'
+DEPS = SIMOC_SAM_DIR / 'requirements.txt'
+DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
@@ -90,11 +90,11 @@ def create_venv():
         print('venv already exists -- aborting.')
         return
     return (
-        run([sys.executable, '-m', 'venv', 'venv']) and
+        run([sys.executable, '-m', 'venv', str(VENV_DIR)]) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
-        run([VENV_PY, '-m', 'pip', 'install', '-r', DEPS]) and
-        run([VENV_PY, '-m', 'pip', 'install', '-r', DEV_DEPS]) and
-        run([VENV_PY, '-m', 'pip', 'install', '-e', '.'])
+        run([VENV_PY, '-m', 'pip', 'install', '-r', str(DEPS)]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-r', str(DEV_DEPS)]) and
+        run([VENV_PY, '-m', 'pip', 'install', '-e', str(SIMOC_SAM_DIR)])
     )
 
 @cmd
@@ -467,13 +467,16 @@ def install_touchscreen():
 @cmd
 def initial_setup():
     """Perform the initial setup of the Raspberry Pi."""
-    print('Instaling bash aliases...')
+    print('Installing bash aliases...')
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
     print('Updating system and installing deps...')
     install_deps()
-    print('System updated, deps installed, home cleaned, aliases set up.')
+    print('Setting up virtualenv...')
+    create_venv()
+    print('System updated, deps installed, venv created, home cleaned, '
+          'aliases set up.')
     print('Run <source ~/.bash_aliases> to install the aliases now.')
 
 def install_bash_aliases():

@@ -7,16 +7,9 @@ board = utils.import_board()
 import adafruit_veml7700
 
 
-VEML7700_DATA = utils.SENSOR_DATA['VEML7700']
-
 class VEML7700(BaseSensor):
-    """Represent a VEML7700 sensor."""
-    sensor_type = VEML7700_DATA.name
-    reading_info = VEML7700_DATA.data
-
-    def __init__(self, *, name=None, description=None, verbose=False):
-        """Initialize the sensor."""
-        super().__init__(name=name, description=description, verbose=verbose)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         i2c = board.I2C()
         self.tsl = adafruit_veml7700.VEML7700(i2c)
 
