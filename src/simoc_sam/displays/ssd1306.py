@@ -111,7 +111,7 @@ def uptime():
 #         # BNO045: Accelerometer, 3 rows
 #         # ------------------------------
 #         elif sensor == "BNO045":
-#             for axis in ["accx", "accy", "accz"]:
+#             for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
 #                 val = data.get(axis, {})
 #                 if isinstance(val, dict):
 #                     ts = parse_timestamp(val.get("ts", now))
@@ -153,7 +153,7 @@ def get_sensor_values():
 
         # BNO045: Accelerometer, 3 rows
         elif sensor == "BNO045":
-            for axis in ["accx", "accy", "accz"]:
+            for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
                 val = data.get(axis, 0)
                 if isinstance(val, dict):
                     val = val.get("value", 0)
