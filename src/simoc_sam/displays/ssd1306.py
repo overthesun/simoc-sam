@@ -42,7 +42,6 @@ oled = adafruit_ssd1306.SSD1306_I2C(
     WIDTH, HEIGHT, board.I2C(), addr=0x3D, reset=oled_reset
 )
 font = ImageFont.load_default()
-START_TIME = time.monotonic()
 
 # =================== HELPERS ===================
 def read_latest_entry(filepath):
@@ -59,7 +58,7 @@ def read_latest_entry(filepath):
     return {}
 
 def uptime():
-    t = int(time.monotonic() - START_TIME)
+    t = int(time.monotonic())
     h, r = divmod(t, 3600)
     m, s = divmod(r, 60)
     return f"Up {h:02}:{m:02}:{s:02}"
