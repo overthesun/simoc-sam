@@ -221,7 +221,6 @@ async def read_jsonl_file(file_path):
     except Exception as e:
         print(f'Error reading log file {file_path}: {e}')
 
-
 async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
     log_file = get_log_path(sensor)
@@ -243,7 +242,6 @@ async def process_sensor_log(sensor):
     except Exception as e:
         print(f'Error processing log file for {sensor}: {e}')
         traceback.print_exc()
-
 
 async def log_handler():
     """Handle sensor data from log files."""
