@@ -135,13 +135,13 @@ def get_sensor_values():
 
         # SCD30: CO2 and RH
         if sensor == "SCD30":
-            values.append(f"CO2: {data.get('co2', 0):.2f}")
+            values.append(f"CO2: {data.get('co2', 0):.0f}")
             values.append(f"T: {data.get('temperature', 0):.2f}C")
-            values.append(f"RH: {data.get('humidity', 0):.2f}")
+            values.append(f"RH: {data.get('humidity', 0):.2f}%")
 
         # SGP30: TVOC
         elif sensor == "SGP30":
-            values.append(f"TVOC: {data.get('tvoc', 0)}")
+            values.append(f"VOC: {data.get('tvoc', 0)}")
 
         # BME688: Pressure
         elif sensor == "BME688":
