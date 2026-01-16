@@ -10,6 +10,16 @@ import paho.mqtt.client as mqtt
 from .. import config
 
 
+def get_sensor_id(sensor_name, *, sep='.'):
+    """Generate a sensor id like location.hostname.sensor_name."""
+    hostname = socket.gethostname()
+    return f'{config.location}{sep}{hostname}{sep}{sensor_name}'
+
+def get_log_path(sensor_name):
+    sensor_id = get_sensor_id(sensor_name, sep='_')
+    return config.log_dir / f'{sensor_id}.jsonl'
+
+
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
 
@@ -35,14 +45,12 @@ class BaseSensor(ABC):
 
     def __init__(self, *, description=None, verbose=False):
         """Initialize the sensor."""
-        hostname = socket.gethostname()
-        self.id = f'{config.location}.{hostname}.{self.name}'
+        self.id = get_sensor_id(self.name)
         self.description = description
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
-        fname = self.id.replace('.', '_') + '.jsonl'
-        self.log_path = config.log_dir / fname
+        self.log_path = get_log_path(self.name)
         if config.enable_jsonl_logging:
             config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
@@ -148,8 +156,7 @@ class MQTTWrapper:
                                keyfile=str(certs_dir / 'client.key'))
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
-        hostname = socket.gethostname()
-        self.topic = f'{location}/{hostname}/{sensor.name}'
+        self.topic = get_sensor_id(sensor.name, sep='/')
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""

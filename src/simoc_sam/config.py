@@ -57,3 +57,13 @@ if location is None:
 if mqtt_secure and not mqtt_certs_dir.exists():
     print(f"Warning: MQTT secure is enabled but the certs dir "
           f"<{mqtt_certs_dir}> does not exist.")
+
+#warn if data_source is invalid or inconsistent with logging settings
+valid_data_sources = {'mqtt', 'logs'}
+if data_source not in valid_data_sources:
+    print(f"Warning: invalid data_source: {data_source!r} (valid options: "
+          f"{valid_data_sources}). Falling back to 'logs'.")
+    data_source = 'logs'
+
+if not enable_jsonl_logging and data_source == 'logs':
+    print("Warning: JSONL logging is disabled but data_source is 'logs'.")
