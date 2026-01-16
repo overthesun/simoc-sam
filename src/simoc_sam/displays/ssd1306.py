@@ -27,11 +27,11 @@ HEIGHT = 64
 MAX_ROWS = 9  # Max total sensor rows displayed (excluding header)
 
 FILES = {
-    'SCD30': get_log_path('scd30'),               # 2 rows: CO2, RH
-    'SGP30': get_log_path('sgp30'),               # 1 row: TVOC
-    'BME688': get_log_path('bme688'),             # 1 row: Pressure
-    'TSL': get_log_path('tsl2591'),               # 1 row: TTL LIGHT
-    'BNO045': get_log_path('mockaccelerometer'),  # 3 rows: A-x, A-y, A-z
+    'SCD30': get_log_path('scd30'),    # 2 rows: CO2, RH
+    'SGP30': get_log_path('sgp30'),    # 1 row: TVOC
+    'BME688': get_log_path('bme688'),  # 1 row: Pressure
+    'TSL': get_log_path('tsl2591'),    # 1 row: TTL LIGHT
+    'BNO045': get_log_path('bno085'),  # 3 rows: A-x, A-y, A-z
 }
 
 DISPLAY_ORDER = ["SCD30", "SGP30", "BME688", "TSL", "BNO045"]
