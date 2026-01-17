@@ -252,6 +252,7 @@ def teardown_wifi():
 
 
 def setup_nmconn(nmconn_file, repls):
+    """Create and activate a NetworkManager connection."""
     # copy the template in the NetworkManager dir
     shutil.copy(NM_TMPL, nmconn_file)
     # update template with actual values and set permissions/owner
@@ -261,13 +262,11 @@ def setup_nmconn(nmconn_file, repls):
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
     run(['nmcli', 'radio', 'wifi', 'on'])  # ensure wifi is on
-    # Reload connections and activate the new one
-    conn_id = nmconn_file.stem
+    # reload connections (will auto-activate if interface is available)
     run(['nmcli', 'connection', 'reload'])
-    run(['nmcli', 'connection', 'up', conn_id])
 
 def teardown_nmconn(conn_id):
-    """Remove the given nmconn connection."""
+    """Stop and remove the given NetworkManager connection."""
     run(['nmcli', 'connection', 'delete', conn_id])
 
 
