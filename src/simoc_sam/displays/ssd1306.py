@@ -155,8 +155,8 @@ def get_sensor_values():
         elif sensor == "BNO085":
             for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
                 val = data.get(axis, 0)
-                if isinstance(val, dict):
-                    val = val.get("value", 0)
+                if isinstance(val, str):  # in case of 'EEE' error string
+                    val = 0
                 values.append(f"A-{axis[-1]}: {val:.2f}")
 
         # Limit total rows
