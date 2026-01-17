@@ -74,9 +74,9 @@ class BNO085(BaseSensor):
         # define placeholder value used when the attributes can't be read
         if attr_name in {'activity_classification', 'stability_classification',
                          'steps', 'shake'}:
-            default = 'EEE'  # these attrs expect a scalar value (int/str)
+            default = 0  # these attrs expect a scalar value (int/str)
         else:
-            default = ['EEE', 'EEE', 'EEE', 'EEE']  # the others have 3/4 values
+            default = [0, 0, 0, 0]  # the others have 3/4 values
         for attempt in range(5):
             try:
                 return getattr(self.bno, attr_name, default)
