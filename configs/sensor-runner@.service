@@ -16,7 +16,7 @@ After=network.target
 User=pi
 WorkingDirectory=/home/pi/simoc-sam
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.sensors.%i -v --mqtt
+ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.sensors.%i -v
 Restart=always
 StandardOutput=journal
 StandardError=journal
