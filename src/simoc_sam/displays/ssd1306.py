@@ -31,10 +31,10 @@ FILES = {
     'SGP30': get_log_path('sgp30'),    # 1 row: TVOC
     'BME688': get_log_path('bme688'),  # 1 row: Pressure
     'TSL': get_log_path('tsl2591'),    # 1 row: TTL LIGHT
-    'BNO045': get_log_path('bno085'),  # 3 rows: A-x, A-y, A-z
+    'BNO085': get_log_path('bno085'),  # 3 rows: A-x, A-y, A-z
 }
 
-DISPLAY_ORDER = ["SCD30", "SGP30", "BME688", "TSL", "BNO045"]
+DISPLAY_ORDER = ["SCD30", "SGP30", "BME688", "TSL", "BNO085"]
 
 # =================== OLED INIT ===================
 oled_reset = digitalio.DigitalInOut(board.D4)
@@ -108,9 +108,9 @@ def uptime():
 #                 values.append(f"Lt: {data.get('light', 0):.2f}")
 
 #         # ------------------------------
-#         # BNO045: Accelerometer, 3 rows
+#         # BNO085: Accelerometer, 3 rows
 #         # ------------------------------
-#         elif sensor == "BNO045":
+#         elif sensor == "BNO085":
 #             for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
 #                 val = data.get(axis, {})
 #                 if isinstance(val, dict):
@@ -151,8 +151,8 @@ def get_sensor_values():
         elif sensor == "TSL":
             values.append(f"Lt: {data.get('light', 0):.2f}")
 
-        # BNO045: Accelerometer, 3 rows
-        elif sensor == "BNO045":
+        # BNO085: Accelerometer, 3 rows
+        elif sensor == "BNO085":
             for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
                 val = data.get(axis, 0)
                 if isinstance(val, dict):
