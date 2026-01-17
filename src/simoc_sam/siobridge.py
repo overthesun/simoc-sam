@@ -178,7 +178,7 @@ async def mqtt_handler():
                     topic = message.topic.value
                     print(topic)
                     location, host, sensor = topic.split('/')
-                    sensor_id = topic.replace('/', '.')
+                    sensor_id = f'{host}.{sensor}'
                     if sensor_id not in SENSOR_INFO:
                         SENSORS.add(sensor_id)
                         info = copy.deepcopy(SENSOR_DATA[sensor])
@@ -224,7 +224,7 @@ async def read_jsonl_file(file_path):
 async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
     log_file = get_log_path(sensor)
-    sensor_id = get_sensor_id(sensor)
+    sensor_id = get_sensor_id(sensor).split('.', 1)[-1]  # just host.sensor
     # ensure sensor info is available
     if sensor_id not in SENSOR_INFO:
         SENSORS.add(sensor_id)
