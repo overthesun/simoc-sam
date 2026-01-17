@@ -260,6 +260,7 @@ def setup_nmconn(nmconn_file, repls):
     os.chown(nmconn_file, 0, 0)  # owner is now root
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
+    run(['nmcli', 'radio', 'wifi', 'on'])  # ensure wifi is on
     run(['systemctl', 'restart', 'NetworkManager'])
 
 def teardown_nmconn(nmconn_file):
