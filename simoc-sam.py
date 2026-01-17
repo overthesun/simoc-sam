@@ -348,11 +348,13 @@ def setup_nginx():
     write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
-    # enable/start nginx
+    # enable/start/reload nginx
     if not run(['systemctl', 'is-enabled', 'nginx']):
         run(['systemctl', 'enable', 'nginx'])
     if not run(['systemctl', 'is-active', 'nginx']):
         run(['systemctl', 'start', 'nginx'])
+    else:
+        run(['systemctl', 'reload', 'nginx'])  # reload to apply new config
 
 @cmd
 @needs_root
