@@ -36,11 +36,11 @@ class BNO085(BaseSensor):
         # uncomment them here and in read_sensor_data below to use them
         if features is None:
             features = [
-                'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
-                'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
+                # 'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
+                # 'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
                 # 'GRAVITY',
                 'LINEAR_ACCELERATION',
-                'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
+                # 'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
                 # 'GEOMAGNETIC_ROTATION_VECTOR',
                 # 'STABILITY_CLASSIFIER', 'ACTIVITY_CLASSIFIER',
                 # 'STEP_COUNTER', 'SHAKE_DETECTOR'
@@ -94,21 +94,21 @@ class BNO085(BaseSensor):
 
     def read_sensor_data(self):
         # Raw Acceleration/Gyro/Magnetometer
-        raw_accel = self.read_attribute('raw_acceleration')
-        raw_gyro = self.read_attribute('raw_gyro')
-        raw_mag = self.read_attribute('raw_magnetic')
+        #raw_accel = self.read_attribute('raw_acceleration')
+        #raw_gyro = self.read_attribute('raw_gyro')
+        #raw_mag = self.read_attribute('raw_magnetic')
         # Acceleration (m/s^2), Gyroscope (rad/s), Magnetometer (uT)
-        accel = self.read_attribute('acceleration')
-        gyro = self.read_attribute('gyro')
-        mag = self.read_attribute('magnetic')
+        #accel = self.read_attribute('acceleration')
+        #gyro = self.read_attribute('gyro')
+        #mag = self.read_attribute('magnetic')
         # Gravity vector (m/s^2), equal to acceleration - linear_acceleration
         # gravity = self.read_attribute('gravity
         # Linear acceleration (m/s^2), equal to acceleration - gravity
         linear_accel = self.read_attribute('linear_acceleration')
         # Rotation vector (quaternion)
-        quat = self.read_attribute('quaternion')
+        #quat = self.read_attribute('quaternion')
         # Game Rotation Vector (quaternion)
-        game_quat = self.read_attribute('game_quaternion')
+        #game_quat = self.read_attribute('game_quaternion')
         # Geomagnetic Rotation Vector (quaternion)
         # geomag_quat = self.read_attribute('geomagnetic_quaternion')
         # Activity classification (string)
@@ -121,27 +121,27 @@ class BNO085(BaseSensor):
         # shake = self.read_attribute('shake')
         reading = dict(
             # raw acceleration/gyro/magnetomer
-            raw_accel_x=raw_accel[0], raw_accel_y=raw_accel[1], raw_accel_z=raw_accel[2],
-            raw_gyro_x=raw_gyro[0], raw_gyro_y=raw_gyro[1], raw_gyro_z=raw_gyro[2],
-            raw_mag_x=raw_mag[0], raw_mag_y=raw_mag[1], raw_mag_z=raw_mag[2],
+            #raw_accel_x=raw_accel[0], raw_accel_y=raw_accel[1], raw_accel_z=raw_accel[2],
+            #raw_gyro_x=raw_gyro[0], raw_gyro_y=raw_gyro[1], raw_gyro_z=raw_gyro[2],
+            #raw_mag_x=raw_mag[0], raw_mag_y=raw_mag[1], raw_mag_z=raw_mag[2],
             # acceleration/gyro/magnetomer
-            accel_x=accel[0], accel_y=accel[1], accel_z=accel[2],
-            gyro_x=gyro[0], gyro_y=gyro[1], gyro_z=gyro[2],
-            mag_x=mag[0], mag_y=mag[1], mag_z=mag[2],
+            #accel_x=accel[0], accel_y=accel[1], accel_z=accel[2],
+            #gyro_x=gyro[0], gyro_y=gyro[1], gyro_z=gyro[2],
+            #mag_x=mag[0], mag_y=mag[1], mag_z=mag[2],
             # gravity and linear acceleration
             # gravity_x=gravity[0], gravity_y=gravity[1], gravity_z=gravity[2],
             linear_accel_x=linear_accel[0],
             linear_accel_y=linear_accel[1],
             linear_accel_z=linear_accel[2],
             # quaternions (rotation/game/geomagnetic)
-            quat_i=quat[0],
-            quat_j=quat[1],
-            quat_k=quat[2],
-            quat_real=quat[3],
-            game_quat_i=game_quat[0],
-            game_quat_j=game_quat[1],
-            game_quat_k=game_quat[2],
-            game_quat_real=quat[3],
+            #quat_i=quat[0],
+            #quat_j=quat[1],
+            #quat_k=quat[2],
+            #quat_real=quat[3],
+            #game_quat_i=game_quat[0],
+            #game_quat_j=game_quat[1],
+            #game_quat_k=game_quat[2],
+            #game_quat_real=game_quat[3],
             # geomag_quat_i=geomag_quat[0],
             # geomag_quat_j=geomag_quat[1],
             # geomag_quat_k=geomag_quat[2],
