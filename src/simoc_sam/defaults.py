@@ -19,9 +19,9 @@ sensor_read_delay = 10.0
 
 
 # MQTT configuration
-mqtt_host = 'localhost'
-mqtt_port = 1883
-mqtt_secure = False
+mqtt_host = 'mqtt.simoc.space'
+mqtt_port = 8883
+mqtt_secure = True
 mqtt_certs_dir = Path.home() / '.mqttcerts'
 mqtt_reconnect_delay = 5.0
 
