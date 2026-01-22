@@ -1,4 +1,4 @@
-"""Driver for the BMP388 Temperature, Barometric Pressure and Altitude sensor."""
+"""Driver for the BMP388 Temperature, Barometric Pressure, and Altitude sensor."""
 from . import utils
 from .basesensor import BaseSensor
 
