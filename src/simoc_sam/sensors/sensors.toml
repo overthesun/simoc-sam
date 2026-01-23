@@ -128,6 +128,27 @@ i2c_address = 0x77
     label = "Altitude"
     description = "Altitude"
 
+[bmp388]
+name = "BMP388"
+description = "Temperature, Barometric Pressure, and Altitude Sensor"
+module = "simoc_sam.sensors.bmp388"
+i2c_address = 0x77
+
+    [bmp388.data.temperature]
+    unit = "°C"
+    label = "Temperature"
+    description = "Temperature"
+
+    [bmp388.data.pressure]
+    unit = "hPa"
+    label = "Pressure"
+    description = "Barometric Pressure"
+
+    [bmp388.data.altitude]
+    unit = "m"
+    label = "Altitude"
+    description = "Altitude"
+
 [apds9960]
 name = "APDS9960"
 description = "Proximity, Light, RGB, and Gesture Sensor"
