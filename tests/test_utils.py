@@ -67,17 +67,6 @@ def test_get_i2c_names_empty(mock_i2c):
     assert result == []
 
 
-def test_scan_i2c_sensors(mock_i2c):
-    """Test that scan_i2c_sensors returns list of dicts with name and address."""
-    mock_i2c.scan.return_value = [0x61, 0x58, 0x29]
-    result = utils.scan_i2c_sensors()
-    assert result == [
-        {'name': 'scd30', 'i2c_address': 0x61},
-        {'name': 'sgp30', 'i2c_address': 0x58},
-        {'name': 'tsl2591', 'i2c_address': 0x29},
-    ]
-
-
 def test_i2c_to_device_name_known_sensor(mock_i2c):
     """Test that known sensor is correctly identified by address."""
     result = utils.i2c_to_device_name(0x61)  # scd30
@@ -87,7 +76,6 @@ def test_i2c_to_device_name_unknown_address(mock_i2c):
     """Test that unknown address returns '<unknown>'."""
     result = utils.i2c_to_device_name(0x99)  # Not in sensors.toml
     assert result == '<unknown>'
-
 
 @pytest.mark.parametrize("chip_id_register,chip_id,expected_name,should_warn", [
     (0xD0, 0x61, 'bme688', False),  # BME688 register with BME688 chip ID

@@ -27,19 +27,6 @@ def get_i2c_names():
     return [i2c_to_device_name(i2c_addr) for i2c_addr in get_i2c_addresses()]
 
 
-def scan_i2c_sensors():
-    """Scan I2C bus and return list of dicts with sensor info.
-    
-    Returns:
-        list[dict]: List of dicts with 'name' and 'i2c_address' keys.
-    """
-    addresses = get_i2c_addresses()
-    return [
-        {'name': i2c_to_device_name(addr), 'i2c_address': addr}
-        for addr in addresses
-    ]
-
-
 def i2c_to_device_name(addr):
     """Resolve an I2C address to a device name."""
     names = sensor_utils.I2C_TO_SENSOR_NAMES.get(addr, [])
