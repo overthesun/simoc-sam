@@ -65,30 +65,19 @@ def print_MCP2221_info():
 
 def print_sensors():
     """Print a list of connected sensors and their I2C addresses."""
-    from simoc_sam.sensors import utils
-
+    from simoc_sam import utils
     try:
-        board = utils.import_board()
-    except (ImportError, OSError) as err:
+        addresses = utils.get_i2c_addresses()
+    except RuntimeError as err:
         print(f'Sensor scanning failed: {err}')
-        return  # doesn't always work with RPi + MCP2221
-    import busio
-    try:
-        i2c = busio.I2C(board.SCL, board.SDA)
-    except (AttributeError, ValueError) as err:
-        print(f'Failed to access I2C bus: {err}')
         return
-    devices = i2c.scan()
-    if not devices:
+    if not addresses:
         print('No sensors found.')
         return
-    print(f'Found {len(devices)} sensors:')
-    for i2c_addr in devices:
-        if i2c_addr in utils.I2C_TO_SENSOR:
-            sensor_name = utils.I2C_TO_SENSOR[i2c_addr].name
-        else:
-            sensor_name = '<unknown>'
-        print(f'* {sensor_name} (I2C addr: {i2c_addr:#x})')
+    print(f'Found {len(addresses)} sensors:')
+    for addr in addresses:
+        name = utils.i2c_to_device_name(addr)
+        print(f'* {name} (I2C addr: {addr:#x})')
 
 
 # Services info
