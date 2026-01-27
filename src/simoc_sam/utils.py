@@ -18,7 +18,7 @@ def get_i2c():
 def get_i2c_addresses():
     """Scan I2C bus for connected devices and return their I2C addresses."""
     try:
-        return get_i2c().scan()
+        return sorted(get_i2c().scan())
     except (AttributeError, ValueError, OSError, RuntimeError) as err:
         raise RuntimeError(f'I2C scan failed: {err}') from err
 
