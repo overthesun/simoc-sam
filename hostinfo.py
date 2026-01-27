@@ -77,7 +77,7 @@ def print_sensors():
     print(f'Found {len(addresses)} sensors:')
     for addr in addresses:
         name = utils.i2c_to_device_name(addr)
-        print(f'* {addr:#02X}: {name}')
+        print(f'* {addr:02x}: {name}')
 
 
 # Services info
