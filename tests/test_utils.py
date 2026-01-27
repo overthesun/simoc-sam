@@ -26,10 +26,14 @@ def mock_busio(mock_board):
 @pytest.fixture
 def mock_i2c(mock_busio):
     """Fixture that mocks the I2C object."""
-    utils._i2c_cache.clear()  # Clear the I2C cache before each test
     mock_i2c = MagicMock()
     mock_busio.I2C.return_value = mock_i2c
     yield mock_i2c
+
+@pytest.fixture(autouse=True)
+def clear_i2c_cache():
+    """Automatically clear the I2C cache before each test."""
+    utils._i2c_cache.clear()
 
 
 def test_get_i2c_addresses_init_error(mock_busio):
