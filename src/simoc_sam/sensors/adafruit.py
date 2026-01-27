@@ -1,6 +1,6 @@
 # TODO:
-# * verify if this script still works
-# * add unit tests if it does, remove it otherwise
+# * this script is currently broken
+# * add unit tests if still needed or remove it
 
 import os
 import asyncio
