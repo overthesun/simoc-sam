@@ -96,14 +96,14 @@ def import_board():
     try:
         import board
         return board
-    except (ImportError, OSError) as err:
+    except (ImportError, OSError, AttributeError) as err:
         raise RuntimeError(f'Failed to import "board" module: {err}') from err
 
 def import_busio():
     try:
         import busio
         return busio
-    except RuntimeError as err:
+    except (ImportError, OSError, AttributeError, RuntimeError) as err:
         raise RuntimeError(f'Failed to import "busio" module: {err}') from err
 
 
