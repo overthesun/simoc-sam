@@ -1,5 +1,3 @@
-import pytest
-
 from simoc_sam.sensors import utils
 from simoc_sam import config
 

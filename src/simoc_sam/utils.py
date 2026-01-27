@@ -5,6 +5,7 @@ import warnings
 from .sensors import utils as sensor_utils
 
 _i2c_cache = {}
+
 def get_i2c():
     """Get or create a cached I2C bus instance."""
     if 'i2c' not in _i2c_cache:
