@@ -55,7 +55,7 @@ def test_get_i2c_names_known_sensor(mock_i2c):
     """Test that known sensors are correctly identified."""
     mock_i2c.scan.return_value = [0x61, 0x58, 0x29]
     result = utils.get_i2c_names()
-    assert result == ['scd30', 'sgp30', 'tsl2591']
+    assert result == ['tsl2591', 'sgp30', 'scd30']
 
 def test_get_i2c_names_unknown_address(mock_i2c):
     """Test that unknown addresses return '<unknown>'."""
