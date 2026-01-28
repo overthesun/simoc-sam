@@ -1,10 +1,43 @@
 """Misc utility functions."""
 
+import json
+import asyncio
 import warnings
 
 from .sensors import utils as sensor_utils
 
 _i2c_cache = {}
+
+
+async def read_jsonl_file(file_path):
+    """Async generator that yields new lines from a JSONL file (like tail -f).
+
+    Waits for file creation if it doesn't exist, then continuously monitors
+    and yields new JSON entries as they're appended to the file.
+    """
+    try:
+        # if file doesn't exist, wait for it to be created
+        while not file_path.exists():
+            print(f'Waiting for log file to be created: {file_path}')
+            await asyncio.sleep(1)
+        print(f'Starting to monitor log file for new lines: {file_path}')
+        with open(file_path, buffering=1) as f:
+            # seek to end of file and monitor for new lines
+            f.seek(0, 2)
+            while True:
+                line = f.readline()
+                if line.strip():
+                    try:
+                        yield json.loads(line)
+                    except json.JSONDecodeError as e:
+                        print(f'Error parsing JSON from {file_path}: {e}')
+                        continue
+                else:
+                    # no new line, wait a bit before checking again
+                    await asyncio.sleep(1)
+    except Exception as e:
+        print(f'Error reading log file {file_path}: {e}')
+
 
 def get_i2c():
     """Get or create a cached I2C bus instance."""
