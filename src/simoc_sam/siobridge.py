@@ -15,9 +15,10 @@ import netifaces
 
 from aiohttp import web
 
-from .sensors import utils
-from .sensors.basesensor import get_log_path, get_sensor_id
+from . import utils
 from . import config
+from .sensors import utils as sensor_utils
+from .sensors.basesensor import get_log_path, get_sensor_id
 
 
 # default host:port of the server
@@ -27,7 +28,7 @@ MQTT_HOST, MQTT_PORT = config.mqtt_host, config.mqtt_port
 
 def convert_sensor_data():
     info = {}
-    for name, data in utils.SENSOR_DATA.items():
+    for name, data in sensor_utils.SENSOR_DATA.items():
         info[name] = {
             'sensor_type': data.name,
             'sensor_name': name,
@@ -130,7 +131,7 @@ async def emit_to_subscribers(*args, **kwargs):
 
 async def emit_readings():
     """Emit a bundle with the latest reading of all sensors."""
-    args = utils.parse_args()  # TODO: create separate parser for the server
+    args = sensor_utils.parse_args()  # TODO: create separate parser for the server
     delay = args.delay
     print(f'Broadcasting data every {delay} seconds.')
     n = 0
@@ -159,7 +160,7 @@ async def emit_readings():
 
 
 async def mqtt_handler():
-    args = utils.parse_args()
+    args = sensor_utils.parse_args()
     mqtt_broker = args.host or MQTT_HOST
     topic_sub = args.mqtt_topic_sub or config.mqtt_topic_sub
     print(SENSOR_INFO)
@@ -196,31 +197,6 @@ async def mqtt_handler():
             await asyncio.sleep(interval)
 
 
-async def read_jsonl_file(file_path):
-    """Async generator that yields new lines (like tail -f)."""
-    try:
-        # if file doesn't exist, wait for it to be created
-        while not file_path.exists():
-            print(f'Waiting for log file to be created: {file_path}')
-            await asyncio.sleep(1)
-        print(f'Starting to monitor log file for new lines: {file_path}')
-        with open(file_path, buffering=1) as f:
-            # seek to end of file and monitor for new lines
-            f.seek(0, 2)
-            while True:
-                line = f.readline()
-                if line.strip():
-                    try:
-                        yield json.loads(line)
-                    except json.JSONDecodeError as e:
-                        print(f'Error parsing JSON from {file_path}: {e}')
-                        continue
-                else:
-                    # no new line, wait a bit before checking again
-                    await asyncio.sleep(1)
-    except Exception as e:
-        print(f'Error reading log file {file_path}: {e}')
-
 async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
     log_file = get_log_path(sensor)
@@ -236,7 +212,7 @@ async def process_sensor_log(sensor):
     print(f'Starting to process log file for {sensor}: {log_file}')
     # read and process each line from the log file continuously
     try:
-        async for reading in read_jsonl_file(log_file):
+        async for reading in utils.read_jsonl_file(log_file):
             # add the reading to SENSOR_READINGS
             SENSOR_READINGS[sensor_id].append(reading)
     except Exception as e:
