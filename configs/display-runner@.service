@@ -1,0 +1,23 @@
+# This unit file is used to launch the display scripts on boot.
+# Use the `sam setup-display` command to start and enable the service
+# so that it starts automatically on boot; `sam teardown-display`
+# to stop and disable the service.
+# Manually, it can be controlled with `start`/`stop`/`restart`/`status`.
+# Use e.g. `journalctl -u display-runner@ssd1306.service -f` to
+# see the script output.
+
+[Unit]
+Description=%i display runner service
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/simoc-sam
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.displays.%i
+Restart=always
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

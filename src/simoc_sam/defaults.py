@@ -13,8 +13,9 @@ humans = 0
 volume = 0
 
 
-# Sensors and data collection
+# Sensors/display and data collection
 sensors = ['bme688', 'scd30', 'sgp30']
+display = 'ssd1306'
 sensor_read_delay = 10.0
 
 
