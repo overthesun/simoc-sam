@@ -1,15 +1,15 @@
 import json
-import pathlib
 import asyncio
 
 from copy import deepcopy
-from contextlib import ExitStack, asynccontextmanager
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from simoc_sam import siobridge
 from simoc_sam.sensors.basesensor import get_sensor_id
+from conftest import wait_until, terminate_task
 
 
 # fixtures
@@ -130,7 +130,7 @@ def break_after_message():
 @pytest.fixture(autouse=True)
 def mock_parse_args():
     """Patch parse_args to return consistent test arguments."""
-    with patch('simoc_sam.siobridge.utils.parse_args') as mock_args:
+    with patch('simoc_sam.sensors.utils.parse_args') as mock_args:
         mock_args.return_value.host = 'localhost'
         mock_args.return_value.mqtt_topic = 'sam/#'
         mock_args.return_value.delay = 1
@@ -235,64 +235,6 @@ async def test_emit_readings(sio, sio_sleep_break, sensor_id, two_subs, sensor_r
 
 # tests for log file functionality
 
-@pytest.fixture
-def temp_log_dir(tmp_path):
-    """Create a temporary log directory."""
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    return log_dir
-
-@pytest.fixture
-def jsonl_log_path(temp_log_dir):
-    """Create a JSONL log file path using sensor ID format."""
-    sensor_id = get_sensor_id('test', sep='_')
-    return temp_log_dir / f"{sensor_id}.jsonl"
-
-async def wait_until(condition, timeout=5.0, interval=0.1):
-    """Wait until condition() returns True or timeout occurs."""
-    max_attempts = int(timeout / interval)
-    for _ in range(max_attempts):
-        if condition():
-            return
-        await asyncio.sleep(interval)
-    pytest.fail(f"Condition not met within {timeout} seconds")
-
-@asynccontextmanager
-async def wait_until_eof_seek():
-    """Context manager that waits until a file seeks to EOF."""
-    eof_reached = {'value': False}
-    original_open = open
-    def patched_open(*args, **kwargs):
-        file_obj = original_open(*args, **kwargs)
-        original_seek = file_obj.seek
-        def seek_wrapper(cookie, whence=0):
-            result = original_seek(cookie, whence)
-            if whence == 2:  # SEEK_END
-                eof_reached['value'] = True
-            return result
-        file_obj.seek = seek_wrapper
-        return file_obj
-    with patch('simoc_sam.siobridge.open', patched_open):
-        yield
-        await wait_until(lambda: eof_reached['value'])
-
-@asynccontextmanager
-async def wait_until_file_checked():
-    """Context manager that waits until Path.exists() is called."""
-    exists_checked = {'value': False}
-    original_exists = pathlib.Path.exists
-    def exists_wrapper(self):
-        exists_checked['value'] = True
-        return original_exists(self)
-    with patch.object(pathlib.Path, 'exists', exists_wrapper):
-        yield
-        await wait_until(lambda: exists_checked['value'])
-
-async def terminate_task(task):
-    """Cancel a task and wait for it to finish."""
-    task.cancel()
-    await asyncio.gather(task, return_exceptions=True)
-
 @pytest.mark.asyncio
 async def test_process_sensor_log(mock_emit_to_subscribers):
     """Test that process_sensor_log registers sensor in SENSOR_INFO."""
@@ -304,7 +246,7 @@ async def test_process_sensor_log(mock_emit_to_subscribers):
     # mock read_jsonl_file to avoid actual file I/O
     async def mock_read_jsonl():
         yield {'n': 0, 'co2': 400}  # yield one reading then stop
-    with patch('simoc_sam.siobridge.read_jsonl_file', return_value=mock_read_jsonl()):
+    with patch('simoc_sam.utils.read_jsonl_file', return_value=mock_read_jsonl()):
         # start processing the log
         process_task = asyncio.create_task(siobridge.process_sensor_log(sensor_name))
         # wait for sensor to be registered
@@ -348,83 +290,3 @@ async def test_log_handler_missing_directory():
         mock_config.log_dir = '/nonexistent/directory'
         with pytest.raises(FileNotFoundError, match='Log directory does not exist'):
             await siobridge.log_handler()
-
-@pytest.mark.asyncio
-async def test_read_jsonl_file_skips_invalid_json(jsonl_log_path, capfd):
-    """Test that read_jsonl_file skips invalid JSON and continues."""
-    # create file with initial content (skipped by tail -f)
-    with open(jsonl_log_path, 'w') as f:
-        f.write('{"n": -2}\n{"n": -1}\n')
-    readings = []
-    async def collect_readings():
-        async for line in siobridge.read_jsonl_file(jsonl_log_path):
-            readings.append(line)
-    # create task and wait until read_jsonl_file seeks to EOF
-    async with wait_until_eof_seek():
-        read_task = asyncio.create_task(collect_readings())
-    # append valid, invalid, and valid JSON
-    with open(jsonl_log_path, 'a') as f:
-        f.write('{"n": 0}\ninvalid json\n{"n": 1}\n')
-    # wait for read_jsonl_file to read and yield the valid lines
-    await wait_until(lambda: len(readings) >= 2)
-    # verify only valid JSON was yielded
-    assert len(readings) == 2
-    assert readings[0] == {'n': 0}
-    assert readings[1] == {'n': 1}
-    # verify error was printed
-    captured = capfd.readouterr()
-    assert 'Error parsing JSON' in captured.out
-    # clean up
-    await terminate_task(read_task)
-
-@pytest.mark.asyncio
-async def test_read_jsonl_file_waits_for_file(jsonl_log_path):
-    """Test that read_jsonl_file waits for file creation."""
-    readings = []
-    async def collect_readings():
-        async for line in siobridge.read_jsonl_file(jsonl_log_path):
-            readings.append(line)
-    # start reading before file exists and wait until it checks for the file
-    async with wait_until_file_checked():
-        read_task = asyncio.create_task(collect_readings())
-    # create file with initial content (skipped)
-    with open(jsonl_log_path, 'w') as f:
-        f.write('{"n": -2}\n{"n": -1}\n')
-    # wait until read_jsonl_file detects the file and seeks to EOF
-    async with wait_until_eof_seek():
-        pass
-    # append new data
-    with open(jsonl_log_path, 'a') as f:
-        f.write('{"n": 0}\n')
-    # wait for read_jsonl_file to read and yield the new line
-    await wait_until(lambda: len(readings) >= 1)
-    # verify reading was captured
-    assert len(readings) == 1
-    assert readings[0] == {'n': 0}
-    # clean up
-    await terminate_task(read_task)
-
-@pytest.mark.asyncio
-async def test_read_jsonl_file_tails_appended_lines(jsonl_log_path):
-    """Test that read_jsonl_file acts like tail -f (skips existing content)."""
-    # create file with initial content
-    with open(jsonl_log_path, 'w') as f:
-        f.write('{"n": -2}\n{"n": -1}\n')
-    readings = []
-    async def collect_readings():
-        async for line in siobridge.read_jsonl_file(jsonl_log_path):
-            readings.append(line)
-    # create task and wait until read_jsonl_file seeks to EOF
-    async with wait_until_eof_seek():
-        read_task = asyncio.create_task(collect_readings())
-    # append new lines
-    with open(jsonl_log_path, 'a') as f:
-        f.write('{"n": 0}\n{"n": 1}\n')
-    # wait for read_jsonl_file to read and yield the new lines
-    await wait_until(lambda: len(readings) >= 2)
-    # verify only new lines were read, not initial content
-    assert len(readings) == 2
-    assert readings[0] == {'n': 0}
-    assert readings[1] == {'n': 1}
-    # clean up
-    await terminate_task(read_task)
