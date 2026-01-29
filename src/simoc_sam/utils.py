@@ -1,12 +1,21 @@
 """Misc utility functions."""
 
 import json
+import time
 import asyncio
 import warnings
 
 from .sensors import utils as sensor_utils
 
 _i2c_cache = {}
+
+
+def uptime():
+    """Return uptime string in HH:MM:SS format."""
+    t = int(time.monotonic())
+    h, r = divmod(t, 3600)
+    m, s = divmod(r, 60)
+    return f"Up {h:02}:{m:02}:{s:02}"
 
 
 async def read_jsonl_file(file_path):
