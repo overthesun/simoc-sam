@@ -1,7 +1,9 @@
 """Mock display driver that prints sensor data to the console."""
 
-import random
 import time
+import random
+
+from simoc_sam.utils import uptime
 
 
 def gen_value(base, offset, range_min, range_max):
@@ -11,14 +13,6 @@ def gen_value(base, offset, range_min, range_max):
         value = random.gauss(value, offset/3)
         value = float(max(range_min, min(value, range_max)))
         yield value
-
-
-def uptime():
-    """Return uptime string in HH:MM:SS format."""
-    t = int(time.monotonic())
-    h, r = divmod(t, 3600)
-    m, s = divmod(r, 60)
-    return f"Up {h:02}:{m:02}:{s:02}"
 
 
 def get_sensor_values():

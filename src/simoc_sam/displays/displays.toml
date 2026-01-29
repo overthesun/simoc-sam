@@ -1,0 +1,27 @@
+# Display configuration
+
+[mockdisplay]
+name = "Mock Display"
+description = "A mock display that prints to console."
+module = "simoc_sam.displays.mockdisplay"
+width = 128
+height = 64
+i2c_address = 0x00
+
+[ssd1306_128x64]
+name = "SSD1306 128x64"
+description = "Monochrome 1.3\" 128x64 OLED display"
+module = "simoc_sam.displays.ssd1306"
+width = 128
+height = 64
+i2c_address = 0x3D
+reset_pin = "D4"
+
+[ssd1306_128x32]
+name = "SSD1306 128x32"
+description = "Monochrome 0.91\" 128x32 OLED display"
+module = "simoc_sam.displays.ssd1306"
+width = 128
+height = 32
+i2c_address = 0x3C
+reset_pin = "D4"

@@ -17,6 +17,9 @@ volume = 0
 sensors = ['bme688', 'scd30', 'sgp30']
 sensor_read_delay = 10.0
 
+# Display configuration
+display = 'ssd1306_128x64'
+
 
 # MQTT configuration
 mqtt_host = 'localhost'
