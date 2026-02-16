@@ -511,7 +511,6 @@ def raspi_config(cmd, *args):
     return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args])
 
 @cmd
-@needs_root
 def enable_i2c():
     """Enable i2c using raspi-config."""
     print('Enabling i2c...')
