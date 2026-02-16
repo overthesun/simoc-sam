@@ -474,11 +474,11 @@ def initial_setup():
     remove_home_dirs()
     print('Updating system and installing deps...')
     install_deps()
+    enable_i2c()
     print('Setting up virtualenv...')
     create_venv()
-    print('System updated, deps installed, venv created, home cleaned, '
-          'aliases set up.')
-    print('Run <source ~/.bash_aliases> to install the aliases now.')
+    print('Initial setup complete.\n\nPlease reboot the system.\n')
+
 
 def install_bash_aliases():
     """Install the .bash_aliases file in the home dir."""
@@ -506,6 +506,22 @@ def install_deps():
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
     run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
 
+def raspi_config(cmd, *args):
+    """Run raspi-config with the specified command and arguments."""
+    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args])
+
+@cmd
+@needs_root
+def enable_i2c():
+    """Enable i2c using raspi-config."""
+    print('Enabling i2c...')
+    result = raspi_config('do_i2c', '0')
+    if result.returncode == 0:
+        print('i2c successfully enabled.')
+        return True
+    else:
+        print(f'Error: Failed to enable i2c.')
+        return False
 
 @cmd
 def create_config():
