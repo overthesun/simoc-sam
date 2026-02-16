@@ -472,9 +472,11 @@ def initial_setup():
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
+    enable_i2c()
+    print('Setting up locale...')
+    setup_locale()
     print('Updating system and installing deps...')
     install_deps()
-    enable_i2c()
     print('Setting up virtualenv...')
     create_venv()
     print('Initial setup complete.\n\nPlease reboot the system.\n')
@@ -509,6 +511,11 @@ def install_deps():
 def raspi_config(cmd, *args):
     """Run raspi-config with the specified command and arguments."""
     return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args])
+
+@cmd
+def setup_locale(locale='en_US.UTF-8'):
+    """Set up the system locale."""
+    return raspi_config('do_change_locale', locale)
 
 @cmd
 def enable_i2c():
