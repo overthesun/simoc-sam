@@ -472,6 +472,7 @@ def initial_setup():
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
+    print('Enabling i2c...')
     enable_i2c()
     print('Setting up locale...')
     setup_locale()
@@ -510,7 +511,8 @@ def install_deps():
 
 def raspi_config(cmd, *args):
     """Run raspi-config with the specified command and arguments."""
-    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args])
+    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args],
+                          check=True)
 
 @cmd
 def setup_locale(locale='en_US.UTF-8'):
@@ -520,14 +522,7 @@ def setup_locale(locale='en_US.UTF-8'):
 @cmd
 def enable_i2c():
     """Enable i2c using raspi-config."""
-    print('Enabling i2c...')
-    result = raspi_config('do_i2c', '0')
-    if result.returncode == 0:
-        print('i2c successfully enabled.')
-        return True
-    else:
-        print(f'Error: Failed to enable i2c.')
-        return False
+    raspi_config('do_i2c', '0')
 
 @cmd
 def create_config():
