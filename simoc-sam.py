@@ -40,6 +40,10 @@ DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
+APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
+               'mosquitto-clients', 'avahi-utils']
+APT_REMOVE = []
+
 COMMANDS = {}
 
 def cmd(func):
@@ -476,8 +480,8 @@ def initial_setup():
     enable_i2c()
     print('Setting up locale...')
     setup_locale()
-    print('Updating system and installing deps...')
-    install_deps()
+    print('Updating apt packages...')
+    update_apt_packages()
     print('Setting up virtualenv...')
     create_venv()
     print('Initial setup complete.\n\nPlease reboot the system.\n')
@@ -501,13 +505,16 @@ def remove_home_dirs():
         except (FileNotFoundError, OSError):
             pass  # skip missing dirs or dirs that are not empty
 
-def install_deps():
-    """Install dependencies using apt."""
-    packages = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
-                'mosquitto-clients', 'avahi-utils']
+def update_apt_packages():
+    """Remove, update, upgrade, and install apt packages."""
+    if APT_REMOVE:
+        run(['sudo', 'apt', 'remove', '-y'] + APT_REMOVE, check=True)
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
-    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
+    if APT_INSTALL:
+        run(['sudo', 'apt', 'install', '-y'] + APT_INSTALL, check=True)
+    run(['sudo', 'apt', 'autoremove', '-y'], check=True)
+    run(['sudo', 'apt', 'autoclean'], check=True)
 
 def raspi_config(cmd, *args):
     """Run raspi-config with the specified command and arguments."""
