@@ -42,7 +42,7 @@ HOSTNAME = socket.gethostname()
 
 APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
                'mosquitto-clients', 'avahi-utils']
-APT_REMOVE = []
+APT_REMOVE = ['chromium']
 
 COMMANDS = {}
 
