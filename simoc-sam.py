@@ -7,6 +7,7 @@ import uuid
 import shutil
 import socket
 import pathlib
+import inspect
 import argparse
 import tempfile
 import functools
@@ -75,9 +76,17 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
-                               sys.executable, *sys.argv])
-            return
+            # get func name and args (positional and named) in the right order
+            sig = inspect.signature(func)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            # re-run with sudo in a subprocess
+            cmd_name = func.__name__
+            cmd_args = [str(arg) for arg in bound.arguments.values()]
+            cmd = ['sudo', '--preserve-env=HOME',
+                   sys.executable, __file__, cmd_name, *cmd_args]
+            result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+            return result.returncode == 0
         else:
             return func(*args, **kwargs)
     return inner
