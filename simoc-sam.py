@@ -40,6 +40,10 @@ DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
+APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
+               'mosquitto-clients', 'avahi-utils']
+APT_REMOVE = ['chromium']
+
 COMMANDS = {}
 
 def cmd(func):
@@ -472,13 +476,16 @@ def initial_setup():
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
-    print('Updating system and installing deps...')
-    install_deps()
+    print('Enabling i2c...')
+    enable_i2c()
+    print('Setting up locale...')
+    setup_locale()
+    print('Updating apt packages...')
+    update_apt_packages()
     print('Setting up virtualenv...')
     create_venv()
-    print('System updated, deps installed, venv created, home cleaned, '
-          'aliases set up.')
-    print('Run <source ~/.bash_aliases> to install the aliases now.')
+    print('Initial setup complete.\n\nPlease reboot the system.\n')
+
 
 def install_bash_aliases():
     """Install the .bash_aliases file in the home dir."""
@@ -498,14 +505,31 @@ def remove_home_dirs():
         except (FileNotFoundError, OSError):
             pass  # skip missing dirs or dirs that are not empty
 
-def install_deps():
-    """Install dependencies using apt."""
-    packages = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
-                'mosquitto-clients', 'avahi-utils']
+def update_apt_packages():
+    """Remove, update, upgrade, and install apt packages."""
+    if APT_REMOVE:
+        run(['sudo', 'apt', 'remove', '-y'] + APT_REMOVE, check=True)
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
-    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
+    if APT_INSTALL:
+        run(['sudo', 'apt', 'install', '-y'] + APT_INSTALL, check=True)
+    run(['sudo', 'apt', 'autoremove', '-y'], check=True)
+    run(['sudo', 'apt', 'autoclean'], check=True)
 
+def raspi_config(cmd, *args):
+    """Run raspi-config with the specified command and arguments."""
+    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args],
+                          check=True)
+
+@cmd
+def setup_locale(locale='en_US.UTF-8'):
+    """Set up the system locale."""
+    return raspi_config('do_change_locale', locale)
+
+@cmd
+def enable_i2c():
+    """Enable i2c using raspi-config."""
+    raspi_config('do_i2c', '0')
 
 @cmd
 def create_config():
