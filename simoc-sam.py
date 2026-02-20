@@ -303,8 +303,7 @@ def teardown_mosquitto():
     run(['systemctl', 'disable', 'mosquitto'])
     print('Mosquitto service stopped and disabled.')
     mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
-    if mosquitto_conf_dest.exists():
-        mosquitto_conf_dest.unlink()
+    mosquitto_conf_dest.unlink(missing_ok=True)
 
 
 def setup_systemd_service(name):
