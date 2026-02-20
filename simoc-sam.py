@@ -31,6 +31,7 @@ CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
+MOSQUITTO_DIR = pathlib.Path('/etc/mosquitto/conf.d/')
 HOTSPOT_CONN = 'hotspot'
 WIFI_CONN = 'wifi'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
@@ -41,7 +42,7 @@ TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
 APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
-               'mosquitto-clients', 'avahi-utils']
+               'mosquitto', 'mosquitto-clients', 'avahi-utils']
 APT_REMOVE = ['chromium']
 
 COMMANDS = {}
@@ -272,6 +273,38 @@ def setup_nmconn(nmconn_file, repls):
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
     run(['nmcli', 'connection', 'delete', conn_id])
+
+
+@cmd
+@needs_root
+def setup_mosquitto():
+    """Setup and configure a local Mosquitto MQTT broker."""
+    mosquitto_conf_src = CONFIGS_DIR / 'mosquitto-local.conf'
+    mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
+    if mosquitto_conf_dest.exists():
+        print(f'{mosquitto_conf_dest} already exists -- recreating it...')
+        mosquitto_conf_dest.unlink()
+    shutil.copy(mosquitto_conf_src, mosquitto_conf_dest)
+    mosquitto_conf_dest.chmod(0o644)
+    os.chown(mosquitto_conf_dest, 0, 0)  # owner is now root
+    print(f'Mosquitto configuration deployed to {mosquitto_conf_dest}')
+    if (run(['systemctl', 'enable', 'mosquitto']) and
+        run(['systemctl', 'restart', 'mosquitto'])):
+        print('Mosquitto service enabled and started.')
+    else:
+        print('Failed to enable/start mosquitto service. Check logs with:')
+        print('  journalctl -u mosquitto -n 50')
+
+@cmd
+@needs_root
+def teardown_mosquitto():
+    """Revert the changes made by the setup-mosquitto command."""
+    run(['systemctl', 'stop', 'mosquitto'])
+    run(['systemctl', 'disable', 'mosquitto'])
+    print('Mosquitto service stopped and disabled.')
+    mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
+    if mosquitto_conf_dest.exists():
+        mosquitto_conf_dest.unlink()
 
 
 def setup_systemd_service(name):
