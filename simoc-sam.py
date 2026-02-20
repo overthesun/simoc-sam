@@ -279,6 +279,8 @@ def teardown_nmconn(conn_id):
 @needs_root
 def setup_mosquitto():
     """Setup and configure a local Mosquitto MQTT broker."""
+    if not shutil.which('mosquitto'):
+        sys.exit('Mosquitto not found. Install it with `sudo apt install mosquitto`.')
     mosquitto_conf_src = CONFIGS_DIR / 'mosquitto-local.conf'
     mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
     if mosquitto_conf_dest.exists():
