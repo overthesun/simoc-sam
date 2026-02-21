@@ -1,34 +1,12 @@
 """Mock display driver that prints sensor data to the console."""
 
-import time
-import random
+import asyncio
 
 from simoc_sam.utils import uptime
+from simoc_sam.displays import utils as display_utils
 
-
-def gen_value(base, offset, range_min, range_max):
-    """Generate random values starting from base +-offset, within range."""
-    value = base
-    while True:
-        value = random.gauss(value, offset/3)
-        value = float(max(range_min, min(value, range_max)))
-        yield value
-
-
-def get_sensor_values():
-    """Generate random sensor values for display."""
-    return [
-        f"CO2: {next(co2_gen):.0f}",
-        f"T: {next(temp_gen):.2f}C",
-        f"RH: {next(hum_gen):.2f}%",
-        f"VOC: {int(next(voc_gen))}",
-        f"Pr: {next(pressure_gen):.2f}",
-        f"Lt: {next(light_gen):.2f}",
-        f"A-x: {next(accel_x_gen):.2f}",
-        f"A-y: {next(accel_y_gen):.2f}",
-        f"A-z: {next(accel_z_gen):.2f}",
-    ]
-
+# store latest readings from each sensor (updated by MQTT handler)
+SENSOR_READINGS = {}
 
 def display_values(sensor_values):
     """Print sensor values to console."""
@@ -40,30 +18,29 @@ def display_values(sensor_values):
         print(value)
     print("=" * 40)
 
-
-# initialize generators
-co2_gen = gen_value(450, 20, 400, 2000)
-temp_gen = gen_value(22, 1, 15, 30)
-hum_gen = gen_value(50, 3, 20, 80)
-voc_gen = gen_value(100, 20, 0, 500)
-pressure_gen = gen_value(1013, 5, 900, 1100)
-light_gen = gen_value(300, 50, 0, 1000)
-accel_x_gen = gen_value(0, 0.1, -2, 2)
-accel_y_gen = gen_value(0, 0.1, -2, 2)
-accel_z_gen = gen_value(9.8, 0.1, 8, 11)
-
-
-def main():
-    """Main loop: generate and display sensor values."""
-    print("MockDisplay started. Press Ctrl+C to exit.")
+async def update_display():
+    """Continuously update the console display with latest sensor values."""
     try:
         while True:
-            sensor_values = get_sensor_values()
+            sensor_values = display_utils.format_values(SENSOR_READINGS)
             display_values(sensor_values)
-            time.sleep(1)
-    except KeyboardInterrupt:
+            await asyncio.sleep(1)  # refresh display once per second
+    except asyncio.CancelledError:
         print("\nMockDisplay stopped.")
+        raise
 
+async def main():
+    """Main loop: monitor MQTT and display sensor values."""
+    print("MockDisplay started. Press Ctrl+C to exit.")
+    # start MQTT monitor and display update tasks
+    await asyncio.gather(
+        asyncio.create_task(display_utils.mqtt_monitor(SENSOR_READINGS)),
+        asyncio.create_task(update_display()),
+        return_exceptions=True,
+    )
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nMockDisplay stopped.")
