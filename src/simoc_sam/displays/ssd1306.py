@@ -16,37 +16,34 @@ from simoc_sam import utils
 SENSOR_READINGS = {}
 
 
-def draw_page(oled, font, sensor_values):
+def draw_page(oled, sensor_values):
     """Draw sensor values on the OLED display."""
     image = Image.new("1", (oled.height, oled.width))
     draw = ImageDraw.Draw(image)
-
+    font = ImageFont.load_default()
     # header
     draw.text((0, 0), "SIMOC LIVE", font=font, fill=255)
     draw.text((0, 12), utils.uptime(), font=font, fill=255)
-
     # sensor values
     if sensor_values:
         header_height = 30
         usable_height = oled.width - header_height  # screen is rotated
         num_rows = len(sensor_values)
         spacing = max(8, usable_height // num_rows)
-
         y = header_height
         for row in sensor_values:
             draw.text((0, y), row, font=font, fill=255)
             y += spacing
-
     oled.image(image.rotate(90, expand=True))
     oled.show()
 
 
-async def update_display(oled, font):
+async def update_display(oled):
     """Continuously update the display with latest sensor values."""
     try:
         while True:
             sensor_values = display_utils.format_values(SENSOR_READINGS)
-            draw_page(oled, font, sensor_values)
+            draw_page(oled, sensor_values)
             await asyncio.sleep(1)  # refresh display once per second
     except asyncio.CancelledError:
         # clear display on shutdown
@@ -84,7 +81,7 @@ async def main(display_key=None):
     # start MQTT monitor and display update tasks
     await asyncio.gather(
         asyncio.create_task(display_utils.mqtt_monitor(SENSOR_READINGS)),
-        asyncio.create_task(update_display(oled, font)),
+        asyncio.create_task(update_display(oled)),
         return_exceptions=True,
     )
 
