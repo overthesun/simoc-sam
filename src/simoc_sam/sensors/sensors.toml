@@ -102,6 +102,8 @@ name = "BME688"
 description = "Temperature, Humidity, Pressure, and Gas Sensor"
 module = "simoc_sam.sensors.bme688"
 i2c_address = 0x77
+chip_id_register = 0xD0
+chip_id = 0x61
 
     [bme688.data.temperature]
     unit = "°C"
@@ -133,6 +135,8 @@ name = "BMP388"
 description = "Temperature, Barometric Pressure, and Altitude Sensor"
 module = "simoc_sam.sensors.bmp388"
 i2c_address = 0x77
+chip_id_register = 0x00
+chip_id = 0x50
 
     [bmp388.data.temperature]
     unit = "°C"

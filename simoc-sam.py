@@ -31,6 +31,7 @@ CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
+MOSQUITTO_DIR = pathlib.Path('/etc/mosquitto/conf.d/')
 HOTSPOT_CONN = 'hotspot'
 WIFI_CONN = 'wifi'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
@@ -39,6 +40,10 @@ DEPS = SIMOC_SAM_DIR / 'requirements.txt'
 DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
+
+APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
+               'mosquitto', 'mosquitto-clients', 'avahi-utils']
+APT_REMOVE = ['chromium']
 
 COMMANDS = {}
 
@@ -270,6 +275,39 @@ def teardown_nmconn(conn_id):
     run(['nmcli', 'connection', 'delete', conn_id])
 
 
+@cmd
+@needs_root
+def setup_mosquitto():
+    """Setup and configure a local Mosquitto MQTT broker."""
+    if not shutil.which('mosquitto'):
+        sys.exit('Mosquitto not found. Install it with `sudo apt install mosquitto`.')
+    mosquitto_conf_src = CONFIGS_DIR / 'mosquitto-local.conf'
+    mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
+    if mosquitto_conf_dest.exists():
+        print(f'{mosquitto_conf_dest} already exists -- recreating it...')
+        mosquitto_conf_dest.unlink()
+    shutil.copy(mosquitto_conf_src, mosquitto_conf_dest)
+    mosquitto_conf_dest.chmod(0o644)
+    os.chown(mosquitto_conf_dest, 0, 0)  # owner is now root
+    print(f'Mosquitto configuration deployed to {mosquitto_conf_dest}')
+    if (run(['systemctl', 'enable', 'mosquitto']) and
+        run(['systemctl', 'restart', 'mosquitto'])):
+        print('Mosquitto service enabled and started.')
+    else:
+        print('Failed to enable/start mosquitto service. Check logs with:')
+        print('  journalctl -u mosquitto -n 50')
+
+@cmd
+@needs_root
+def teardown_mosquitto():
+    """Revert the changes made by the setup-mosquitto command."""
+    run(['systemctl', 'stop', 'mosquitto'])
+    run(['systemctl', 'disable', 'mosquitto'])
+    print('Mosquitto service stopped and disabled.')
+    mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
+    mosquitto_conf_dest.unlink(missing_ok=True)
+
+
 def setup_systemd_service(name):
     # create a symlink to the given service, enable it, and start it
     if '@' in name:
@@ -495,13 +533,16 @@ def initial_setup():
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
-    print('Updating system and installing deps...')
-    install_deps()
+    print('Enabling i2c...')
+    enable_i2c()
+    print('Setting up locale...')
+    setup_locale()
+    print('Updating apt packages...')
+    update_apt_packages()
     print('Setting up virtualenv...')
     create_venv()
-    print('System updated, deps installed, venv created, home cleaned, '
-          'aliases set up.')
-    print('Run <source ~/.bash_aliases> to install the aliases now.')
+    print('Initial setup complete.\n\nPlease reboot the system.\n')
+
 
 def install_bash_aliases():
     """Install the .bash_aliases file in the home dir."""
@@ -521,14 +562,31 @@ def remove_home_dirs():
         except (FileNotFoundError, OSError):
             pass  # skip missing dirs or dirs that are not empty
 
-def install_deps():
-    """Install dependencies using apt."""
-    packages = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
-                'mosquitto-clients', 'avahi-utils']
+def update_apt_packages():
+    """Remove, update, upgrade, and install apt packages."""
+    if APT_REMOVE:
+        run(['sudo', 'apt', 'remove', '-y'] + APT_REMOVE, check=True)
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
-    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
+    if APT_INSTALL:
+        run(['sudo', 'apt', 'install', '-y'] + APT_INSTALL, check=True)
+    run(['sudo', 'apt', 'autoremove', '-y'], check=True)
+    run(['sudo', 'apt', 'autoclean'], check=True)
 
+def raspi_config(cmd, *args):
+    """Run raspi-config with the specified command and arguments."""
+    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args],
+                          check=True)
+
+@cmd
+def setup_locale(locale='en_US.UTF-8'):
+    """Set up the system locale."""
+    return raspi_config('do_change_locale', locale)
+
+@cmd
+def enable_i2c():
+    """Enable i2c using raspi-config."""
+    raspi_config('do_i2c', '0')
 
 @cmd
 def create_config():
