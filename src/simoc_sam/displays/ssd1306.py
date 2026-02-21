@@ -67,13 +67,13 @@ async def main(display_key=None):
         sys.exit(1)
     display_config = display_utils.DISPLAY_DATA[display_key]
     # initialize display
-    oled_reset = digitalio.DigitalInOut(display_config.reset_pin)
+    oled_reset = digitalio.DigitalInOut(getattr(board, display_config.reset_pin))
     oled = adafruit_ssd1306.SSD1306_I2C(
         display_config.width,
         display_config.height,
         board.I2C(),
         addr=display_config.i2c_address,
-        reset=oled_reset
+        reset=oled_reset,
     )
     font = ImageFont.load_default()
     oled.fill(0)
