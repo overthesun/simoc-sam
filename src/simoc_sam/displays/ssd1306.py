@@ -16,7 +16,7 @@ from simoc_sam import utils
 SENSOR_READINGS = {}
 
 
-def draw_page(oled, font, sensor_values, width):
+def draw_page(oled, font, sensor_values):
     """Draw sensor values on the OLED display."""
     image = Image.new("1", (oled.height, oled.width))
     draw = ImageDraw.Draw(image)
@@ -41,12 +41,12 @@ def draw_page(oled, font, sensor_values, width):
     oled.show()
 
 
-async def update_display(oled, font, width):
+async def update_display(oled, font):
     """Continuously update the display with latest sensor values."""
     try:
         while True:
             sensor_values = display_utils.format_values(SENSOR_READINGS)
-            draw_page(oled, font, sensor_values, width)
+            draw_page(oled, font, sensor_values)
             await asyncio.sleep(1)  # refresh display once per second
     except asyncio.CancelledError:
         # clear display on shutdown
@@ -84,7 +84,7 @@ async def main(display_key=None):
     # start MQTT monitor and display update tasks
     await asyncio.gather(
         asyncio.create_task(display_utils.mqtt_monitor(SENSOR_READINGS)),
-        asyncio.create_task(update_display(oled, font, display_config.width)),
+        asyncio.create_task(update_display(oled, font)),
         return_exceptions=True,
     )
 
