@@ -18,7 +18,7 @@ sensors = ['bme688', 'scd30', 'sgp30']
 sensor_read_delay = 10.0
 
 # Display configuration
-display = 'ssd1306_128x64'
+display = 'ssd1306'
 display_order = ['scd30', 'sgp30', 'bme688', 'tsl2591', 'bno085']
 
 

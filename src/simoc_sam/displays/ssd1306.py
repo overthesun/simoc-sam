@@ -57,20 +57,9 @@ async def update_display(oled):
         raise
 
 
-async def main(display_key=None):
+async def main():
     """Main loop: read sensor values and display them on the OLED."""
-    # determine which display to use
-    if display_key is None:
-        if len(sys.argv) > 1:
-            display_key = sys.argv[1]
-        else:
-            display_key = 'ssd1306_128x64'  # default
-    # load display config
-    if display_key not in display_utils.DISPLAY_DATA:
-        print(f"Error: Unknown display '{display_key}'")
-        print(f"Available displays: {list(display_utils.DISPLAY_DATA.keys())}")
-        sys.exit(1)
-    display_config = display_utils.DISPLAY_DATA[display_key]
+    display_config = display_utils.DISPLAY_DATA['ssd1306']
     # initialize display
     oled_reset = digitalio.DigitalInOut(getattr(board, display_config.reset_pin))
     oled = adafruit_ssd1306.SSD1306_I2C(
@@ -91,5 +80,4 @@ async def main(display_key=None):
 
 
 if __name__ == "__main__":
-    display_key = sys.argv[1] if len(sys.argv) > 1 else None
-    asyncio.run(main(display_key))
+    asyncio.run(main())
