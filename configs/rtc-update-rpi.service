@@ -1,0 +1,26 @@
+# This unit file updates RPi system time from the RTC at boot.
+# This is useful when there's no network/NTP available.
+# If NTP is available, it will override this within seconds.
+#
+# Installation: python simoc-sam.py setup-rtc
+#
+# Manual control:
+#   python simoc-sam.py sync-time                # update RPi time from RTC
+#   journalctl -u rtc-update-rpi.service         # view logs
+
+[Unit]
+Description=Update RPi time from PCF8523 RTC at boot
+DefaultDependencies=no
+Before=sysinit.target time-sync.target
+Wants=time-sync.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/pi/simoc-sam
+ExecStart=/home/pi/simoc-sam/venv/bin/python simoc-sam.py sync-time
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target
