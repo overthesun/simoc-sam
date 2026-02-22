@@ -39,7 +39,7 @@ def load_display_data(file_path=DISPLAYS_TOML):
             module=display_info['module'],
             width=display_info['width'],
             height=display_info['height'],
-            i2c_address=display_info.get('i2c_address'),
+            i2c_address=display_info['i2c_address'],
             reset_pin=display_info.get('reset_pin'),
         )
     return display_data
