@@ -77,7 +77,6 @@ async def main(display_key=None):
         addr=display_config.i2c_address,
         reset=oled_reset,
     )
-    font = ImageFont.load_default()
     oled.fill(0)
     oled.show()
     # start MQTT monitor and display update tasks
