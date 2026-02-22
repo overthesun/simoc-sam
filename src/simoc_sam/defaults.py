@@ -17,9 +17,22 @@ volume = 0
 sensors = ['bme688', 'scd30', 'sgp30']
 sensor_read_delay = 10.0
 
+
 # Display configuration
 display = 'ssd1306'
-display_order = ['scd30', 'sgp30', 'bme688', 'tsl2591', 'bno085']
+display_format = """
+SIMOC LIVE
+{uptime}
+T: {bme688_temperature:.2f}C
+RH: {bme688_humidity:.2f}%
+CO2: {scd30_co2:.0f}
+VOC: {sgp30_tvoc}
+Lt: {tsl2591_light:.2f}
+Pr: {bme688_pressure:.2f}
+A-x: {bno085_linear_accel_x:.2f}
+A-y: {bno085_linear_accel_y:.2f}
+A-z: {bno085_linear_accel_z:.2f}
+"""
 
 
 # MQTT configuration

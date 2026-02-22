@@ -17,28 +17,24 @@ from simoc_sam.displays import utils as display_utils
 # store latest readings from each sensor (updated by MQTT handler)
 SENSOR_READINGS = {}
 
-# number of rows to display for sensor values (after header rows)
+# number of rows for 128x64 rotated 90 degrees
+# With configurable format, this is the total rows including header
 MAX_ROWS = 9
 
 
-def draw_page(oled, sensor_values):
+def draw_page(oled, rows):
     """Draw sensor values on the OLED display."""
     image = Image.new("1", (oled.height, oled.width))
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default()
-    # header
-    draw.text((0, 0), "SIMOC LIVE", font=font, fill=255)
-    draw.text((0, 12), utils.uptime(), font=font, fill=255)
-    # sensor values
-    if sensor_values:
-        header_height = 30
-        usable_height = oled.width - header_height  # screen is rotated
-        num_rows = len(sensor_values)
-        spacing = max(8, usable_height // num_rows)
-        y = header_height
-        for row in sensor_values:
-            draw.text((0, y), row, font=font, fill=255)
-            y += spacing
+    # Draw all rows with dynamic spacing
+    num_rows = len(rows)
+    # Screen is rotated, so oled.width is actually the height
+    spacing = max(8, oled.width // num_rows)
+    y = 0
+    for row in rows:
+        draw.text((0, y), row, font=font, fill=255)
+        y += spacing
     oled.image(image.rotate(90, expand=True))
     oled.show()
 
@@ -47,8 +43,8 @@ async def update_display(oled):
     """Continuously update the display with latest sensor values."""
     try:
         while True:
-            sensor_values = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
-            draw_page(oled, sensor_values)
+            rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
+            draw_page(oled, rows)
             await asyncio.sleep(1)  # refresh display once per second
     except asyncio.CancelledError:
         # clear display on shutdown

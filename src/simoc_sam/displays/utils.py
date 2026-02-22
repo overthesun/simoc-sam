@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import tomli
 import aiomqtt
 
+from simoc_sam import utils
 from simoc_sam import config
 
 
@@ -52,32 +53,21 @@ for name, info in DISPLAY_DATA.items():
 
 
 def format_values(sensor_readings_dict, max_rows=None):
-    """Format sensor values for display from a sensor readings dictionary."""
-    rows = []
-    for sensor in config.display_order:
-        data = sensor_readings_dict.get(sensor)
+    """Format sensor values for display using configured format string."""
+    # Flatten sensor readings: {'scd30': {'co2': 450}} -> {'scd30_co2': 450}
+    flattened = {'uptime': utils.uptime()}  # add uptime
+    for sensor, data in sensor_readings_dict.items():
         if not data:
             continue
-        if sensor == 'scd30':
-            rows.append(f"CO2: {data.get('co2', 0):.0f}")
-            rows.append(f"T: {data.get('temperature', 0):.2f}C")
-            rows.append(f"RH: {data.get('humidity', 0):.2f}%")
-        elif sensor == 'sgp30':
-            rows.append(f"VOC: {data.get('tvoc', 0)}")
-        elif sensor == 'bme688':
-            rows.append(f"Pr: {data.get('pressure', 0):.2f}")
-        elif sensor == 'tsl2591':
-            rows.append(f"Lt: {data.get('light', 0):.2f}")
-        elif sensor == 'bno085':
-            for axis in ['linear_accel_x', 'linear_accel_y', 'linear_accel_z']:
-                val = data.get(axis, 0)
-                if isinstance(val, str):
-                    val = 0
-                rows.append(f"A-{axis[-1]}: {val:.2f}")
-        if max_rows and len(rows) >= max_rows:
-            rows = rows[:max_rows]
-            break
-    return rows
+        for key, val in data.items():
+            flattened[f"{sensor}_{key}"] = val
+    rows = []
+    for line in config.display_format.splitlines():
+        try:
+            rows.append(line.format_map(flattened))
+        except (KeyError, ValueError):
+            pass  # Skip lines with missing data or invalid format
+    return rows[:max_rows] if max_rows else rows
 
 
 async def mqtt_monitor(sensor_readings_dict):
