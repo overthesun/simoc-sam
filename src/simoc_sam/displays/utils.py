@@ -86,7 +86,7 @@ async def mqtt_monitor(sensor_readings_dict):
                 async for message in client.messages:
                     try:
                         topic = message.topic.value
-                        sensor = topic.split('/')[-1] # location/host/sensor
+                        sensor = topic.split('/')[-1]  # location/host/sensor
                         payload = json.loads(message.payload.decode())
                         sensor_readings_dict[sensor] = payload
                         if config.verbose_mqtt:
