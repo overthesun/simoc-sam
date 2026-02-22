@@ -26,10 +26,10 @@ def draw_page(oled, rows):
     image = Image.new("1", (oled.height, oled.width))
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default()
-    # Draw all rows with dynamic spacing
-    num_rows = len(rows)
-    # Screen is rotated, so oled.width is actually the height
-    spacing = max(8, oled.width // num_rows)
+    if not rows:
+        return  # nothing to display
+    # screen is rotated, so oled.width is actually the height
+    spacing = max(8, oled.width // len(rows))  # calc row height dynamically
     y = 0
     for row in rows:
         if not row.strip():
