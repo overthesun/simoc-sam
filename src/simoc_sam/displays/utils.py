@@ -87,16 +87,17 @@ def format_values(sensor_readings_dict):
 
 async def mqtt_monitor(sensor_readings_dict):
     """Add sensor data received from MQTT to the given dictionary (in place)."""
-    mqtt_host = config.mqtt_host
+    mqtt_host, mqtt_port = config.mqtt_host, config.mqtt_port
+    mqtt_addr = f"{mqtt_host}:{mqtt_port}"
     mqtt_topic_sub = config.mqtt_topic_sub
     reconnect_delay = config.mqtt_reconnect_delay
     while True:
         try:
-            print(f'* Connecting to MQTT broker <{mqtt_host}>...')
-            async with aiomqtt.Client(mqtt_host) as client:
+            print(f'* Connecting to MQTT broker <{mqtt_addr}>...')
+            async with aiomqtt.Client(mqtt_host, mqtt_port) as client:
                 await client.subscribe(mqtt_topic_sub)
-                print(f'* Connected to <{mqtt_host}>, '
-                      f'subscribed to <{mqtt_topic_sub}>.')
+                print(f'* Connected to <{mqtt_addr}>, '
+                      f'subscribed to {mqtt_topic_sub!r}.')
                 async for message in client.messages:
                     try:
                         topic = message.topic.value
@@ -108,7 +109,7 @@ async def mqtt_monitor(sensor_readings_dict):
                     except Exception as e:
                         print(f'Error processing MQTT message: {e}')
         except aiomqtt.MqttError as err:
-            print(f'* Connection lost from <{mqtt_host}>: {err}')
+            print(f'* Connection lost from <{mqtt_addr}>: {err}')
         except Exception as e:
             print(f'Unexpected error in MQTT handler: {e}')
         print(f'* Reconnecting in {reconnect_delay} seconds...')
