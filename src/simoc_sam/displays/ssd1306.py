@@ -81,8 +81,8 @@ async def main(display_key=None):
     oled.show()
     # start MQTT monitor and display update tasks
     await asyncio.gather(
-        asyncio.create_task(display_utils.mqtt_monitor(SENSOR_READINGS)),
-        asyncio.create_task(update_display(oled)),
+        display_utils.mqtt_monitor(SENSOR_READINGS),
+        update_display(oled),
         return_exceptions=True,
     )
 

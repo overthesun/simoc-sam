@@ -34,8 +34,8 @@ async def main():
     print("MockDisplay started. Press Ctrl+C to exit.")
     # start MQTT monitor and display update tasks
     await asyncio.gather(
-        asyncio.create_task(display_utils.mqtt_monitor(SENSOR_READINGS)),
-        asyncio.create_task(update_display()),
+        display_utils.mqtt_monitor(SENSOR_READINGS),
+        update_display(),
         return_exceptions=True,
     )
 
