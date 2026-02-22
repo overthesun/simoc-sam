@@ -51,15 +51,10 @@ for name, info in DISPLAY_DATA.items():
     I2C_TO_DISPLAY_NAMES[info.i2c_address].append(name)
 
 
-# Display configuration constants
-MAX_ROWS = 9
-DISPLAY_ORDER = ['scd30', 'sgp30', 'bme688', 'tsl2591', 'bno085']
-
-
-def format_values(sensor_readings_dict):
+def format_values(sensor_readings_dict, max_rows=None):
     """Format sensor values for display from a sensor readings dictionary."""
     rows = []
-    for sensor in DISPLAY_ORDER:
+    for sensor in config.display_order:
         data = sensor_readings_dict.get(sensor)
         if not data:
             continue
@@ -79,8 +74,8 @@ def format_values(sensor_readings_dict):
                 if isinstance(val, str):
                     val = 0
                 rows.append(f"A-{axis[-1]}: {val:.2f}")
-        if len(rows) >= MAX_ROWS:
-            rows = rows[:MAX_ROWS]
+        if max_rows and len(rows) >= max_rows:
+            rows = rows[:max_rows]
             break
     return rows
 

@@ -8,6 +8,9 @@ from simoc_sam.displays import utils as display_utils
 # store latest readings from each sensor (updated by MQTT handler)
 SENSOR_READINGS = {}
 
+# number of rows to display for sensor values (after header rows)
+MAX_ROWS = 9
+
 def display_values(sensor_values):
     """Print sensor values to console."""
     print("=" * 40)
@@ -22,7 +25,7 @@ async def update_display():
     """Continuously update the console display with latest sensor values."""
     try:
         while True:
-            sensor_values = display_utils.format_values(SENSOR_READINGS)
+            sensor_values = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
             display_values(sensor_values)
             await asyncio.sleep(1)  # refresh display once per second
     except asyncio.CancelledError:

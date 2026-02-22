@@ -17,6 +17,9 @@ from simoc_sam.displays import utils as display_utils
 # store latest readings from each sensor (updated by MQTT handler)
 SENSOR_READINGS = {}
 
+# number of rows to display for sensor values (after header rows)
+MAX_ROWS = 9
+
 
 def draw_page(oled, sensor_values):
     """Draw sensor values on the OLED display."""
@@ -44,7 +47,7 @@ async def update_display(oled):
     """Continuously update the display with latest sensor values."""
     try:
         while True:
-            sensor_values = display_utils.format_values(SENSOR_READINGS)
+            sensor_values = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
             draw_page(oled, sensor_values)
             await asyncio.sleep(1)  # refresh display once per second
     except asyncio.CancelledError:
