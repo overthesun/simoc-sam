@@ -3,13 +3,14 @@
 import sys
 import asyncio
 
-from simoc_sam import utils
-board = utils.import_board()
+from simoc_sam.sensors import utils as sensor_utils
+board = sensor_utils.import_board()
 
 import digitalio
 import adafruit_ssd1306
 from PIL import Image, ImageDraw, ImageFont
 
+from simoc_sam import utils
 from simoc_sam.displays import utils as display_utils
 
 
