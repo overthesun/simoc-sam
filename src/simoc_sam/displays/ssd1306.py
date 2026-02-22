@@ -1,6 +1,5 @@
 """Driver for the Adafruit SSD1306 OLED displays (128x64 and 128x32)."""
 
-import sys
 import asyncio
 
 from simoc_sam.sensors import utils as sensor_utils
