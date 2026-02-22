@@ -33,8 +33,11 @@ def draw_page(oled, rows):
     spacing = max(8, oled.width // num_rows)
     y = 0
     for row in rows:
-        draw.text((0, y), row, font=font, fill=255)
-        y += spacing
+        if not row.strip():
+            y += 6  # add extra spacing for blank lines
+        else:
+            draw.text((0, y), row, font=font, fill=255)
+            y += spacing
     oled.image(image.rotate(90, expand=True))
     oled.show()
 

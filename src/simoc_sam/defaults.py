@@ -23,6 +23,7 @@ display = 'ssd1306'
 display_format = """
 SIMOC LIVE
 {uptime}
+
 T: {bme688_temperature:.2f}C
 RH: {bme688_humidity:.2f}%
 CO2: {scd30_co2:.0f}
