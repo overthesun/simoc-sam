@@ -3,13 +3,14 @@
 import sys
 import asyncio
 
-import board
+from simoc_sam import utils
+board = utils.import_board()
+
 import digitalio
 import adafruit_ssd1306
 from PIL import Image, ImageDraw, ImageFont
 
 from simoc_sam.displays import utils as display_utils
-from simoc_sam import utils
 
 
 # store latest readings from each sensor (updated by MQTT handler)
@@ -71,7 +72,7 @@ async def main(display_key=None):
     oled = adafruit_ssd1306.SSD1306_I2C(
         display_config.width,
         display_config.height,
-        board.I2C(),
+        utils.get_i2c(),
         addr=display_config.i2c_address,
         reset=oled_reset,
     )
