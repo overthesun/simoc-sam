@@ -1,4 +1,4 @@
-# This timer triggers daily PCF8523 RTC updates (RPi -> RTC).
+# This timer triggers daily PCF8523 RTC time updates (RPi -> RTC).
 # This keeps the RTC accurate so it has good time on next boot.
 #
 # Installation: python simoc-sam.py setup-rtc
@@ -8,7 +8,7 @@
 #   systemctl status rtc-update-pcf8523.timer
 
 [Unit]
-Description=Periodic RTC update timer (RPi time -> PCF8523)
+Description=Update PCF8523 RTC time from RPi time daily
 
 [Timer]
 # Run daily at 3 AM
