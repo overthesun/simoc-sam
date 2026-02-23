@@ -13,7 +13,7 @@ After=network.target time-sync.target
 
 [Service]
 Type=oneshot
-User=root
+User=pi
 WorkingDirectory=/home/pi/simoc-sam
 ExecStart=/home/pi/simoc-sam/venv/bin/python simoc-sam.py set-rtc-time
 StandardOutput=journal
