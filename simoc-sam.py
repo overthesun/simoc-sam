@@ -649,50 +649,24 @@ def set_rtc_time(timestamp=None):
 @needs_root
 def setup_rtc():
     """Setup systemd service and timer for RTC time synchronization."""
-    # Setup the boot service (RTC -> RPi)
-    service_path = SYSTEMD_DIR / 'rtc-update-rpi.service'
-    service_target = CONFIGS_DIR / 'rtc-update-rpi.service'
-    if service_path.exists():
-        print(f'{service_path} already exists -- recreating it...')
-        service_path.unlink()
-    service_path.symlink_to(service_target)
-    print(f'Created symlink {service_path} → {service_target}.')
-
-    # Setup the periodic service (RPi -> RTC, triggered by timer)
-    periodic_service_path = SYSTEMD_DIR / 'rtc-update-pcf8523.service'
-    periodic_service_target = CONFIGS_DIR / 'rtc-update-pcf8523.service'
-    if periodic_service_path.exists():
-        print(f'{periodic_service_path} already exists -- recreating it...')
-        periodic_service_path.unlink()
-    periodic_service_path.symlink_to(periodic_service_target)
-    print(f'Created symlink {periodic_service_path} → {periodic_service_target}.')
-
-    # Setup the timer (triggers periodic RTC update)
-    timer_path = SYSTEMD_DIR / 'rtc-update-pcf8523.timer'
-    timer_target = CONFIGS_DIR / 'rtc-update-pcf8523.timer'
-    if timer_path.exists():
-        print(f'{timer_path} already exists -- recreating it...')
-        timer_path.unlink()
-    timer_path.symlink_to(timer_target)
-    print(f'Created symlink {timer_path} → {timer_target}.')
-
-    # Reload systemd, enable and start
-    run(['systemctl', 'daemon-reload'])
-    run(['systemctl', 'enable', 'rtc-update-rpi.service'])      # Enable boot service
-    run(['systemctl', 'enable', 'rtc-update-pcf8523.timer'])    # Enable timer
-    run(['systemctl', 'start', 'rtc-update-pcf8523.timer'])     # Start timer now
-    print('RTC synchronization enabled: will sync at boot and daily at 3 AM.')
+    # Setup the boot service (RTC -> RPi) -- enable but don't start (boot-triggered)
+    setup_systemd_unit('rtc-update-rpi', unit_type='service', enable=True, start=False)
+    # Setup the periodic service (RPi -> RTC) -- don't enable/start (timer-triggered)
+    setup_systemd_unit('rtc-update-pcf8523', unit_type='service', enable=False, start=False)
+    # Setup the timer (triggers periodic RTC update) -- enable and start
+    setup_systemd_unit('rtc-update-pcf8523', unit_type='timer', enable=True, start=True)
+    print('RTC synchronization enabled.')
 
 @cmd
 @needs_root
 def teardown_rtc():
     """Revert the changes made by the setup-rtc command."""
-    run(['systemctl', 'stop', 'rtc-update-pcf8523.timer'])
-    run(['systemctl', 'disable', 'rtc-update-pcf8523.timer'])
-    run(['systemctl', 'disable', 'rtc-update-rpi.service'])
-    pathlib.Path(SYSTEMD_DIR / 'rtc-update-pcf8523.timer').unlink(missing_ok=True)
-    pathlib.Path(SYSTEMD_DIR / 'rtc-update-pcf8523.service').unlink(missing_ok=True)
-    pathlib.Path(SYSTEMD_DIR / 'rtc-update-rpi.service').unlink(missing_ok=True)
+    # Stop and disable the timer
+    teardown_systemd_unit('rtc-update-pcf8523', unit_type='timer', stop=True, disable=True)
+    # Remove periodic service symlink (no need to stop/disable -- it's timer-triggered)
+    teardown_systemd_unit('rtc-update-pcf8523', unit_type='service', stop=False, disable=False)
+    # Disable boot service (no need to stop -- it's not running)
+    teardown_systemd_unit('rtc-update-rpi', unit_type='service', stop=False, disable=True)
     run(['systemctl', 'daemon-reload'])
     print('RTC synchronization disabled.')
 
