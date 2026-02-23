@@ -612,10 +612,7 @@ def update_time(ts, target):
     rtc = init_rtc()
     if not rtc:
         return False
-    if ts:
-        dt = parse_timestamp(ts)
-        if not dt:
-            return False
+    dt = parse_timestamp(ts) if ts else None
     print_times(rtc, 'Current')
     try:
         if target == 'rpi':
