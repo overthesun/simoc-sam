@@ -5,8 +5,8 @@
 # Installation: python simoc-sam.py setup-rtc
 #
 # Manual control:
-#   python simoc-sam.py sync-time                # update RPi time from RTC
-#   journalctl -u rtc-update-rpi.service         # view logs
+#   python simoc-sam.py set-rpi-time           # update RPi time from RTC
+#   journalctl -u rtc-update-rpi.service       # view logs
 
 [Unit]
 Description=Update RPi time from PCF8523 RTC at boot
@@ -18,7 +18,7 @@ Wants=time-sync.target
 Type=oneshot
 User=pi
 WorkingDirectory=/home/pi/simoc-sam
-ExecStart=/home/pi/simoc-sam/venv/bin/python simoc-sam.py sync-time
+ExecStart=/home/pi/simoc-sam/venv/bin/python simoc-sam.py set-rpi-time
 StandardOutput=journal
 StandardError=journal
 

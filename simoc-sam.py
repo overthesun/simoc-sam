@@ -565,87 +565,78 @@ def enable_i2c():
     """Enable i2c using raspi-config."""
     raspi_config('do_i2c', '0')
 
+@needs_venv
 def init_rtc():
     """Initialize and return the PCF8523 RTC sensor."""
     try:
         from simoc_sam.sensors.pcf8523 import PCF8523
     except ImportError as e:
         print(f'Error: Failed to import PCF8523 module: {e}')
-        print('Make sure the venv is set up and requirements are installed.')
-        return None
-
+        return
     try:
         return PCF8523(verbose=True)
     except Exception as e:
         print(f'Error: Failed to initialize PCF8523 RTC: {e}')
-        print('Make sure I2C is enabled and the RTC is connected.')
-        return None
 
-@cmd
-@needs_root
-@needs_venv
-def sync_time():
-    """Set system time from RTC (useful at boot when no network/NTP)."""
+def parse_timestamp(timestamp):
+    """Parse a timestamp string (ISO format or Unix timestamp)."""
     from datetime import datetime
-
-    rtc = init_rtc()
-    if not rtc:
-        return False
-
-    rtc_time = rtc.get_datetime()
-    print(f'Setting system time from RTC: {rtc_time.strftime("%Y-%m-%d %H:%M:%S")}')
     try:
-        # Use 'date' command to set system time
-        time_str = rtc_time.strftime('%Y-%m-%d %H:%M:%S')
-        result = subprocess.run(['date', '-s', time_str],
-                              capture_output=True, text=True)
-        if result.returncode == 0:
-            print('System time updated successfully.')
-            return True
-        else:
-            print(f'Error: Failed to set system time: {result.stderr}')
-            return False
-    except Exception as e:
-        print(f'Error: Failed to set system time: {e}')
-        return False
-
-@cmd
-@needs_root
-@needs_venv
-def set_rtc_time(timestamp=None):
-    """Set RTC time from system time, or from a provided timestamp."""
-    from datetime import datetime
-
-    rtc = init_rtc()
-    if not rtc:
-        return False
-
-    # Parse timestamp if provided
-    if timestamp:
+        return datetime.fromisoformat(timestamp)
+    except ValueError:
         try:
-            # Try parsing ISO format first
-            dt = datetime.fromisoformat(timestamp)
-        except ValueError:
-            try:
-                # Try Unix timestamp
-                dt = datetime.fromtimestamp(float(timestamp))
-            except (ValueError, OSError) as e:
-                print(f'Error: Invalid timestamp format: {e}')
-                print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
-                return False
-        print(f'Setting RTC time from provided timestamp: {dt.strftime("%Y-%m-%d %H:%M:%S")}')
-    else:
-        # Use current system time
-        dt = datetime.now()
-        print(f'Setting RTC time from system time: {dt.strftime("%Y-%m-%d %H:%M:%S")}')
+            return datetime.fromtimestamp(float(timestamp))
+        except (ValueError, OSError) as e:
+            print(f'Error: Invalid timestamp format: {e}')
+            print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
+            return
 
+def print_times(rtc, label='Current'):
+    """Print current system time and RTC time."""
+    from datetime import datetime
+    rpi_time = datetime.now()
+    rtc_time = rtc.get_datetime()
+    print(f'{label} RPi time: {rpi_time.strftime("%Y-%m-%d %H:%M:%S")}')
+    print(f'{label} RTC time: {rtc_time.strftime("%Y-%m-%d %H:%M:%S")}')
+
+def update_time(ts, target):
+    """Update the time of the target (RPi or RTC) to the given timestamp."""
+    from datetime import datetime
+    rtc = init_rtc()
+    if not rtc:
+        return False
+    if ts:
+        dt = parse_timestamp(ts)
+        if not dt:
+            return False
+    print_times(rtc, 'Current')
     try:
-        rtc.set_datetime(dt)
-        print('RTC time updated successfully.')
+        if target == 'rpi':
+            new_time = (dt or rtc.get_datetime()).strftime("%Y-%m-%d %H:%M:%S")
+            print(f'Setting RPi time to: {new_time}')
+            subprocess.run(['date', '-s', new_time], check=True)
+        elif target == 'rtc':
+            new_time = dt or datetime.now()
+            print(f'Setting RTC time to: {new_time.strftime("%Y-%m-%d %H:%M:%S")}')
+            rtc.set_datetime(new_time)
+        print_times(rtc, 'Updated')
+        print('Time updated successfully.')
         return True
     except Exception as e:
-        print(f'Error: Failed to set RTC time: {e}')
+        print(f'Error: Failed to set time: {e}')
         return False
+
+@cmd
+@needs_root
+def set_rpi_time(timestamp=None):
+    """Set RPi system time from RTC or from a provided timestamp."""
+    return update_time(timestamp, target='rpi')
+
+@cmd
+@needs_root
+def set_rtc_time(timestamp=None):
+    """Set RTC time from RPi system time or from a provided timestamp."""
+    return update_time(timestamp, target='rtc')
 
 @cmd
 @needs_root
