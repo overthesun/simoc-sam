@@ -5,7 +5,7 @@ from . import utils
 from .basesensor import BaseSensor
 
 board = utils.import_board()
-import adafruit_pcf8523
+from adafruit_pcf8523 import pcf8523
 
 
 class PCF8523(BaseSensor):
@@ -14,7 +14,7 @@ class PCF8523(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         i2c = board.I2C()
-        self.rtc = adafruit_pcf8523.PCF8523(i2c)
+        self.rtc = pcf8523.PCF8523(i2c)
 
     def read_sensor_data(self):
         """Return RTC data (unix timestamp) as a dict."""
