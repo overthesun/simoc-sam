@@ -308,27 +308,34 @@ def teardown_mosquitto():
     mosquitto_conf_dest.unlink(missing_ok=True)
 
 
-def setup_systemd_service(name):
-    # create a symlink to the given service, enable it, and start it
+def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
+    """Setup a systemd unit by creating symlink and optionally enabling/starting."""
+    unit_name = f'{name}.{unit_type}'
     if '@' in name:
-        target_name = f'{name.split("@")[0]}@.service'
+        # handle templates, e.g. sensor-runner@scd30 -> sensor-runner@.service
+        target_name = f'{name.split("@")[0]}@.{unit_type}'
     else:
-        target_name = f'{name}.service'
+        target_name = unit_name
     target_path = CONFIGS_DIR / target_name
-    service_path = SYSTEMD_DIR / f'{name}.service'
-    if service_path.exists():
-        print(f'{service_path} already exists -- recreating it...')
-        service_path.unlink()
-    service_path.symlink_to(target_path)
-    print(f'Created symlink {service_path} → {target_path}.')
-    run(['systemctl', 'enable', name])  # ensure that the service starts on boot
-    run(['systemctl', 'start', name])
+    unit_path = SYSTEMD_DIR / unit_name
+    if unit_path.exists():
+        print(f'{unit_path} already exists -- recreating it...')
+        unit_path.unlink()
+    unit_path.symlink_to(target_path)
+    print(f'Created symlink {unit_path} → {target_path}.')
+    if enable:
+        run(['systemctl', 'enable', unit_name])
+    if start:
+        run(['systemctl', 'start', unit_name])
 
-def teardown_systemd_service(name):
-    # stop, disable, and remove the symlink to the given service
-    run(['systemctl', 'stop', name])
-    run(['systemctl', 'disable', name])
-    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
+def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
+    """Optionally stop/disable the unit and then remove the symlink."""
+    unit_name = f'{name}.{unit_type}'
+    if stop:
+        run(['systemctl', 'stop', unit_name])
+    if disable:
+        run(['systemctl', 'disable', unit_name])
+    pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
 
 
 @cmd
@@ -346,26 +353,26 @@ def setup_or_teardown_sensors(function, sensors=None):
 @needs_root
 def setup_sensors(sensors=None):
     """Setup systemd services that run the sensors."""
-    setup_or_teardown_sensors(setup_systemd_service, sensors)
+    setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
 @cmd
 @needs_root
 def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
-    setup_or_teardown_sensors(teardown_systemd_service, sensors)
+    setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
 
 @cmd
 @needs_root
 def setup_siobridge():
     """Setup a systemd service that runs the siobridge."""
-    setup_systemd_service('siobridge')
+    setup_systemd_unit('siobridge')
 
 @cmd
 @needs_root
 def teardown_siobridge():
     """Revert the changes made by the setup-siobridge command."""
-    teardown_systemd_service('siobridge')
+    teardown_systemd_unit('siobridge')
 
 
 @cmd
