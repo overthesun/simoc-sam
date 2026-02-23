@@ -1,5 +1,5 @@
 """Driver for the PCF8523 Real-Time Clock (RTC)."""
-import datetime as dt
+from datetime import datetime
 
 from . import utils
 from .basesensor import BaseSensor
@@ -19,7 +19,7 @@ class PCF8523(BaseSensor):
     def read_sensor_data(self):
         """Return RTC data (unix timestamp) as a dict."""
         rtc_time = self.rtc.datetime
-        dt = dt.datetime(*rtc_time[:6])
+        dt = datetime(*rtc_time[:6])
         reading = {'unix_ts': dt.timestamp()}
         self.print_reading(reading)
         return reading
@@ -27,13 +27,13 @@ class PCF8523(BaseSensor):
     def get_datetime(self):
         """Get the current datetime from the RTC."""
         rtc_time = self.rtc.datetime
-        return dt.datetime(*rtc_time[:6])
+        return datetime(*rtc_time[:6])
 
-    def set_datetime(self, dt_obj):
+    def set_datetime(self, dt):
         """Set the RTC datetime from a datetime object."""
-        self.rtc.datetime = dt_obj.timetuple()
+        self.rtc.datetime = dt.timetuple()
         if self.verbose:
-            print(f"RTC time set to: {dt_obj.isoformat()}")
+            print(f"RTC time set to: {dt.isoformat()}")
 
 
 if __name__ == '__main__':
