@@ -310,30 +310,32 @@ def teardown_mosquitto():
 
 def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
     """Setup a systemd unit by creating symlink and optionally enabling/starting."""
+    unit_name = f'{name}.{unit_type}'
     if '@' in name:
+        # handle templates, e.g. sensor-runner@scd30 -> sensor-runner@.service
         target_name = f'{name.split("@")[0]}@.{unit_type}'
     else:
-        target_name = f'{name}.{unit_type}'
+        target_name = unit_name
     target_path = CONFIGS_DIR / target_name
-    unit_path = SYSTEMD_DIR / f'{name}.{unit_type}'
+    unit_path = SYSTEMD_DIR / unit_name
     if unit_path.exists():
         print(f'{unit_path} already exists -- recreating it...')
         unit_path.unlink()
     unit_path.symlink_to(target_path)
     print(f'Created symlink {unit_path} → {target_path}.')
     if enable:
-        run(['systemctl', 'enable', f'{name}.{unit_type}'])
+        run(['systemctl', 'enable', unit_name])
     if start:
-        run(['systemctl', 'start', f'{name}.{unit_type}'])
+        run(['systemctl', 'start', unit_name])
 
 def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     """Optionally stop/disable the unit and then remove the symlink."""
-    unit_file = f'{name}.{unit_type}'
+    unit_name = f'{name}.{unit_type}'
     if stop:
-        run(['systemctl', 'stop', unit_file])
+        run(['systemctl', 'stop', unit_name])
     if disable:
-        run(['systemctl', 'disable', unit_file])
-    pathlib.Path(SYSTEMD_DIR / unit_file).unlink(missing_ok=True)
+        run(['systemctl', 'disable', unit_name])
+    pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
 
 
 @cmd
