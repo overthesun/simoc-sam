@@ -36,7 +36,6 @@ async def main():
     await asyncio.gather(
         display_utils.mqtt_monitor(SENSOR_READINGS),
         update_display(),
-        return_exceptions=True,
     )
 
 if __name__ == "__main__":

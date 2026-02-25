@@ -73,7 +73,6 @@ async def main():
     await asyncio.gather(
         display_utils.mqtt_monitor(SENSOR_READINGS),
         update_display(oled),
-        return_exceptions=True,
     )
 
 
