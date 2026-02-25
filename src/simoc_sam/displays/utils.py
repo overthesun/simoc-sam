@@ -66,6 +66,7 @@ def format_values(sensor_readings_dict, max_rows=None):
         try:
             rows.append(line.format_map(flattened))
         except (KeyError, ValueError):
+            # TODO: ValueErrors should probably be reported
             pass  # Skip lines with missing data or invalid format
     return rows[:max_rows] if max_rows else rows
 
@@ -90,7 +91,7 @@ async def mqtt_monitor(sensor_readings_dict):
                         payload = json.loads(message.payload.decode())
                         sensor_readings_dict[sensor] = payload
                         if config.verbose_mqtt:
-                            print(f'Received {sensor}: {payload}')
+                            print(f'Received from {sensor}: {payload}')
                     except Exception as e:
                         print(f'Error processing MQTT message: {e}')
         except aiomqtt.MqttError as err:
