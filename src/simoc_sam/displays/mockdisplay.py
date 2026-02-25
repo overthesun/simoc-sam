@@ -2,6 +2,7 @@
 
 import asyncio
 
+from simoc_sam import config
 from simoc_sam.displays import utils as display_utils
 
 # store latest readings from each sensor (updated by MQTT handler)
@@ -23,7 +24,7 @@ async def update_display():
         while True:
             rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
             display_values(rows)
-            await asyncio.sleep(1)  # refresh display once per second
+            await asyncio.sleep(config.display_refresh)
     except asyncio.CancelledError:
         print("\nMockDisplay stopped.")
         raise

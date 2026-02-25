@@ -9,7 +9,7 @@ import digitalio
 import adafruit_ssd1306
 from PIL import Image, ImageDraw, ImageFont
 
-from simoc_sam import utils
+from simoc_sam import utils, config
 from simoc_sam.displays import utils as display_utils
 
 
@@ -47,7 +47,7 @@ async def update_display(oled):
         while True:
             rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
             draw_page(oled, rows)
-            await asyncio.sleep(1)  # refresh display once per second
+            await asyncio.sleep(config.display_refresh)
     except asyncio.CancelledError:
         # clear display on shutdown
         oled.fill(0)

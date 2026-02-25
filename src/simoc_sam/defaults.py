@@ -20,6 +20,7 @@ sensor_read_delay = 10.0
 
 # Display configuration
 display = 'ssd1306'
+display_refresh = 1.0
 display_format = """
 SIMOC LIVE
 Up {uptime}
