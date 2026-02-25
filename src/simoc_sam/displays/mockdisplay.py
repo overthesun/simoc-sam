@@ -8,7 +8,7 @@ from simoc_sam.displays import utils as display_utils
 # store latest readings from each sensor (updated by MQTT handler)
 SENSOR_READINGS = {}
 
-# Total rows to display (including header)
+# total rows to display (including header)
 MAX_ROWS = 9
 
 def display_values(rows):

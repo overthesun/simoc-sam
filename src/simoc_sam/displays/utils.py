@@ -54,7 +54,7 @@ for name, info in DISPLAY_DATA.items():
 
 def format_values(sensor_readings_dict, max_rows=None):
     """Format sensor values for display using configured format string."""
-    # Flatten sensor readings: {'scd30': {'co2': 450}} -> {'scd30_co2': 450}
+    # flatten sensor readings: {'scd30': {'co2': 450}} -> {'scd30_co2': 450}
     flattened = {'uptime': utils.uptime()}  # add uptime
     for sensor, data in sensor_readings_dict.items():
         if not data:
@@ -67,7 +67,7 @@ def format_values(sensor_readings_dict, max_rows=None):
             rows.append(line.format_map(flattened))
         except (KeyError, ValueError):
             # TODO: ValueErrors should probably be reported
-            pass  # Skip lines with missing data or invalid format
+            pass  # skip lines with missing data or invalid format
     return rows[:max_rows] if max_rows else rows
 
 

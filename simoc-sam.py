@@ -357,7 +357,7 @@ def teardown_sensors(sensors=None):
 @cmd
 @needs_root
 def setup_or_teardown_display(function, display=None):
-    """Setup/teardown systemd service that run the display."""
+    """Setup/teardown systemd service that runs the display."""
     if display is None:
         display = config.display
     if not display:
@@ -368,7 +368,7 @@ def setup_or_teardown_display(function, display=None):
 @cmd
 @needs_root
 def setup_display(display=None):
-    """Setup systemd service that run the display."""
+    """Setup systemd service that runs the display."""
     setup_or_teardown_display(setup_systemd_service, display)
 
 @cmd

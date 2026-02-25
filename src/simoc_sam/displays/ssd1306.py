@@ -1,4 +1,4 @@
-"""Driver for the Adafruit SSD1306 OLED displays (128x64 and 128x32)."""
+"""Driver for the Adafruit SSD1306 OLED display (128x64)."""
 
 import asyncio
 
@@ -16,8 +16,7 @@ from simoc_sam.displays import utils as display_utils
 # store latest readings from each sensor (updated by MQTT handler)
 SENSOR_READINGS = {}
 
-# number of rows for 128x64 rotated 90 degrees
-# With configurable format, this is the total rows including header
+# number of rows for 128x64 rotated 90 degrees (including header)
 MAX_ROWS = 9
 
 
