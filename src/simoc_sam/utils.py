@@ -15,7 +15,7 @@ def uptime():
     t = int(time.monotonic())
     h, r = divmod(t, 3600)
     m, s = divmod(r, 60)
-    return f"Up {h:02}:{m:02}:{s:02}"
+    return f"{h:02}:{m:02}:{s:02}"
 
 
 async def read_jsonl_file(file_path):
