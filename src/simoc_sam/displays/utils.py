@@ -65,9 +65,10 @@ def format_values(sensor_readings_dict, max_rows=None):
     for line in config.display_format.splitlines():
         try:
             rows.append(line.format_map(flattened))
-        except (KeyError, ValueError):
-            # TODO: ValueErrors should probably be reported
-            pass  # skip lines with missing data or invalid format
+        except KeyError:
+            continue  # skip lines without corresponding values
+        except (ValueError, TypeError) as e:
+            print(f"Error formatting line {line!r}: {e}")
     return rows[:max_rows] if max_rows else rows
 
 
