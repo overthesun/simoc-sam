@@ -1,5 +1,6 @@
 """Driver for the Adafruit SSD1306 OLED display (128x64)."""
 
+import time
 import asyncio
 
 from simoc_sam.sensors import utils as sensor_utils
@@ -18,26 +19,36 @@ SENSOR_READINGS = {}
 
 # number of rows for 128x64 rotated 90 degrees (including header)
 MAX_ROWS = 9
+FONT = ImageFont.load_default()
 
-
-def draw_page(oled, rows):
-    """Draw sensor values on the OLED display."""
-    image = Image.new("1", (oled.height, oled.width))
-    draw = ImageDraw.Draw(image)
-    font = ImageFont.load_default()
+def draw_image(width, height, rows):
+    """Draw sensor values on an image and return it."""
     if not rows:
         return  # nothing to display
+    image = Image.new("1", (width, height))
+    draw = ImageDraw.Draw(image)
     # screen is rotated, so oled.width is actually the height
-    spacing = max(8, oled.width // len(rows))  # calc row height dynamically
+    spacing = max(8, height // len(rows))  # calc row height dynamically
     y = 0
     for row in rows:
         if not row.strip():
             y += 6  # add extra spacing for blank lines
         else:
-            draw.text((0, y), row, font=font, fill=255)
+            draw.text((0, y), row, font=FONT, fill=255)
             y += spacing
+    return image
+
+def show_image(oled, image):
+    """Show the given image on the OLED display."""
     oled.image(image.rotate(90, expand=True))
-    oled.show()
+    for attempt in range(3):
+        try:
+            oled.show()
+            break
+        except OSError as e:
+            time.sleep(0.1)
+    else:
+       print(f"Failed to update display after 3 attempts")
 
 
 async def update_display(oled):
@@ -45,7 +56,10 @@ async def update_display(oled):
     try:
         while True:
             rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
-            draw_page(oled, rows)
+            # swap height/width because the screen is rotated 90 degrees
+            image = draw_image(oled.height, oled.width, rows)
+            if image:
+                show_image(oled, image)
             await asyncio.sleep(config.display_refresh)
     except asyncio.CancelledError:
         # clear display on shutdown
