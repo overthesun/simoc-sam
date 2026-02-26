@@ -48,7 +48,7 @@ def show_image(oled, image):
         except OSError as e:
             time.sleep(0.1)
     else:
-       print(f"Failed to update display after 3 attempts")
+        print(f"Failed to update display after 3 attempts")
 
 
 async def update_display(oled):
