@@ -263,10 +263,10 @@ async def test_mqtt_monitor_verbose_mode(mock_mqtt_client, capfd):
     ])
     with patch.object(config, 'verbose_mqtt', True), \
         patch('simoc_sam.displays.utils.aiomqtt.Client', return_value=client):
-            async with mqtt_monitor_task(sensor_readings):
-                await wait_until(lambda: 'scd30' in sensor_readings)
-                captured = capfd.readouterr()
-                assert "Received from scd30: {'co2': 450}\n" in captured.out
+        async with mqtt_monitor_task(sensor_readings):
+            await wait_until(lambda: 'scd30' in sensor_readings)
+            captured = capfd.readouterr()
+            assert "Received from scd30: {'co2': 450}\n" in captured.out
 
 
 @pytest.mark.asyncio
