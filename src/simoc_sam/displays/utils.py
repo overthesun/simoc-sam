@@ -69,6 +69,7 @@ def format_values(sensor_readings_dict, max_rows=None):
             continue  # skip lines without corresponding values
         except (ValueError, TypeError) as e:
             print(f"Error formatting line {line!r}: {e}")
+            continue  # skip lines with formatting errors
     return rows[:max_rows] if max_rows else rows
 
 
