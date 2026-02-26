@@ -270,7 +270,7 @@ async def test_mqtt_monitor_verbose_mode(mock_mqtt_client, capfd):
 
 
 @pytest.mark.asyncio
-async def test_mqtt_monitor_reconnects_on_error(mock_mqtt_client, capfd):
+async def test_mqtt_monitor_reconnects_on_error(mock_mqtt_client, mock_mqtt_message, capfd):
     """Test that MQTT monitor attempts to reconnect on connection errors."""
     sensor_readings = {}
     attempts = {'count': 0}
@@ -284,9 +284,13 @@ async def test_mqtt_monitor_reconnects_on_error(mock_mqtt_client, capfd):
                 yield mock_mqtt_message('location/testhost1/scd30', '{"co2": 450}')
         return mock_mqtt_client(mock_msg_gen)
     with patch.object(config, 'mqtt_reconnect_delay', 0.1), \
+        patch.object(config, 'verbose_mqtt', True), \
         patch('simoc_sam.displays.utils.aiomqtt.Client', side_effect=mock_client_factory):
         async with mqtt_monitor_task(sensor_readings):
             await wait_until(lambda: attempts['count'] >= 2, timeout=2.0)
-            assert attempts['count'] == 2
+            assert attempts['count'] >= 2
             captured = capfd.readouterr()
-            assert 'Reconnecting in' in captured.out
+            assert captured.out.count('Connecting to MQTT broker') >= 2
+            assert captured.out.count('Connection lost') == 1
+            assert captured.out.count('Reconnecting in') >= 1
+            assert "Received from scd30: {'co2': 450}\n" in captured.out
