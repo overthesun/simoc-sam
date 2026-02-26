@@ -89,11 +89,14 @@ async def mqtt_monitor(sensor_readings_dict):
                         topic = message.topic.value
                         sensor = topic.split('/')[-1]  # location/host/sensor
                         payload = json.loads(message.payload.decode())
-                        sensor_readings_dict[sensor] = payload
-                        if config.verbose_mqtt:
-                            print(f'Received from {sensor}: {payload}')
-                    except Exception as e:
+                    except (AttributeError, json.JSONDecodeError) as e:
                         print(f'Error processing MQTT message: {e}')
+                        continue
+                    sensor_readings_dict[sensor] = payload
+                    if config.verbose_mqtt:
+                        print(f'Received from {sensor}: {payload}')
+        except asyncio.CancelledError:
+            raise
         except aiomqtt.MqttError as err:
             print(f'* Connection lost from <{mqtt_addr}>: {err}')
         except Exception as e:
