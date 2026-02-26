@@ -229,3 +229,17 @@ async def test_read_jsonl_file_tails_appended_lines(jsonl_log_path):
     assert readings[1] == {'n': 1}
     # clean up
     await terminate_task(read_task)
+
+
+@pytest.mark.parametrize("monotonic_value,expected", [
+    (0, "00:00:00"),
+    (59, "00:00:59"),
+    (60, "00:01:00"),
+    (3661, "01:01:01"),
+    (86399, "23:59:59"),
+    (90061, "25:01:01"),
+])
+def test_uptime(monotonic_value, expected):
+    """Test that the uptime function returns correct HH:MM:SS format."""
+    with patch('time.monotonic', return_value=monotonic_value):
+        assert utils.uptime() == expected

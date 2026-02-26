@@ -361,6 +361,29 @@ def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
     setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
+@cmd
+@needs_root
+def setup_or_teardown_display(function, display=None):
+    """Setup/teardown systemd service that runs the display."""
+    if display is None:
+        display = config.display
+    if not display:
+        print('No display specified -- aborting.')
+        return
+    function(f'display-runner@{display}')
+
+@cmd
+@needs_root
+def setup_display(display=None):
+    """Setup systemd service that runs the display."""
+    setup_or_teardown_display(setup_systemd_service, display)
+
+@cmd
+@needs_root
+def teardown_display(display=None):
+    """Revert the changes made by the setup-display command."""
+    setup_or_teardown_display(teardown_systemd_service, display)
+
 
 @cmd
 @needs_root
