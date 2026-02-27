@@ -163,7 +163,7 @@ def print_services():
             if service['has_errors']:
                 services_with_errors.append(service['name'])
             print(f'{service_name} | {active_icon}{service["state"]:<12} | '
-                  f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:4} | {error_icon}')
+                  f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:3} | {error_icon}')
     print('--------------------------+----------------+------------+------+--------')
 
     if inactive_services:
