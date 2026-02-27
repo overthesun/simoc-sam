@@ -10,9 +10,7 @@ try:
 except ImportError:
     netifaces = None
 
-# Get the configs directory path
 CONFIGS_DIR = pathlib.Path(__file__).resolve().parent / 'configs'
-# systemd unit directory where enabled service symlinks live
 SYSTEMD_SYSTEM_DIR = pathlib.Path('/etc/systemd/system')
 
 # Network info
@@ -84,21 +82,17 @@ def print_sensors():
 # Services info
 
 def get_boot_start_services():
-    """Return a set of service names (without .service suffix) that will start on boot.
-
-    This is determined by scanning the .wants directories of boot targets
-    (multi-user.target and graphical.target) under ``SYSTEMD_SYSTEM_DIR``.
-    Using filesystem scanning is more efficient than calling
-    ``systemctl is-enabled`` for each service individually.
-    """
+    """Return a set of service names that will start on boot."""
+    # note: checking is-enabled is not enough to ensure boot start
     boot_services = set()
-    targets = ['multi-user', 'graphical']
+    targets = ['multi-user', 'graphical']  # common systemd targets
     for target in targets:
+        # files in these directories indicate services that start on boot
         wants_dir = SYSTEMD_SYSTEM_DIR / f'{target}.target.wants'
         if wants_dir.is_dir():
             for entry in wants_dir.iterdir():
                 if entry.suffix == '.service':
-                    boot_services.add(entry.stem)
+                    boot_services.add(entry.stem)  # add without .service suffix
     return boot_services
 
 def check_journal_errors(service_name, n_lines=15):
