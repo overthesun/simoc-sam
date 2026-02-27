@@ -92,7 +92,7 @@ def will_start_on_boot(service_name):
         print(f"Error checking if {service_name!r} will start on boot: {e}")
         return False  # won't probably start on boot if we got an error
     basedir = '/etc/systemd/system'
-    targets = ['multi-user', 'graphical', 'default']
+    targets = ['multi-user', 'graphical']
     return any(f'{basedir}/{target}.target.wants/' in result.stdout
                for target in targets)
 
