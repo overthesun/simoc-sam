@@ -12,6 +12,8 @@ except ImportError:
 
 # Get the configs directory path
 CONFIGS_DIR = pathlib.Path(__file__).resolve().parent / 'configs'
+# systemd unit directory where enabled service symlinks live
+SYSTEMD_SYSTEM_DIR = pathlib.Path('/etc/systemd/system')
 
 # Network info
 
@@ -81,20 +83,23 @@ def print_sensors():
 
 # Services info
 
-def will_start_on_boot(service_name):
-    """Check if a service will actually start on boot."""
-    # even if a service is "enabled", it will only start on boot
-    # if it's symlinked in the right target (usually multi-user.target.wants)
-    try:
-        cmd = ['systemctl', 'is-enabled', '--full', f'{service_name}.service']
-        result = subprocess.run(cmd, capture_output=True, text=True)
-    except Exception as e:
-        print(f"Error checking if {service_name!r} will start on boot: {e}")
-        return False  # won't probably start on boot if we got an error
-    basedir = '/etc/systemd/system'
+def get_boot_start_services():
+    """Return a set of service names (without .service suffix) that will start on boot.
+
+    This is determined by scanning the .wants directories of boot targets
+    (multi-user.target and graphical.target) under ``SYSTEMD_SYSTEM_DIR``.
+    Using filesystem scanning is more efficient than calling
+    ``systemctl is-enabled`` for each service individually.
+    """
+    boot_services = set()
     targets = ['multi-user', 'graphical']
-    return any(f'{basedir}/{target}.target.wants/' in result.stdout
-               for target in targets)
+    for target in targets:
+        wants_dir = SYSTEMD_SYSTEM_DIR / f'{target}.target.wants'
+        if wants_dir.is_dir():
+            for entry in wants_dir.iterdir():
+                if entry.suffix == '.service':
+                    boot_services.add(entry.stem)
+    return boot_services
 
 def check_journal_errors(service_name, n_lines=15):
     """Check for errors in the journal output of the given service."""
@@ -116,6 +121,7 @@ def get_all_running_services():
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return {}
+        boot_services = get_boot_start_services()
         all_services = defaultdict(list)
         for service in result.stdout.strip().split('\n\n'):
             info = dict(prop.split('=') for prop in service.split('\n'))
@@ -126,7 +132,7 @@ def get_all_running_services():
                 'is_active': info['ActiveState'] == 'active',
                 'enabled': info['UnitFileState'],
                 'is_enabled': info['UnitFileState'] == 'enabled',
-                'starts_on_boot': will_start_on_boot(name),
+                'starts_on_boot': name in boot_services,
                 'has_errors': check_journal_errors(info['Id']),
             })
         return all_services
