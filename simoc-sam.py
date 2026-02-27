@@ -376,13 +376,13 @@ def setup_or_teardown_display(function, display=None):
 @needs_root
 def setup_display(display=None):
     """Setup systemd service that runs the display."""
-    setup_or_teardown_display(setup_systemd_service, display)
+    setup_or_teardown_display(setup_systemd_unit, display)
 
 @cmd
 @needs_root
 def teardown_display(display=None):
     """Revert the changes made by the setup-display command."""
-    setup_or_teardown_display(teardown_systemd_service, display)
+    setup_or_teardown_display(teardown_systemd_unit, display)
 
 
 @cmd
