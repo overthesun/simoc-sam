@@ -88,19 +88,23 @@ def will_start_on_boot(service_name):
     try:
         cmd = ['systemctl', 'is-enabled', '--full', f'{service_name}.service']
         result = subprocess.run(cmd, capture_output=True, text=True)
-        return 'multi-user.target.wants' in result.stdout
-    except Exception:
-        return False
+    except Exception as e:
+        print(f"Error checking if {service_name!r} will start on boot: {e}")
+        return False  # won't probably start on boot if we got an error
+    basedir = '/etc/systemd/system'
+    targets = ['multi-user', 'graphical', 'default']
+    return any(f'{basedir}/{target}.target.wants/' in result.stdout
+               for target in targets)
 
 def check_journal_errors(service_name, n_lines=15):
     """Check for errors in the journal output of the given service."""
     try:
         cmd = ['journalctl', '-u', service_name, '-n', str(n_lines), '--no-pager']
-        cp = subprocess.run(cmd , capture_output=True, text=True)
+        result = subprocess.run(cmd , capture_output=True, text=True)
     except Exception as e:
         print(f"Error checking journal for {service_name!r}: {e}")
         return True
-    output = cp.stdout.lower()
+    output = result.stdout.lower()
     error_indicators = ['error', 'failed', 'exception', 'traceback', 'critical']
     return any(indicator in output for indicator in error_indicators)
 
