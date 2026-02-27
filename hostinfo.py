@@ -1,4 +1,3 @@
-import os
 import re
 import socket
 import pathlib
@@ -82,6 +81,17 @@ def print_sensors():
 
 # Services info
 
+def will_start_on_boot(service_name):
+    """Check if a service will actually start on boot."""
+    # even if a service is "enabled", it will only start on boot
+    # if it's symlinked in the right target (usually multi-user.target.wants)
+    try:
+        cmd = ['systemctl', 'is-enabled', '--full', f'{service_name}.service']
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return 'multi-user.target.wants' in result.stdout
+    except Exception:
+        return False
+
 def check_journal_errors(service_name, n_lines=15):
     """Check for errors in the journal output of the given service."""
     try:
@@ -93,7 +103,6 @@ def check_journal_errors(service_name, n_lines=15):
     output = cp.stdout.lower()
     error_indicators = ['error', 'failed', 'exception', 'traceback', 'critical']
     return any(indicator in output for indicator in error_indicators)
-
 
 def get_all_running_services():
     """Get all running systemd services using systemctl show."""
@@ -113,6 +122,7 @@ def get_all_running_services():
                 'is_active': info['ActiveState'] == 'active',
                 'enabled': info['UnitFileState'],
                 'is_enabled': info['UnitFileState'] == 'enabled',
+                'starts_on_boot': will_start_on_boot(name),
                 'has_errors': check_journal_errors(info['Id']),
             })
         return all_services
@@ -132,24 +142,25 @@ def print_services():
     inactive_services = set(services_to_check) - filtered_services.keys()
     services_with_errors = []
 
-    print('Service name              | Active         | Enabled    | Errors')
-    print('--------------------------+----------------+------------+--------')
+    print('Service name              | Active         | Enabled    | Boot | Errors')
+    print('--------------------------+----------------+------------+------+--------')
     for name, services in sorted(filtered_services.items()):
         indent = ''
         if len(services) > 1:
             # for service templates only print the template name
-            print(f'{name:<25} |                |            |')
+            print(f'{name:<25} |                |            |      |')
             indent = '  '
         for service in services:
             service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
             active_icon = '🟢' if service['is_active'] else '🔴'
             enabled_icon = '🟢' if service['is_enabled'] else '🔴'
+            boot_icon = '🟢' if service['starts_on_boot'] else '🔴'
             error_icon = '⚠️' if service['has_errors'] else ''
             if service['has_errors']:
                 services_with_errors.append(service['name'])
             print(f'{service_name} | {active_icon}{service["state"]:<12} | '
-                  f'{enabled_icon}{service["enabled"]:<8} | {error_icon}')
-    print('--------------------------+----------------+------------+--------')
+                  f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:4} | {error_icon}')
+    print('--------------------------+----------------+------------+------+--------')
 
     if inactive_services:
         print('* Inactive services:', ', '.join(sorted(inactive_services)))
