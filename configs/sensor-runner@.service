@@ -10,6 +10,7 @@
 
 [Unit]
 Description=%i sensor runner service
+StartLimitIntervalSec=0
 After=network.target
 
 [Service]
@@ -19,7 +20,6 @@ Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.sensors.%i -v --mqtt
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=0
 StandardOutput=journal
 StandardError=journal
 
