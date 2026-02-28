@@ -99,7 +99,7 @@ def check_journal_errors(service_name, n_lines=15):
     """Check for errors in the journal output of the given service."""
     try:
         cmd = ['journalctl', '-u', service_name, '-n', str(n_lines), '--no-pager']
-        result = subprocess.run(cmd , capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
     except Exception as e:
         print(f"Error checking journal for {service_name!r}: {e}")
         return True
