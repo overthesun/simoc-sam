@@ -144,19 +144,22 @@ def print_services():
     config_services = [service_file.stem for service_file in CONFIGS_DIR.glob('*.service')]
     system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon']
     services_to_check = config_services + system_services
-
     all_services = get_services_info(services_to_check)
-    filtered_services = {name: info for name, info in all_services.items()
-                         if name in services_to_check}
-    inactive_services = set(services_to_check) - filtered_services.keys()
+    active_services = []
+    inactive_services = []
+    # separate services in two groups to show inactive services last
+    for name, services in sorted(all_services.items()):
+        if len(services) == 1 and not services[0]['is_active']:
+            inactive_services.append((name, services))
+        else:
+            active_services.append((name, services))
     services_with_errors = []
     state_icons = dict(active='🟢', inactive='⚫', activating='🟡',
                        deactivating='🟡', reloading='🟡', failed='🔴')
     active_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
-
     print('Service name              | Active         | Enabled    | Boot | Errors')
     print('--------------------------+----------------+------------+------+--------')
-    for name, services in sorted(filtered_services.items()):
+    for name, services in active_services + inactive_services:
         indent = ''
         if len(services) > 1:
             # for service templates only print the template name
@@ -173,10 +176,6 @@ def print_services():
             print(f'{service_name} | {active_icon}{service["state"]:<12} | '
                   f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:3} | {error_icon}')
     print('--------------------------+----------------+------------+------+--------')
-
-    if inactive_services:
-        print('* Inactive services:', ', '.join(sorted(inactive_services)))
-
     if services_with_errors:
         print(f'* {len(services_with_errors)} service(s) with errors. '
               f'Run the following command(s) to see the logs:')
