@@ -159,23 +159,24 @@ def print_services():
     active_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
     print('Service name              | Active         | Enabled    | Boot | Errors')
     print('--------------------------+----------------+------------+------+--------')
-    for name, services in active_services + inactive_services:
-        indent = ''
-        if len(services) > 1:
-            # for service templates only print the template name
-            print(f'{name:<25} |                |            |      |')
-            indent = '  '
-        for service in services:
-            service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
-            active_icon = state_icons.get(service['state'], '🔴')
-            enabled_icon = active_icons.get(service['enabled'], '🔴')
-            boot_icon = '🟢' if service['starts_on_boot'] else '⚫'
-            error_icon = '🛑' if service['has_errors'] else ''
-            if service['has_errors']:
-                services_with_errors.append(service['name'])
-            print(f'{service_name} | {active_icon}{service["state"]:<12} | '
-                  f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:3} | {error_icon}')
-    print('--------------------------+----------------+------------+------+--------')
+    for group in [active_services, inactive_services]:
+        for name, services in group:
+            indent = ''
+            if len(services) > 1:
+                # for service templates only print the template name
+                print(f'{name:<25} |                |            |      |')
+                indent = '  '
+            for service in services:
+                service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
+                active_icon = state_icons.get(service['state'], '🔴')
+                enabled_icon = active_icons.get(service['enabled'], '🔴')
+                boot_icon = '🟢' if service['starts_on_boot'] else '⚫'
+                error_icon = '🛑' if service['has_errors'] else ''
+                if service['has_errors']:
+                    services_with_errors.append(service['name'])
+                print(f'{service_name} | {active_icon}{service["state"]:<12} | '
+                    f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:3} | {error_icon}')
+        print('--------------------------+----------------+------------+------+--------')
     if services_with_errors:
         print(f'* {len(services_with_errors)} service(s) with errors. '
               f'Run the following command(s) to see the logs:')
