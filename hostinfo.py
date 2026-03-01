@@ -107,14 +107,17 @@ def check_journal_errors(service_name, n_lines=15):
     error_indicators = ['error', 'failed', 'exception', 'traceback', 'critical']
     return any(indicator in output for indicator in error_indicators)
 
-def get_all_running_services():
-    """Get all running systemd services using systemctl show."""
+def get_services_info(services=None):
+    """Get info about the given systemd services using systemctl show."""
+    if services:
+        # if service is a template use a wildcard to get all instances
+        services = [re.sub(r'@(?=\.)|@$', '@*', service) for service in services]
+    else:
+        services = ['*.service']  # get all services if services is empty
     try:
-        cmd = ['systemctl', 'show', '*.service', '--state=running',
-               '--no-pager', '--property=Id,ActiveState,UnitFileState']
+        cmd = ['systemctl', 'show', *services, '--no-pager',
+               '--property=Id,ActiveState,UnitFileState,LoadState']
         result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            return {}
         boot_services = get_boot_start_services()
         all_services = defaultdict(list)
         for service in result.stdout.strip().split('\n\n'):
@@ -126,6 +129,8 @@ def get_all_running_services():
                 'is_active': info['ActiveState'] == 'active',
                 'enabled': info['UnitFileState'],
                 'is_enabled': info['UnitFileState'] == 'enabled',
+                'load_state': info['LoadState'],
+                'is_loaded': info['LoadState'] == 'loaded',
                 'starts_on_boot': name in boot_services,
                 'has_errors': check_journal_errors(info['Id']),
             })
@@ -139,36 +144,40 @@ def print_services():
     config_services = [service_file.stem for service_file in CONFIGS_DIR.glob('*.service')]
     system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon']
     services_to_check = config_services + system_services
-
-    all_services = get_all_running_services()
-    filtered_services = {name: info for name, info in all_services.items()
-                         if name in services_to_check}
-    inactive_services = set(services_to_check) - filtered_services.keys()
+    all_services = get_services_info(services_to_check)
+    relevant_services = []  # services that are in use by the current setup
+    irrelevant_services = []  # services that are not relevant for the setup
+    # separate services in two groups to show inactive services last
+    for name, services in sorted(all_services.items()):
+        if (len(services) == 1 and not services[0]['is_loaded'] or
+            services[0]['enabled'] not in {'enabled', 'linked'}):
+            irrelevant_services.append((name, services))
+        else:
+            relevant_services.append((name, services))
     services_with_errors = []
-
+    active_icons = dict(active='🟢', inactive='⚫', activating='🟡',
+                        deactivating='🟡', reloading='🟡', failed='🔴')
+    enabled_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
     print('Service name              | Active         | Enabled    | Boot | Errors')
     print('--------------------------+----------------+------------+------+--------')
-    for name, services in sorted(filtered_services.items()):
-        indent = ''
-        if len(services) > 1:
-            # for service templates only print the template name
-            print(f'{name:<25} |                |            |      |')
-            indent = '  '
-        for service in services:
-            service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
-            active_icon = '🟢' if service['is_active'] else '🔴'
-            enabled_icon = '🟢' if service['is_enabled'] else '🔴'
-            boot_icon = '🟢' if service['starts_on_boot'] else '🔴'
-            error_icon = '⚠️' if service['has_errors'] else ''
-            if service['has_errors']:
-                services_with_errors.append(service['name'])
-            print(f'{service_name} | {active_icon}{service["state"]:<12} | '
-                  f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:3} | {error_icon}')
-    print('--------------------------+----------------+------------+------+--------')
-
-    if inactive_services:
-        print('* Inactive services:', ', '.join(sorted(inactive_services)))
-
+    for group in [relevant_services, irrelevant_services]:
+        for name, services in group:
+            indent = ''
+            if len(services) > 1:
+                # for service templates only print the template name
+                print(f'{name:<25} |                |            |      |')
+                indent = '  '
+            for service in services:
+                service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
+                active_icon = active_icons.get(service['state'], '🔴')
+                enabled_icon = enabled_icons.get(service['enabled'], '🔴')
+                boot_icon = '🟢' if service['starts_on_boot'] else '⚫'
+                error_icon = '🛑' if service['has_errors'] else ''
+                if service['has_errors']:
+                    services_with_errors.append(service['name'])
+                print(f'{service_name} | {active_icon}{service["state"]:<12} | '
+                    f'{enabled_icon}{service["enabled"]:<8} | {boot_icon:3} | {error_icon}')
+        print('--------------------------+----------------+------------+------+--------')
     if services_with_errors:
         print(f'* {len(services_with_errors)} service(s) with errors. '
               f'Run the following command(s) to see the logs:')
