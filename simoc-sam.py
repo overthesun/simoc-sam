@@ -7,6 +7,7 @@ import uuid
 import shutil
 import socket
 import pathlib
+import inspect
 import argparse
 import tempfile
 import functools
@@ -76,9 +77,22 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
-                               sys.executable, *sys.argv])
-            return
+            # Convert args and kwargs to command line arguments
+            cmd_name = func.__name__.replace('_', '-')
+            # Get function signature to map positional args to parameter names
+            sig = inspect.signature(func)
+            params = list(sig.parameters.keys())
+            # Convert positional args to kwargs
+            all_kwargs = {params[i]: arg for i, arg in enumerate(args) if i < len(params)}
+            # Merge with provided kwargs (kwargs take precedence)
+            all_kwargs.update(kwargs)
+            # Build command with --key=value format, skipping None values
+            cmd_kwargs = [f'--{k.replace("_", "-")}={v}'
+                          for k, v in all_kwargs.items() if v is not None]
+            cmd = ['sudo', '--preserve-env=HOME',
+                   sys.executable, __file__, cmd_name, *cmd_kwargs]
+            result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+            return result.returncode == 0
         else:
             return func(*args, **kwargs)
     return inner
@@ -642,20 +656,75 @@ def create_help(cmds):
         help.append(f'{cmd.replace("_", "-"):18} {func.__doc__}')
     return '\n'.join(help)
 
-if __name__ == '__main__':
+
+def create_parser():
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         description="Setup and run SIMOC-SAM.",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument('cmd', metavar='CMD', help=create_help(COMMANDS))
-    parser.add_argument('args', metavar='*ARGS', nargs='*',
-                        help='Additional optional args to be passed to CMD.')
-    args = parser.parse_args()
+    subparsers = parser.add_subparsers(dest='cmd', required=True)
+    # Create subparser for each command from its signature
+    for cmd_name, func in COMMANDS.items():
+        subparser = subparsers.add_parser(
+            cmd_name.replace('_', '-'),
+            help=func.__doc__
+        )
+        # Add positional collector to accept arguments in order
+        subparser.add_argument('_positional', nargs='*')
+        # Add optional --flag for each parameter
+        sig = inspect.signature(func)
+        for param_name, param in sig.parameters.items():
+            if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                continue  # Skip *args in --flag form
+            flag_name = f'--{param_name.replace("_", "-")}'
+            subparser.add_argument(flag_name, dest=param_name, default=argparse.SUPPRESS)
+    return parser
 
-    cmd = args.cmd.replace('-', '_')
-    if cmd in COMMANDS:
-        result = COMMANDS[cmd](*args.args)
-        parser.exit(not result)
-    else:
-        cmds = ', '.join(cmd.replace('_', '-') for cmd in COMMANDS.keys())
-        parser.error(f'Command not found.  Available commands: {cmds}')
+
+def main():
+    """Main entry point for the script."""
+    parser = create_parser()
+    args = parser.parse_args()
+    func = COMMANDS[args.cmd.replace('-', '_')]
+    sig = inspect.signature(func)
+    params = list(sig.parameters.items())
+
+    # Distribute positional args and handle named args
+    call_args = []
+    call_kwargs = {}
+    positional = args._positional
+    pos_idx = 0
+
+    for param_name, param in params:
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            # Collect all remaining positional args
+            call_args.extend(positional[pos_idx:])
+            break
+
+        # Check if provided via --flag (using SUPPRESS, so check hasattr)
+        if hasattr(args, param_name):
+            # Provided via --flag
+            named_value = getattr(args, param_name)
+            if param.default is inspect.Parameter.empty:
+                call_args.append(named_value)
+            else:
+                call_kwargs[param_name] = named_value
+        elif pos_idx < len(positional):
+            # Provided positionally
+            if param.default is inspect.Parameter.empty:
+                call_args.append(positional[pos_idx])
+            else:
+                call_kwargs[param_name] = positional[pos_idx]
+            pos_idx += 1
+        elif param.default is inspect.Parameter.empty:
+            # Required parameter not provided
+            parser.error(f'the following arguments are required: {param_name}')
+        # Otherwise: parameter has a default and wasn't provided, so don't pass it
+
+    result = func(*call_args, **call_kwargs)
+    sys.exit(0 if result else 1)
+
+
+if __name__ == '__main__':
+    main()
