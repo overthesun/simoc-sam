@@ -145,6 +145,9 @@ def print_services():
                          if name in services_to_check}
     inactive_services = set(services_to_check) - filtered_services.keys()
     services_with_errors = []
+    state_icons = dict(active='🟢', inactive='⚫', activating='🟡',
+                       deactivating='🟡', reloading='🟡', failed='🔴')
+    active_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
 
     print('Service name              | Active         | Enabled    | Boot | Errors')
     print('--------------------------+----------------+------------+------+--------')
@@ -156,10 +159,10 @@ def print_services():
             indent = '  '
         for service in services:
             service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
-            active_icon = '🟢' if service['is_active'] else '🔴'
-            enabled_icon = '🟢' if service['is_enabled'] else '🔴'
-            boot_icon = '🟢' if service['starts_on_boot'] else '🔴'
-            error_icon = '⚠️' if service['has_errors'] else ''
+            active_icon = state_icons.get(service['state'], '🔴')
+            enabled_icon = active_icons.get(service['enabled'], '🔴')
+            boot_icon = '🟢' if service['starts_on_boot'] else '⚫'
+            error_icon = '🛑' if service['has_errors'] else ''
             if service['has_errors']:
                 services_with_errors.append(service['name'])
             print(f'{service_name} | {active_icon}{service["state"]:<12} | '
