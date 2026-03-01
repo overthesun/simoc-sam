@@ -118,8 +118,6 @@ def get_services_info(services=None):
         cmd = ['systemctl', 'show', *services, '--no-pager',
                '--property=Id,ActiveState,UnitFileState,LoadState']
         result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            return {}
         boot_services = get_boot_start_services()
         all_services = defaultdict(list)
         for service in result.stdout.strip().split('\n\n'):
