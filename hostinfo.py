@@ -111,7 +111,7 @@ def get_services_info(services=None):
     """Get info about the given systemd services using systemctl show."""
     if services:
         # if service is a template use a wildcard to get all instances
-        services = [service.replace('@', '@*') for service in services]
+        services = [re.sub(r'@(?=\.)|@$', '@*', service) for service in services]
     else:
         services = ['*.service']  # get all services if services is empty
     try:
