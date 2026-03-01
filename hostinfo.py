@@ -147,22 +147,22 @@ def print_services():
     system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon']
     services_to_check = config_services + system_services
     all_services = get_services_info(services_to_check)
-    active_services = []
-    inactive_services = []
+    relevant_services = []  # services that are in use by the current setup
+    irrelevant_services = []  # services that are not relevant for the setup
     # separate services in two groups to show inactive services last
     for name, services in sorted(all_services.items()):
         if (len(services) == 1 and not services[0]['is_loaded'] or
             services[0]['enabled'] not in {'enabled', 'linked'}):
-            inactive_services.append((name, services))
+            irrelevant_services.append((name, services))
         else:
-            active_services.append((name, services))
+            relevant_services.append((name, services))
     services_with_errors = []
     active_icons = dict(active='🟢', inactive='⚫', activating='🟡',
                         deactivating='🟡', reloading='🟡', failed='🔴')
     enabled_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
     print('Service name              | Active         | Enabled    | Boot | Errors')
     print('--------------------------+----------------+------------+------+--------')
-    for group in [active_services, inactive_services]:
+    for group in [relevant_services, irrelevant_services]:
         for name, services in group:
             indent = ''
             if len(services) > 1:
