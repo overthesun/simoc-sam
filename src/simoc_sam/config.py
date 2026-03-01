@@ -53,6 +53,9 @@ if location is None:
     # Remove trailing digits from the hostname to get the location
     location = hostname.rstrip('0123456789')
 
+# remove leading/trailing whitespace from display_format
+display_format = display_format.strip()
+
 # warn if mqtt_secure is True but the certs dir does not exist
 if mqtt_secure and not mqtt_certs_dir.exists():
     print(f"Warning: MQTT secure is enabled but the certs dir "

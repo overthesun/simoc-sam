@@ -10,6 +10,7 @@
 # see the script output.
 [Unit]
 Description=siobridge service to forward data to SIMOC web
+StartLimitIntervalSec=0
 After=network.target
 
 [Service]
@@ -18,6 +19,7 @@ WorkingDirectory=/home/pi/simoc-sam
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.siobridge
 Restart=always
+RestartSec=5
 StandardOutput=journal
 StandardError=journal
 
