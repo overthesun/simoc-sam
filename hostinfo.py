@@ -107,11 +107,16 @@ def check_journal_errors(service_name, n_lines=15):
     error_indicators = ['error', 'failed', 'exception', 'traceback', 'critical']
     return any(indicator in output for indicator in error_indicators)
 
-def get_all_running_services():
-    """Get all running systemd services using systemctl show."""
+def get_services_info(services=None):
+    """Get info about the given systemd services using systemctl show."""
+    if services:
+        # if service is a template use a wildcard to get all instances
+        services = [service.replace('@', '@*') for service in services]
+    else:
+        services = ['*.service']  # get all services if services is empty
     try:
-        cmd = ['systemctl', 'show', '*.service', '--state=running',
-               '--no-pager', '--property=Id,ActiveState,UnitFileState']
+        cmd = ['systemctl', 'show', *services, '--no-pager',
+               '--property=Id,ActiveState,UnitFileState']
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return {}
@@ -140,7 +145,7 @@ def print_services():
     system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon']
     services_to_check = config_services + system_services
 
-    all_services = get_all_running_services()
+    all_services = get_services_info(services_to_check)
     filtered_services = {name: info for name, info in all_services.items()
                          if name in services_to_check}
     inactive_services = set(services_to_check) - filtered_services.keys()
