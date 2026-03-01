@@ -152,7 +152,7 @@ def print_services():
     # separate services in two groups to show inactive services last
     for name, services in sorted(all_services.items()):
         if (len(services) == 1 and not services[0]['is_loaded'] or
-            (services[0]['is_loaded'] and not services[0]['is_enabled'])):
+            services[0]['enabled'] not in {'enabled', 'linked'}):
             inactive_services.append((name, services))
         else:
             active_services.append((name, services))
