@@ -116,7 +116,7 @@ def get_services_info(services=None):
         services = ['*.service']  # get all services if services is empty
     try:
         cmd = ['systemctl', 'show', *services, '--no-pager',
-               '--property=Id,ActiveState,UnitFileState']
+               '--property=Id,ActiveState,UnitFileState,LoadState']
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return {}
@@ -131,6 +131,8 @@ def get_services_info(services=None):
                 'is_active': info['ActiveState'] == 'active',
                 'enabled': info['UnitFileState'],
                 'is_enabled': info['UnitFileState'] == 'enabled',
+                'load_state': info['LoadState'],
+                'is_loaded': info['LoadState'] == 'loaded',
                 'starts_on_boot': name in boot_services,
                 'has_errors': check_journal_errors(info['Id']),
             })
@@ -149,7 +151,8 @@ def print_services():
     inactive_services = []
     # separate services in two groups to show inactive services last
     for name, services in sorted(all_services.items()):
-        if len(services) == 1 and not services[0]['is_active']:
+        if (len(services) == 1 and not services[0]['is_loaded'] or
+            (services[0]['is_loaded'] and not services[0]['is_enabled'])):
             inactive_services.append((name, services))
         else:
             active_services.append((name, services))
