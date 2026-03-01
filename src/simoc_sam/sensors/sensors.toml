@@ -386,3 +386,14 @@ i2c_address = 0x4A
     unit = ""
     label = "Shake"
     description = "Shake detection flag"
+
+[pcf8523]
+name = "PCF8523"
+description = "Real-Time Clock (RTC)"
+module = "simoc_sam.sensors.pcf8523"
+i2c_address = 0x68
+
+    [pcf8523.data.unix_ts]
+    unit = ""
+    label = "Timestamp"
+    description = "Unix timestamp (seconds since epoch)"

@@ -595,6 +595,101 @@ def enable_i2c():
     """Enable i2c using raspi-config."""
     raspi_config('do_i2c', '0')
 
+@needs_venv
+def init_rtc():
+    """Initialize and return the PCF8523 RTC sensor."""
+    try:
+        from simoc_sam.sensors.pcf8523 import PCF8523
+    except ImportError as e:
+        print(f'Error: Failed to import PCF8523 module: {e}')
+        return
+    try:
+        return PCF8523(verbose=True)
+    except Exception as e:
+        print(f'Error: Failed to initialize PCF8523 RTC: {e}')
+
+def parse_timestamp(timestamp):
+    """Parse a timestamp string (ISO format or Unix timestamp)."""
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(timestamp)
+    except ValueError:
+        try:
+            return datetime.fromtimestamp(float(timestamp))
+        except (ValueError, OSError) as e:
+            print(f'Error: Invalid timestamp format: {e}')
+            print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
+            return
+
+def print_times(rtc, label='Current'):
+    """Print current system time and RTC time."""
+    from datetime import datetime
+    rpi_time = datetime.now()
+    rtc_time = rtc.get_datetime()
+    print(f'{label} RPi time: {rpi_time.strftime("%Y-%m-%d %H:%M:%S")}')
+    print(f'{label} RTC time: {rtc_time.strftime("%Y-%m-%d %H:%M:%S")}')
+
+def update_time(ts, target):
+    """Update the time of the target (RPi or RTC) to the given timestamp."""
+    from datetime import datetime
+    rtc = init_rtc()
+    if not rtc:
+        return False
+    dt = parse_timestamp(ts) if ts else None
+    print_times(rtc, 'Current')
+    try:
+        if target == 'rpi':
+            new_time = (dt or rtc.get_datetime()).strftime("%Y-%m-%d %H:%M:%S")
+            print(f'Setting RPi time to: {new_time}')
+            subprocess.run(['date', '-s', new_time], check=True)
+        elif target == 'rtc':
+            new_time = dt or datetime.now()
+            print(f'Setting RTC time to: {new_time.strftime("%Y-%m-%d %H:%M:%S")}')
+            rtc.set_datetime(new_time)
+        print_times(rtc, 'Updated')
+        print('Time updated successfully.')
+        return True
+    except Exception as e:
+        print(f'Error: Failed to set time: {e}')
+        return False
+
+@cmd
+@needs_root
+def set_rpi_time(timestamp=None):
+    """Set RPi system time from RTC or from a provided timestamp."""
+    return update_time(timestamp, target='rpi')
+
+@cmd
+@needs_root
+def set_rtc_time(timestamp=None):
+    """Set RTC time from RPi system time or from a provided timestamp."""
+    return update_time(timestamp, target='rtc')
+
+@cmd
+@needs_root
+def setup_rtc():
+    """Setup systemd service and timer for RTC time synchronization."""
+    # Setup the boot service (RTC -> RPi) -- enable but don't start (boot-triggered)
+    setup_systemd_unit('rtc-update-rpi', unit_type='service', enable=True, start=False)
+    # Setup the periodic service (RPi -> RTC) -- don't enable/start (timer-triggered)
+    setup_systemd_unit('rtc-update-pcf8523', unit_type='service', enable=False, start=False)
+    # Setup the timer (triggers periodic RTC update) -- enable and start
+    setup_systemd_unit('rtc-update-pcf8523', unit_type='timer', enable=True, start=True)
+    print('RTC synchronization enabled.')
+
+@cmd
+@needs_root
+def teardown_rtc():
+    """Revert the changes made by the setup-rtc command."""
+    # Stop and disable the timer
+    teardown_systemd_unit('rtc-update-pcf8523', unit_type='timer', stop=True, disable=True)
+    # Remove periodic service symlink (no need to stop/disable -- it's timer-triggered)
+    teardown_systemd_unit('rtc-update-pcf8523', unit_type='service', stop=False, disable=False)
+    # Disable boot service (no need to stop -- it's not running)
+    teardown_systemd_unit('rtc-update-rpi', unit_type='service', stop=False, disable=True)
+    run(['systemctl', 'daemon-reload'])
+    print('RTC synchronization disabled.')
+
 @cmd
 def create_config():
     """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""

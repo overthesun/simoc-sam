@@ -1,0 +1,20 @@
+# This unit file updates the PCF8523 RTC time from RPi system time.
+# It's triggered by rtc-update-pcf8523.timer periodically, keeping the RTC accurate.
+#
+# Installation: python simoc-sam.py setup-rtc
+#
+# Manual control:
+#   python simoc-sam.py set-rtc-time             # update RTC time from RPi
+#   journalctl -u rtc-update-pcf8523.service     # view logs
+
+[Unit]
+Description=Update PCF8523 RTC time from system time
+After=network.target time-sync.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/simoc-sam
+ExecStart=/home/pi/simoc-sam/venv/bin/python simoc-sam.py set-rtc-time
+StandardOutput=journal
+StandardError=journal
