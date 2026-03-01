@@ -157,9 +157,9 @@ def print_services():
         else:
             active_services.append((name, services))
     services_with_errors = []
-    state_icons = dict(active='🟢', inactive='⚫', activating='🟡',
-                       deactivating='🟡', reloading='🟡', failed='🔴')
-    active_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
+    active_icons = dict(active='🟢', inactive='⚫', activating='🟡',
+                        deactivating='🟡', reloading='🟡', failed='🔴')
+    enabled_icons = dict(enabled='🟢', disabled='🔴', linked='🟢', static='⚫')
     print('Service name              | Active         | Enabled    | Boot | Errors')
     print('--------------------------+----------------+------------+------+--------')
     for group in [active_services, inactive_services]:
@@ -171,8 +171,8 @@ def print_services():
                 indent = '  '
             for service in services:
                 service_name = f'{indent}{service["name"]:<{25-len(indent)}}'
-                active_icon = state_icons.get(service['state'], '🔴')
-                enabled_icon = active_icons.get(service['enabled'], '🔴')
+                active_icon = active_icons.get(service['state'], '🔴')
+                enabled_icon = enabled_icons.get(service['enabled'], '🔴')
                 boot_icon = '🟢' if service['starts_on_boot'] else '⚫'
                 error_icon = '🛑' if service['has_errors'] else ''
                 if service['has_errors']:
