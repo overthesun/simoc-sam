@@ -616,7 +616,8 @@ def set_rtc_time(timestamp=None):
     if dt is None:
         return False
     formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
-    return run(['sudo', 'hwclock', '--set', '--date', formatted])
+    return (run(['sudo', 'hwclock', '--set', '--date', formatted]) and
+            run(['timedatectl', 'status']))
 
 @cmd
 @needs_root
