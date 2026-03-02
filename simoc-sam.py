@@ -597,6 +597,26 @@ def enable_i2c():
     """Enable i2c using raspi-config."""
     raspi_config('do_i2c', '0')
 
+def parse_timestamp(timestamp):
+    """Parse a timestamp string (ISO format or Unix timestamp)."""
+    try:
+        return datetime.fromisoformat(timestamp)
+    except ValueError:
+        try:
+            return datetime.fromtimestamp(float(timestamp))
+        except ValueError as e:
+            print(f'Error: Invalid timestamp format: {e}')
+            print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
+            return
+
+@cmd
+def set_rtc_time(timestamp=None):
+    """Set the RTC time to the specified timestamp (ISO or Unix)."""
+    dt = parse_timestamp(timestamp) if timestamp else datetime.datetime.now()
+    if dt is None:
+        return False
+    formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+    return run(['sudo', 'hwclock', '--set', '--date', formatted])
 
 @cmd
 @needs_root
@@ -618,9 +638,7 @@ def setup_rtc():
         f.write(f'\n# PCF8523 RTC support\n{overlay_line}\n')
     print(f'RTC overlay added to {RPI_CONFIG}')
     print('\nRTC setup complete. Reboot for changes to take effect.')
-    print('After reboot, set the RTC time if this is the first setup:')
-    print('  1. Set system time: sudo timedatectl set-time "YYYY-MM-DD HH:MM:SS"')
-    print('  2. Sync to RTC: sudo hwclock --systohc')
+    print('After reboot, use the `set-rtc-time` command to set the RTC time.')
     return True
 
 @cmd
