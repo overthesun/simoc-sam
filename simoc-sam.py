@@ -8,6 +8,7 @@ import shutil
 import socket
 import pathlib
 import argparse
+import datetime
 import tempfile
 import functools
 import subprocess
@@ -28,6 +29,7 @@ except ModuleNotFoundError:
 HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+RPI_CONFIG = pathlib.Path('/boot/firmware/config.txt')
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
@@ -41,8 +43,8 @@ DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
-APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
-               'mosquitto', 'mosquitto-clients', 'avahi-utils']
+APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx', 'avahi-utils',
+               'mosquitto', 'mosquitto-clients', 'util-linux-extra']
 APT_REMOVE = ['chromium']
 
 COMMANDS = {}
@@ -594,6 +596,73 @@ def setup_locale(locale='en_US.UTF-8'):
 def enable_i2c():
     """Enable i2c using raspi-config."""
     raspi_config('do_i2c', '0')
+
+def parse_timestamp(timestamp):
+    """Parse a timestamp string (ISO format or Unix timestamp)."""
+    try:
+        return datetime.datetime.fromisoformat(timestamp)
+    except ValueError:
+        try:
+            return datetime.datetime.fromtimestamp(float(timestamp))
+        except ValueError as e:
+            print(f'Error: Invalid timestamp format: {e}')
+            print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
+            return
+
+@cmd
+def set_rtc_time(timestamp=None):
+    """Set the RTC time to the specified timestamp (ISO or Unix)."""
+    dt = parse_timestamp(timestamp) if timestamp else datetime.datetime.now()
+    if dt is None:
+        return False
+    formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+    return (run(['sudo', 'hwclock', '--set', '--date', formatted]) and
+            run(['timedatectl', 'status']))
+
+@cmd
+@needs_root
+def setup_rtc():
+    """Setup PCF8523 RTC by adding dtoverlay to config.txt."""
+    if not RPI_CONFIG.exists():
+        print(f'{RPI_CONFIG} not found. Are you on a Raspberry Pi?')
+        return False
+    overlay_line = 'dtoverlay=i2c-rtc,pcf8523'
+    # check if the overlay line already exists (uncommented)
+    with open(RPI_CONFIG) as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped == overlay_line or stripped.startswith(overlay_line + ' '):
+                print(f'RTC already configured in {RPI_CONFIG}')
+                return True
+    # add the overlay line
+    with open(RPI_CONFIG, 'a') as f:
+        f.write(f'\n# PCF8523 RTC support\n{overlay_line}\n')
+    print(f'RTC overlay added to {RPI_CONFIG}')
+    print('\nRTC setup complete. Reboot for changes to take effect.')
+    print('After reboot, use the `set-rtc-time` command to set the RTC time.')
+    return True
+
+@cmd
+@needs_root
+def teardown_rtc():
+    """Revert the changes made by the setup-rtc command."""
+    overlay_line = 'dtoverlay=i2c-rtc,pcf8523'
+    new_lines = []
+    found = False
+    with open(RPI_CONFIG) as f:
+        for line in f:
+            if overlay_line in line or '# PCF8523 RTC support' in line:
+                found = True
+                continue  # skip lines related to RTC overlay
+            new_lines.append(line)
+    if not found:
+        print(f'RTC overlay not found in {RPI_CONFIG}')
+        return False
+    RPI_CONFIG.write_text(''.join(new_lines))
+    print(f'Removed RTC overlay from {RPI_CONFIG}')
+    print('Reboot for changes to take effect.')
+    return True
+
 
 @cmd
 def create_config():
