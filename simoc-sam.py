@@ -600,10 +600,10 @@ def enable_i2c():
 def parse_timestamp(timestamp):
     """Parse a timestamp string (ISO format or Unix timestamp)."""
     try:
-        return datetime.fromisoformat(timestamp)
+        return datetime.datetime.fromisoformat(timestamp)
     except ValueError:
         try:
-            return datetime.fromtimestamp(float(timestamp))
+            return datetime.datetime.fromtimestamp(float(timestamp))
         except ValueError as e:
             print(f'Error: Invalid timestamp format: {e}')
             print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
