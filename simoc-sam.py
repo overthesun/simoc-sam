@@ -196,12 +196,16 @@ def push_update(target=None):
     else:
         # use default RPi hotspot IP (NetworkManager 'shared' mode)
         user, host, path = 'pi', '10.42.0.1', '/home/pi/simoc-sam'
-        print(f'Using default RPi hotspot IP: {host}')
     # push the branch to the RPi
     git_url = f'{user}@{host}:{path}'
     print(f'Pushing branch {branch!r} to {git_url}...')
     cmd = ['git', 'push', git_url, branch]
-    return run(cmd, cwd=SIMOC_SAM_DIR)
+    success = run(cmd, cwd=SIMOC_SAM_DIR)
+    if success:
+        print(f'Remote branch {branch!r} successfully updated.')
+    else:
+        print(f'Failed to push updates: see error log above for details.')
+    return success
 
 
 @cmd
