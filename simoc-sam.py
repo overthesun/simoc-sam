@@ -201,7 +201,7 @@ def push_update(target=None):
     git_url = f'ssh://{user}@{host}{path}'
     print(f'Pushing branch {branch!r} to {git_url}...')
     cmd = ['git', 'push', git_url, branch]
-    return subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+    return run(cmd, cwd=SIMOC_SAM_DIR)
 
 
 @cmd
