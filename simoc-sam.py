@@ -177,6 +177,33 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
+@cmd
+def push_update(target=None):
+    """Push code updates via git directly to the RPi when in hotspot mode."""
+    # get current branch (must match branch on RPi for push to work)
+    cmd = ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
+    branch = subprocess.check_output(cmd, cwd=SIMOC_SAM_DIR, text=True).strip()
+    # determine user@host:path for pushes
+    if target:
+        match = target_re.fullmatch(target)
+        if not match:
+            print(f'Error: Invalid target format: {target}')
+            print('Expected format: [user@]host[:path]')
+            return False
+        user, host, path = match.groups()
+        user = user or 'pi'
+        path = path or '/home/pi/simoc-sam'
+    else:
+        # use default RPi hotspot IP (NetworkManager 'shared' mode)
+        user, host, path = 'pi', '10.42.0.1', '/home/pi/simoc-sam'
+        print(f'Using default RPi hotspot IP: {host}')
+    # push the branch to the RPi
+    git_url = f'ssh://{user}@{host}{path}'
+    print(f'Pushing branch {branch!r} to {git_url}...')
+    cmd = ['git', 'push', git_url, branch]
+    return subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+
+
 host_re = re.compile(r'^samrpi(\d+)$')
 address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
@@ -275,6 +302,20 @@ def setup_nmconn(nmconn_file, repls):
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
     run(['nmcli', 'connection', 'delete', conn_id])
+
+
+@cmd
+def setup_git_remote_push():
+    """Enable git push updates from remote machines."""
+    # Set receive.denyCurrentBranch = updateInstead to allow pushes
+    cmd = ['git', 'config', 'receive.denyCurrentBranch', 'updateInstead']
+    return subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+
+@cmd
+def teardown_git_remote_push():
+    """Revert the changes made by setup-git-remote-push."""
+    cmd = ['git', 'config', '--unset', 'receive.denyCurrentBranch']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
 
 
 @cmd
