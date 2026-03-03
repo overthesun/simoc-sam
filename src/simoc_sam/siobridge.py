@@ -200,8 +200,8 @@ async def mqtt_handler():
 async def process_sensor_log(sensor):
     """Process a single sensor's log file continuously."""
     log_file = get_log_path(sensor)
-    location, host, sensor = get_sensor_id(sensor).split('.')
-    sensor_id = f'{host}.{sensor}'
+    location, host, sensor_name = get_sensor_id(sensor).split('.')
+    sensor_id = f'{host}.{sensor_name}'
     # ensure sensor info is available
     if sensor_id not in SENSOR_INFO:
         SENSORS.add(sensor_id)
