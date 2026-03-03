@@ -204,6 +204,20 @@ def push_update(target=None):
     return subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
 
 
+@cmd
+def setup_git_remote_push():
+    """Enable git push updates from remote machines."""
+    # Set receive.denyCurrentBranch = updateInstead to allow pushes
+    cmd = ['git', 'config', 'receive.denyCurrentBranch', 'updateInstead']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
+
+@cmd
+def teardown_git_remote_push():
+    """Revert the changes made by setup-git-remote-push."""
+    cmd = ['git', 'config', '--unset', 'receive.denyCurrentBranch']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
+
+
 host_re = re.compile(r'^samrpi(\d+)$')
 address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
@@ -302,20 +316,6 @@ def setup_nmconn(nmconn_file, repls):
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
     run(['nmcli', 'connection', 'delete', conn_id])
-
-
-@cmd
-def setup_git_remote_push():
-    """Enable git push updates from remote machines."""
-    # Set receive.denyCurrentBranch = updateInstead to allow pushes
-    cmd = ['git', 'config', 'receive.denyCurrentBranch', 'updateInstead']
-    return subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
-
-@cmd
-def teardown_git_remote_push():
-    """Revert the changes made by setup-git-remote-push."""
-    cmd = ['git', 'config', '--unset', 'receive.denyCurrentBranch']
-    return run(cmd, cwd=SIMOC_SAM_DIR)
 
 
 @cmd
