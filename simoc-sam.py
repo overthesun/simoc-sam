@@ -198,7 +198,7 @@ def push_update(target=None):
         user, host, path = 'pi', '10.42.0.1', '/home/pi/simoc-sam'
         print(f'Using default RPi hotspot IP: {host}')
     # push the branch to the RPi
-    git_url = f'ssh://{user}@{host}{path}'
+    git_url = f'{user}@{host}:{path}'
     print(f'Pushing branch {branch!r} to {git_url}...')
     cmd = ['git', 'push', git_url, branch]
     return run(cmd, cwd=SIMOC_SAM_DIR)
