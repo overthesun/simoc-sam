@@ -314,8 +314,9 @@ def setup_nmconn(nmconn_file, repls):
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
     # ensure wifi is on and reload connections (will auto-activate interface)
-    return (run(['nmcli', 'radio', 'wifi', 'on']) and
-            run(['nmcli', 'connection', 'reload']))
+    wifi_enabled = run(['nmcli', 'radio', 'wifi', 'on'])
+    conn_reloaded = run(['nmcli', 'connection', 'reload'])
+    return wifi_enabled and conn_reloaded
 
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
