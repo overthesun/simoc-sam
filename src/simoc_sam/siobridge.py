@@ -132,7 +132,7 @@ async def emit_to_subscribers(*args, **kwargs):
 async def emit_readings():
     """Emit a bundle with the latest reading of all sensors."""
     args = sensor_utils.parse_args()  # TODO: create separate parser for the server
-    delay = args.delay
+    delay = config.sensor_read_delay  # emit at the same rate data is read
     print(f'Broadcasting data every {delay} seconds.')
     n = 0
     while True:
