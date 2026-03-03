@@ -294,13 +294,13 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
         ipv4_method='auto',
     )
-    setup_nmconn(wifi_nmconn, repls)
+    return setup_nmconn(wifi_nmconn, repls)
 
 @cmd
 @needs_root
 def teardown_wifi():
     """Revert the changes made by the setup-wifi command."""
-    teardown_nmconn(WIFI_CONN)
+    return teardown_nmconn(WIFI_CONN)
 
 
 def setup_nmconn(nmconn_file, repls):
