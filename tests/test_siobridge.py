@@ -239,7 +239,7 @@ async def test_emit_readings(sio, sio_sleep_break, sensor_id, two_subs, sensor_r
 async def test_process_sensor_log(mock_emit_to_subscribers):
     """Test that process_sensor_log registers sensor in SENSOR_INFO."""
     sensor_name = 'scd30'
-    sensor_id = get_sensor_id(sensor_name)
+    sensor_id = f'testhost1.{sensor_name}'
     # verify sensor not registered yet
     assert sensor_id not in siobridge.SENSORS
     assert sensor_id not in siobridge.SENSOR_INFO
