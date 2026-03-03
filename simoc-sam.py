@@ -269,13 +269,13 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
         ipv4_method='shared',
     )
-    setup_nmconn(hotspot_nmconn, repls)
+    return setup_nmconn(hotspot_nmconn, repls) and setup_git_remote_push()
 
 @cmd
 @needs_root
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
-    teardown_nmconn(HOTSPOT_CONN)
+    return teardown_nmconn(HOTSPOT_CONN) and teardown_git_remote_push()
 
 
 @cmd
@@ -294,13 +294,13 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
         ipv4_method='auto',
     )
-    setup_nmconn(wifi_nmconn, repls)
+    return setup_nmconn(wifi_nmconn, repls)
 
 @cmd
 @needs_root
 def teardown_wifi():
     """Revert the changes made by the setup-wifi command."""
-    teardown_nmconn(WIFI_CONN)
+    return teardown_nmconn(WIFI_CONN)
 
 
 def setup_nmconn(nmconn_file, repls):
@@ -313,13 +313,14 @@ def setup_nmconn(nmconn_file, repls):
     os.chown(nmconn_file, 0, 0)  # owner is now root
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
-    run(['nmcli', 'radio', 'wifi', 'on'])  # ensure wifi is on
-    # reload connections (will auto-activate if interface is available)
-    run(['nmcli', 'connection', 'reload'])
+    # ensure wifi is on and reload connections (will auto-activate interface)
+    wifi_enabled = run(['nmcli', 'radio', 'wifi', 'on'])
+    conn_reloaded = run(['nmcli', 'connection', 'reload'])
+    return wifi_enabled and conn_reloaded
 
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
-    run(['nmcli', 'connection', 'delete', conn_id])
+    return run(['nmcli', 'connection', 'delete', conn_id])
 
 
 @cmd
