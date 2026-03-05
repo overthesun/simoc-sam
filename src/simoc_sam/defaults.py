@@ -48,7 +48,7 @@ mqtt_reconnect_delay = 5.0
 # SIMOC Web / SIO bridge configuration
 sio_host = 'localhost'
 sio_port = 8081
-data_source = 'logs'  # 'mqtt' or 'logs'
+data_source = 'mqtt'  # 'mqtt' or 'logs'
 mqtt_topic_sub = '#'
 simoc_web_dist_dir = '/var/www/simoc'
 
