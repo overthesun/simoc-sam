@@ -1,32 +1,91 @@
 import time
+import pathlib
+import importlib
 
-from unittest.mock import AsyncMock, ANY
+from unittest.mock import patch
 
 import pytest
 
-from simoc_sam.sensors.basesensor import BaseSensor, SIOWrapper
+from simoc_sam import config
+from simoc_sam.sensors import basesensor
 
-
-READING = dict(co2=100, hum=50, temp=25)
+READING = dict(co2=100, rel_hum=50, temp=25)
 INFO = {
     'co2': dict(label='CO2', unit='ppm'),
     'temp': dict(label='Temperature', unit='°C'),
     'rel_hum': dict(label='Relative Humidity', unit='%'),
 }
-class MySensor(BaseSensor):
-    sensor_type = 'TestSensor'
+class MySensor(basesensor.BaseSensor):
+    type = 'TestSensor'
     reading_info = INFO
     def read_sensor_data(self):
+        self.print_reading(READING)
         return dict(READING)
 
 @pytest.fixture
 def sensor():
     yield MySensor()
 
+@pytest.fixture
+def wrapper(sensor):
+    return basesensor.MQTTWrapper(sensor, read_delay=0)
+
+@pytest.fixture
+def mock_print(wrapper):
+    with patch.object(wrapper, 'print') as mock_print:
+        yield mock_print
+
+@pytest.fixture(autouse=True)
+def reload_basesensor():
+    # the logpath depends on config.location and hostname
+    importlib.reload(config)
+    importlib.reload(basesensor)
+    yield
+
+@pytest.fixture(autouse=True)
+def mock_paho_client():
+    with patch('paho.mqtt.client.Client', autospec=True) as mock_client:
+        yield mock_client
+
+# Module-level function tests
+
+def test_get_sensor_id():
+    """Test that get_sensor_id returns correctly formatted sensor ID."""
+    sensor_id = basesensor.get_sensor_id('scd30')
+    assert sensor_id == 'testhost.testhost1.scd30'
+    with patch('simoc_sam.config.location', 'sam'):
+        sensor_id = basesensor.get_sensor_id('scd30')
+        assert sensor_id == 'sam.testhost1.scd30'
+    with patch('simoc_sam.config.location', 'hab'), \
+         patch('socket.gethostname', return_value='samrpi2'):
+        sensor_id = basesensor.get_sensor_id('bme688')
+        assert sensor_id == 'hab.samrpi2.bme688'
+    # Test with custom separator
+    with patch('simoc_sam.config.location', 'sam'):
+        sensor_id = basesensor.get_sensor_id('mock', sep='/')
+        assert sensor_id == 'sam/testhost1/mock'
+        sensor_id = basesensor.get_sensor_id('sgp30', sep='_')
+        assert sensor_id == 'sam_testhost1_sgp30'
+
+def test_get_log_path_format():
+    """Test that get_log_path returns correctly formatted path."""
+    with patch('simoc_sam.config.location', 'sam'), \
+         patch('simoc_sam.config.log_dir', pathlib.Path('/tmp/logs')):
+        log_path = basesensor.get_log_path('scd30')
+        assert log_path == pathlib.Path('/tmp/logs/sam_testhost1_scd30.jsonl')
+    with patch('simoc_sam.config.location', 'sam'), \
+         patch('simoc_sam.config.log_dir', pathlib.Path('/var/logs')), \
+         patch('socket.gethostname', return_value='samrpi2'):
+        log_path = basesensor.get_log_path('bme688')
+        assert log_path == pathlib.Path('/var/logs/sam_samrpi2_bme688.jsonl')
+
+# BaseSensor tests
+
 def test_abstract_method():
     # this should fail if read_sensor_data is not implemented
-    class BrokenSensorSubclass(BaseSensor):
-        pass
+    class BrokenSensorSubclass(basesensor.BaseSensor):
+        type = 'Broken'
+        reading_info = {}
     with pytest.raises(TypeError):
         s = BrokenSensorSubclass()
 
@@ -35,9 +94,12 @@ def test_context_manager():
         assert isinstance(sensor, MySensor)
 
 def test_name_type():
-    with MySensor(name='HAL 9000') as sensor:
-        assert sensor.sensor_type == 'TestSensor'
-        assert sensor.sensor_name == 'HAL 9000'
+    with MySensor(description='HAL 9000') as sensor:
+        assert sensor.type == 'TestSensor'
+        assert sensor.description == 'HAL 9000'
+
+def test_log_path(sensor):
+    assert str(sensor.log_path).endswith('/testhost_testhost1_mysensor.jsonl')
 
 def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
@@ -80,36 +142,123 @@ def test_reading_num(sensor):
     readings = list(sensor.iter_readings(delay=0, n=5))
     assert sensor.reading_num == 10
 
+def test_log(sensor, tmp_path):
+    payload = '{"foo": 1}'
+    sensor.log_path = tmp_path / "testlog.jsonl"
+    sensor.log(payload)
+    with open(sensor.log_path) as f:
+        lines = f.readlines()
+    assert lines[-1].strip() == payload
+    # test for nonexisting file
+    sensor.log_path = "/nonexistent/path/testlog.jsonl"
+    # Patch sensor.print to check error message
+    from unittest.mock import patch
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.log(payload)
+        mock_print.assert_called_once()
+        assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
 
-# SIOWrapper tests
-@pytest.mark.asyncio
-async def test_siowrapper(sensor):
-    siowrapper = SIOWrapper(sensor, read_delay=0)
-    # mock the socketio.AsyncClient instance
-    siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
-    # start the client and check it connects to the server
-    await siowrapper.start('localhost', 8081)
-    sio_ac.connect.assert_awaited_with('http://localhost:8081')
-    # check that sensor registers itself on connect
-    await siowrapper.connect()
-    sensor_info = {'sensor_type': 'TestSensor', 'sensor_name': 'TestSensor',
-                   'sensor_id': sensor.sensor_id, 'sensor_desc': None,
-                   'reading_info': INFO}
-    sio_ac.emit.assert_awaited_with('register-sensor', sensor_info)
-    # request 2 readings and check that at least a reading has been sent
-    await siowrapper.send_data(n=2)
-    sio_ac.emit.assert_awaited_with('sensor-reading', ANY)
-    # check emitted events
-    calls = sio_ac.emit.await_args_list
-    assert len(calls) == 3
-    expected_events = ['register-sensor', 'sensor-reading', 'sensor-reading']
-    assert [c.args[0] for c in calls] == expected_events
+def test_print_reading(sensor):
+    # Test basic printing functionality
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(READING)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 100ppm; Temperature: 25°C; Relative Humidity: 50%'
+    # Test with float values (should be formatted to 1 decimal place)
+    reading_with_floats = {'co2': 123.456, 'temp': 25.789, 'rel_hum': 50.123}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(reading_with_floats)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 123.5ppm; Temperature: 25.8°C; Relative Humidity: 50.1%'
+    # Test with missing fields (should skip them gracefully)
+    partial_reading = {'co2': 100}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(partial_reading)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 100ppm'
+    # Test with non existing fields (should skip them gracefully)
+    partial_reading = {'non-existing': 100, 'temp': 22}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(partial_reading)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] Temperature: 22°C'
 
-@pytest.mark.asyncio
-async def test_siowrapper_custom_addr(sensor):
-    siowrapper = SIOWrapper(sensor, read_delay=0)
-    # mock the socketio.AsyncClient instance
-    siowrapper.sio = sio_ac = AsyncMock(spec=siowrapper.sio)
-    # start the client and check it connects to the server
-    await siowrapper.start('anotherhost', 666)
-    sio_ac.connect.assert_awaited_with('http://anotherhost:666')
+def test_iter_readings_logs(sensor, monkeypatch):
+    from simoc_sam import config
+    # Test with logging enabled
+    monkeypatch.setattr(config, "enable_jsonl_logging", True)
+    with patch.object(sensor, 'log') as mock_log:
+        readings = list(sensor.iter_readings(delay=0, n=3))
+        assert mock_log.call_count == 3
+    # Test with logging disabled
+    monkeypatch.setattr(config, "enable_jsonl_logging", False)
+    with patch.object(sensor, 'log') as mock_log:
+        readings = list(sensor.iter_readings(delay=0, n=3))
+        mock_log.assert_not_called()
+
+
+# MQTTWrapper tests
+
+def test_mqttwrapper_init(sensor):
+    """Test that MQTTWrapper uses config defaults correctly."""
+    wrapper = basesensor.MQTTWrapper(sensor)
+    assert wrapper.sensor is sensor
+    assert wrapper.read_delay == config.sensor_read_delay
+    assert wrapper.verbose == config.verbose_sensor
+    assert wrapper.topic.startswith(config.location)
+    assert wrapper.topic == f'testhost/testhost1/{sensor.name}'
+    # test with custom args
+    wrapper = basesensor.MQTTWrapper(sensor, read_delay=5, verbose=True)
+    assert wrapper.sensor is sensor
+    assert wrapper.read_delay == 5
+    assert wrapper.verbose is True
+    assert wrapper.topic == f'testhost/testhost1/{sensor.name}'
+
+def test_mqttwrapper_connect_start_stop(wrapper):
+    mqttc = wrapper.mqttc
+    wrapper.connect('localhost', 1883)
+    mqttc.connect.assert_called_with('localhost', 1883)
+    wrapper.start('localhost', 1883)
+    mqttc.loop_start.assert_called_once()
+    mqttc.connect.assert_called_with('localhost', 1883)
+    wrapper.stop()
+    mqttc.loop_stop.assert_called_once()
+
+def test_mqttwrapper_on_connect_and_disconnect(wrapper, mock_print):
+    wrapper.verbose = True
+    wrapper.on_connect(None, None, None, 0)
+    mock_print.assert_any_call("Connected to MQTT broker")
+    wrapper.on_connect(None, None, None, 1)
+    mock_print.assert_any_call("Connection failed with code 1")
+    wrapper.on_disconnect(None, None, None)
+    mock_print.assert_any_call("Disconnected from MQTT broker")
+
+def test_mqttwrapper_send_data(wrapper, mock_print):
+    mqttc = wrapper.mqttc
+    wrapper.send_data(n=2)
+    assert mqttc.publish.call_count == 2
+    for call in mqttc.publish.call_args_list:
+        assert call.kwargs['payload'] is not None
+        assert call.args[0] == wrapper.topic
+    assert mock_print.call_count >= 2
+
+def test_mqttwrapper_send_data_publish_error(wrapper, mock_print):
+    mqttc = wrapper.mqttc
+    mqttc.publish.side_effect = RuntimeError("fail")
+    wrapper.send_data(n=1)
+    mock_print.assert_any_call('No longer connected to the server (fail)...')
+
+def test_mqttwrapper_insecure_init(sensor):
+    """Test MQTTWrapper initialization with secure=False (default)."""
+    wrapper = basesensor.MQTTWrapper(sensor, secure=False)
+    wrapper.mqttc.tls_set.assert_not_called()
+
+def test_mqttwrapper_secure_init(sensor):
+    """Test MQTTWrapper initialization with secure=True."""
+    certs_dir = pathlib.Path('/test/certs')
+    wrapper = basesensor.MQTTWrapper(sensor, secure=True, certs_dir=certs_dir)
+    wrapper.mqttc.tls_set.assert_called_once_with(
+        ca_certs='/test/certs/ca.crt',
+        certfile='/test/certs/client.crt',
+        keyfile='/test/certs/client.key'
+    )

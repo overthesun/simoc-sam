@@ -2,45 +2,57 @@ import time
 import json
 import random
 import socket
-import asyncio
 
 from datetime import datetime
 from abc import ABC, abstractmethod
 
-import socketio
-
 import paho.mqtt.client as mqtt
+from .. import config
 
 
-def random_id(length=6):
-    """Return a random hexadecimal string of specified length"""
-    return ''.join(random.choice('0123456789ABCDEF') for i in range(length))
+def get_sensor_id(sensor_name, *, sep='.'):
+    """Generate a sensor id like location.hostname.sensor_name."""
+    hostname = socket.gethostname()
+    return f'{config.location}{sep}{hostname}{sep}{sensor_name}'
+
+def get_log_path(sensor_name):
+    sensor_id = get_sensor_id(sensor_name, sep='_')
+    return config.log_dir / f'{sensor_id}.jsonl'
 
 
 class BaseSensor(ABC):
     """The base class Sensors should inherit from."""
-    @property
-    @abstractmethod
-    def sensor_type(self):
-        """The sensor type (e.g. model name)."""
-        # override this with a regular class attr in the subclasses
-        raise NotImplementedError()
 
-    @property
-    @abstractmethod
-    def reading_info(self):
-        """Information about the values returned by read_sensor_data."""
-        # override this with a regular class attr in the subclasses
-        raise NotImplementedError()
+    def __init_subclass__(cls, **kwargs):
+        """Set sensor name, type, and reading info."""
+        from . import utils  # import here to avoid circular import
+        super().__init_subclass__(**kwargs)
+        # subclasses can specify a custom sensor name
+        if not hasattr(cls, 'name'):
+            cls.name = cls.__name__.lower()
+        if cls.name in utils.SENSOR_DATA:
+            sensor_data = utils.SENSOR_DATA[cls.name]
+            cls.type = sensor_data.name
+            cls.reading_info = sensor_data.data
+        else:
+            # type and reading_info must be manually set if not in sensors.toml
+            if not (hasattr(cls, 'type') and hasattr(cls, 'reading_info')):
+                raise ValueError(f'Sensor {cls.name!r} must be added to sensors.toml '
+                                 f'or type and reading_info must be set.')
+        # auto-generate (sub)class docstring if not already set
+        if cls.__doc__ is None:
+            cls.__doc__ = f'Represent a {cls.type} sensor.'
 
-    def __init__(self, *, name=None, id=None, description=None,
-                 verbose=False):
-        self.sensor_name = name or self.sensor_type
-        self.sensor_id = id or random_id()
-        self.sensor_desc = description
+    def __init__(self, *, description=None, verbose=False):
+        """Initialize the sensor."""
+        self.id = get_sensor_id(self.name)
+        self.description = description
         self.verbose = verbose
         # the total number of values read through iter_readings
         self.reading_num = 0
+        self.log_path = get_log_path(self.name)
+        if config.enable_jsonl_logging:
+            config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
     def __enter__(self):
         # use this to initialize the sensor and return self
@@ -57,10 +69,10 @@ class BaseSensor(ABC):
     def sensor_info(self):
         """Return information about the sensor and the value it returns."""
         return {
-            'sensor_type': self.sensor_type,
-            'sensor_name': self.sensor_name,
-            'sensor_id': self.sensor_id,
-            'sensor_desc': self.sensor_desc,
+            'sensor_type': self.type,
+            'sensor_name': self.name,
+            'sensor_id': self.id,
+            'sensor_desc': self.description,
             'reading_info': self.reading_info,
         }
 
@@ -69,14 +81,23 @@ class BaseSensor(ABC):
         if self.verbose:
             print(*args, **kwargs)
 
+    def log(self, payload):
+        try:
+            with open(self.log_path, 'a') as f:
+                f.write(f'{payload}\n')
+        except Exception as err:
+            self.print(f'Unable to write log file: {err}')
+
     def print_reading(self, reading):
         data = []
         for name, info in self.reading_info.items():
+            if name not in reading:
+                continue
             value = reading[name]
             if isinstance(value, float):
                 value = format(value, '.1f')
             data.append(f"{info['label']}: {value}{info['unit']}")
-        self.print(f"[{self.sensor_type}] {': '.join(data)}")
+        self.print(f"[{self.type}] {'; '.join(data)}")
 
     @abstractmethod
     def read_sensor_data(self):
@@ -107,6 +128,8 @@ class BaseSensor(ABC):
                 data['timestamp'] = self.get_timestamp()
             if add_n:
                 data['n'] = self.reading_num
+            if config.enable_jsonl_logging:
+                self.log(json.dumps(data))
             yield data
             self.reading_num += 1
             if not read_forever:
@@ -116,81 +139,29 @@ class BaseSensor(ABC):
             time.sleep(delay)
 
 
-class SIOWrapper:
-    def __init__(self, sensor, *, read_delay=10, verbose=False):
-        self.sensor = sensor
-        self.read_delay = read_delay  # how long to wait between readings
-        self.verbose = verbose  # toggle verbose output
-        # instantiate the AsyncClient and register events
-        self.sio = sio = socketio.AsyncClient()
-        sio.event(self.connect)
-        sio.event(self.disconnect)
-        sio.on('send-data')(self.send_data)
-
-    def print(self, *args, **kwargs):
-        """Receive and print if self.verbose is true."""
-        if self.verbose:
-            print(*args, **kwargs)
-
-    async def start(self, host, port):
-        """Open the connection with the sio server."""
-        # connect to the server and wait
-        await self.sio.connect(f'http://{host}:{port}')
-        await self.sio.wait()
-
-    async def connect(self):
-        """Called when the sensor connects to the server."""
-        self.print('Connected to server')
-        self.print('Registering sensor')
-        sensor_info = self.sensor.sensor_info()
-        await self.sio.emit('register-sensor', sensor_info)
-
-    async def disconnect(self):
-        """Called when the sensor disconnects from the server."""
-        self.print('Server disconnected')
-
-    async def send_data(self, n=0):
-        """Called when the server requests data, runs in an endless loop."""
-        self.print('Server requested data')
-        # set the delay to 0 because iter_readings uses blocking time.sleep
-        # and replace it with a non-blocking asyncio.sleep in the for loop
-        readings = self.sensor.iter_readings(delay=0, n=n)
-        for reading in readings:
-            try:
-                await self.sio.emit('sensor-reading', reading)
-            except socketio.exceptions.BadNamespaceError:
-                print('No longer connected to the server...')
-                return
-            # wait for the next sensor reading
-            await asyncio.sleep(self.read_delay)
-
-
 class MQTTWrapper:
-    def __init__(self, sensor, *, read_delay=10, verbose=False):
+    def __init__(self, sensor, *, read_delay=config.sensor_read_delay,
+                 verbose=config.verbose_sensor, location=config.location,
+                 secure=config.mqtt_secure, certs_dir=config.mqtt_certs_dir):
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output
         # aiomqtt still requires paho-mqtt 1.6
         # self.mqttc = mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.mqttc = mqttc = mqtt.Client()
+        if secure:
+            self.print("Using secure MQTT connection")
+            self.mqttc.tls_set(ca_certs=str(certs_dir / 'ca.crt'),
+                               certfile=str(certs_dir / 'client.crt'),
+                               keyfile=str(certs_dir / 'client.key'))
         mqttc.on_connect = self.on_connect
         mqttc.on_disconnect = self.on_disconnect
-        hostname = socket.gethostname()
-        self.topic = f'sam/{hostname}/{sensor.sensor_name}'
-        self.log_fname = f'/home/pi/logs/{self.topic.replace("/", "_")}.jsonl'
+        self.topic = get_sensor_id(sensor.name, sep='/')
 
     def print(self, *args, **kwargs):
         """Receive and print if self.verbose is true."""
         if self.verbose:
             print(*args, **kwargs)
-
-    def log(self, payload):
-        # TODO: implement better logging
-        try:
-            with open(self.log_fname, 'a') as f:
-                f.write(f'{payload}\n')
-        except Exception as err:
-            self.print(f'Unable to write log file: {err}')
 
     def start(self, host, port):
         self.mqttc.loop_start()
@@ -213,7 +184,7 @@ class MQTTWrapper:
         # disconnect_flags, but we are not using it so it's ok
         self.print("Disconnected from MQTT broker")
 
-    def connect(self, host, port, *, attempts=100, retry_delay=5):
+    def connect(self, host, port):
         """Called when the sensor connects to the server."""
         try:
             self.print(f'Connecting to MQTT broker at {host}:{port}...')
@@ -230,14 +201,11 @@ class MQTTWrapper:
         self.print('Server requested data')
         # set the delay to 0 because iter_readings uses blocking time.sleep
         # and replace it with a non-blocking asyncio.sleep in the for loop
-        readings = self.sensor.iter_readings(delay=0, n=n)
+        readings = self.sensor.iter_readings(delay=self.read_delay, n=n)
         for reading in readings:
             try:
                 jreading = json.dumps(reading)
                 self.mqttc.publish(self.topic, payload=jreading)
-                self.log(jreading)  # TODO: move this somewhere else
                 self.print(reading)
             except Exception as err:
                 self.print(f'No longer connected to the server ({err})...')
-            # wait for the next sensor reading
-            time.sleep(self.read_delay)

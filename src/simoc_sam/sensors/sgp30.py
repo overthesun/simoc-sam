@@ -23,16 +23,9 @@ def tick_conversion_H2(signal_output):
     return 0.5 * (math.e**((signal_reference-signal_output)/512))
 
 
-SGP30_DATA = utils.SENSOR_DATA['SGP30']
-
 class SGP30(BaseSensor):
-    """Represent a SGP30 sensor."""
-    sensor_type = SGP30_DATA.name
-    reading_info = SGP30_DATA.data
-
-    def __init__(self, *, name=None, verbose=False):
-        """Initialize the sensor."""
-        super().__init__(name=name, verbose=verbose)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
         self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
         self.sensor.iaq_init()

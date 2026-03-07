@@ -2,7 +2,7 @@ server {
     listen 80 default_server;
     server_name {{hostname}};
 
-    root /home/pi/dist;
+    root {{dist_dir}};
     index index.html;
 
     location / {
