@@ -63,15 +63,16 @@ def test_on_message(mock_size, mock_open, mock_msg):
 def test_main(mock_mqtt_client, mock_args, monkeypatch):
     csv_writer.main(mock_args.host, mock_args.port, mock_args.topic)
     print(mock_mqtt_client.connect.mock_calls)
-    assert mock_mqtt_client.connect.called_with(mock_args.host, mock_args.port, 60)
+    mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234, 10)
     assert mock_mqtt_client.loop_forever.called
 
 def test_main_custom_topic(mock_mqtt_client, mock_args):
     mock_args.topic = 'custom/topic'
     csv_writer.main(mock_args.host, mock_args.port, mock_args.topic)
-    assert mock_mqtt_client.subscribe.called_with('custom/topic')
+    csv_writer.on_connect(mock_mqtt_client, None, None, 0)
+    mock_mqtt_client.subscribe.assert_called_with('custom/topic')
 
 def test_main_default_topic(mock_mqtt_client, mock_args):
     csv_writer.main(mock_args.host, mock_args.port, mock_args.topic)
-    assert mock_mqtt_client.subscribe.called_with('sam/#')
-
+    csv_writer.on_connect(mock_mqtt_client, None, None, 0)
+    mock_mqtt_client.subscribe.assert_called_with('sam/#')
