@@ -4,19 +4,14 @@ import json
 
 import paho.mqtt.client as mqtt
 
-from simoc_sam.sensors import utils
+from simoc_sam import config
 
-
-HOST = 'samrpi1.local'
-PORT = 1883
-KEEPALIVE = 10  # in seconds
-TOPIC = "sam/#"
 
 # Callback when the client connects to the broker
 def on_connect(client, userdata, flags, rc, properties=None):
     print(f'Connected with result code {rc}')
-    # Subscribe to the MQTT topic
-    client.subscribe(args.topic)
+    # Subscribe to the MQTT topic from config
+    client.subscribe(config.mqtt_topic_sub)
 
 def on_message(client, userdata, msg):
     payload = msg.payload.decode("utf-8")
@@ -49,7 +44,7 @@ def on_message(client, userdata, msg):
 
 # main
 
-def main(host=HOST, port=PORT, topic=TOPIC):
+def main():
     # Create an MQTT client
     client = mqtt.Client()
 
@@ -57,16 +52,12 @@ def main(host=HOST, port=PORT, topic=TOPIC):
     client.on_connect = on_connect
     client.on_message = on_message
 
-    # Connect to the MQTT broker
-    client.connect(host, port, KEEPALIVE)
+    # Connect to the MQTT broker using config values
+    client.connect(config.mqtt_host, config.mqtt_port)
 
     # Loop to handle MQTT communication
     client.loop_forever()
     print("Disconnected from MQTT broker")
 
 if __name__ == '__main__':
-    parser = utils.get_addr_argparser()
-    parser.add_argument('--topic', default="sam/#",
-                        help='The topic to suscribe')
-    args = parser.parse_args()
-    main(args.host, args.port, args.topic)
+    main()

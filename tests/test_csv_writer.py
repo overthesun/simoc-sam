@@ -15,11 +15,11 @@ def mock_mqtt_client(monkeypatch):
     yield client
 
 @pytest.fixture
-def mock_args(monkeypatch):
-    mock_args = mock.Mock(host='mock_host', port=1234, topic='sam/#')
-    csv_writer.args = mock_args
-    yield mock_args
-    del csv_writer.args
+def mock_config(monkeypatch):
+    """Mock the config module with test values"""
+    monkeypatch.setattr('simoc_sam.config.mqtt_host', 'mock_host')
+    monkeypatch.setattr('simoc_sam.config.mqtt_port', 1234)
+    monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'sam/#')
 
 @pytest.fixture
 def mock_size(monkeypatch):
@@ -40,7 +40,8 @@ def mock_msg():
 
 
 
-def test_subscribe_on_connect(mock_mqtt_client, mock_args):
+def test_subscribe_on_connect(mock_mqtt_client, mock_config):
+    # on_connect now reads topic from config
     csv_writer.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_once_with('sam/#')
 
@@ -60,19 +61,25 @@ def test_on_message(mock_size, mock_open, mock_msg):
     assert handle.write.call_count == 3
     handle.write.assert_has_calls(calls)
 
-def test_main(mock_mqtt_client, mock_args, monkeypatch):
-    csv_writer.main(mock_args.host, mock_args.port, mock_args.topic)
-    print(mock_mqtt_client.connect.mock_calls)
-    mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234, 10)
+def test_main(mock_mqtt_client, mock_config, monkeypatch):
+    csv_writer.main()
+    # connect is called without keepalive, so it uses the default (60)
+    mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
     assert mock_mqtt_client.loop_forever.called
 
-def test_main_custom_topic(mock_mqtt_client, mock_args):
-    mock_args.topic = 'custom/topic'
-    csv_writer.main(mock_args.host, mock_args.port, mock_args.topic)
+def test_main_custom_topic(mock_mqtt_client, monkeypatch):
+    # Test with a different config topic
+    monkeypatch.setattr('simoc_sam.config.mqtt_host', 'test_host')
+    monkeypatch.setattr('simoc_sam.config.mqtt_port', 5678)
+    monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'custom/topic')
+    csv_writer.main()
+    # Verify connection uses custom config
+    mock_mqtt_client.connect.assert_called_once_with('test_host', 5678)
+    # Verify subscription happens in on_connect with custom topic
     csv_writer.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_with('custom/topic')
 
-def test_main_default_topic(mock_mqtt_client, mock_args):
-    csv_writer.main(mock_args.host, mock_args.port, mock_args.topic)
-    csv_writer.on_connect(mock_mqtt_client, None, None, 0)
-    mock_mqtt_client.subscribe.assert_called_with('sam/#')
+def test_main_default_config(mock_mqtt_client, mock_config):
+    # Test with default mock config
+    csv_writer.main()
+    mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
