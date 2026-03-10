@@ -177,6 +177,51 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
+@cmd
+def push_update(target=None):
+    """Push code updates via git directly to the RPi when in hotspot mode."""
+    # get current branch (must match branch on RPi for push to work)
+    cmd = ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
+    branch = subprocess.check_output(cmd, cwd=SIMOC_SAM_DIR, text=True).strip()
+    # determine user@host:path for pushes
+    if target:
+        match = target_re.fullmatch(target)
+        if not match:
+            print(f'Error: Invalid target format: {target}')
+            print('Expected format: [user@]host[:path]')
+            return False
+        user, host, path = match.groups()
+        user = user or 'pi'
+        path = path or '/home/pi/simoc-sam'
+    else:
+        # use default RPi hotspot IP (NetworkManager 'shared' mode)
+        user, host, path = 'pi', '10.42.0.1', '/home/pi/simoc-sam'
+    # push the branch to the RPi
+    git_url = f'{user}@{host}:{path}'
+    print(f'Pushing branch {branch!r} to {git_url}...')
+    cmd = ['git', 'push', git_url, branch]
+    success = run(cmd, cwd=SIMOC_SAM_DIR)
+    if success:
+        print(f'Remote branch {branch!r} successfully updated.')
+    else:
+        print(f'Failed to push updates: see error log above for details.')
+    return success
+
+
+@cmd
+def setup_git_remote_push():
+    """Enable git push updates from remote machines."""
+    # Set receive.denyCurrentBranch = updateInstead to allow pushes
+    cmd = ['git', 'config', 'receive.denyCurrentBranch', 'updateInstead']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
+
+@cmd
+def teardown_git_remote_push():
+    """Revert the changes made by setup-git-remote-push."""
+    cmd = ['git', 'config', '--unset', 'receive.denyCurrentBranch']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
+
+
 host_re = re.compile(r'^samrpi(\d+)$')
 address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
@@ -224,13 +269,13 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
         ipv4_method='shared',
     )
-    setup_nmconn(hotspot_nmconn, repls)
+    return setup_nmconn(hotspot_nmconn, repls) and setup_git_remote_push()
 
 @cmd
 @needs_root
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
-    teardown_nmconn(HOTSPOT_CONN)
+    return teardown_nmconn(HOTSPOT_CONN) and teardown_git_remote_push()
 
 
 @cmd
@@ -249,13 +294,13 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
         ipv4_method='auto',
     )
-    setup_nmconn(wifi_nmconn, repls)
+    return setup_nmconn(wifi_nmconn, repls)
 
 @cmd
 @needs_root
 def teardown_wifi():
     """Revert the changes made by the setup-wifi command."""
-    teardown_nmconn(WIFI_CONN)
+    return teardown_nmconn(WIFI_CONN)
 
 
 def setup_nmconn(nmconn_file, repls):
@@ -268,13 +313,14 @@ def setup_nmconn(nmconn_file, repls):
     os.chown(nmconn_file, 0, 0)  # owner is now root
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
-    run(['nmcli', 'radio', 'wifi', 'on'])  # ensure wifi is on
-    # reload connections (will auto-activate if interface is available)
-    run(['nmcli', 'connection', 'reload'])
+    # ensure wifi is on and reload connections (will auto-activate interface)
+    wifi_enabled = run(['nmcli', 'radio', 'wifi', 'on'])
+    conn_reloaded = run(['nmcli', 'connection', 'reload'])
+    return wifi_enabled and conn_reloaded
 
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
-    run(['nmcli', 'connection', 'delete', conn_id])
+    return run(['nmcli', 'connection', 'delete', conn_id])
 
 
 @cmd

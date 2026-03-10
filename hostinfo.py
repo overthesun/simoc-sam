@@ -142,7 +142,7 @@ def get_services_info(services=None):
 def print_services():
     """Print status of SIMOC Live services and key system services."""
     config_services = [service_file.stem for service_file in CONFIGS_DIR.glob('*.service')]
-    system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon']
+    system_services = ['systemd-timesyncd', 'chrony', 'mosquitto', 'avahi-daemon', 'nginx']
     services_to_check = config_services + system_services
     all_services = get_services_info(services_to_check)
     relevant_services = []  # services that are in use by the current setup
