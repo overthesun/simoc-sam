@@ -32,10 +32,13 @@ def test_default_vars():
         if var not in config._path_vars:
             assert getattr(config, var) is getattr(defaults, var)
         else:
-            # paths are either str or Path in defaults, but always Path in config
-            assert isinstance(getattr(defaults, var), (str, Path))
-            assert isinstance(getattr(config, var), Path)
-            assert str(getattr(config, var)) == str(getattr(defaults, var))
+            default_path= getattr(defaults, var)
+            config_path = getattr(config, var)
+            assert isinstance(default_path, str)  # always a str
+            assert isinstance(config_path, Path)  # always converted to Path
+            assert config_path.is_absolute()
+            assert '~' not in str(config_path)  # should be expanded
+            assert str(config_path) == str(Path(default_path).expanduser())
     # location is set from hostname when None
     assert defaults.location is None
     assert config.location == 'testhost'

@@ -4,8 +4,6 @@ This file is copied to ~/.config/simoc-sam/config.py for user overrides,
 with a symlink pointing to it for easier editing/discoverability.
 """
 
-from pathlib import Path
-
 
 # HAB info
 location = None
@@ -41,7 +39,7 @@ A-z: {bno085_linear_accel_z:.2f}
 mqtt_host = 'localhost'
 mqtt_port = 1883
 mqtt_secure = False
-mqtt_certs_dir = Path.home() / '.mqttcerts'
+mqtt_certs_dir = '~/.mqttcerts'
 mqtt_reconnect_delay = 5.0
 
 
@@ -57,4 +55,4 @@ simoc_web_dist_dir = '/var/www/simoc'
 verbose_sensor = False
 verbose_mqtt = False
 enable_jsonl_logging = True
-log_dir = Path.home() / 'logs'
+log_dir = '~/logs'
