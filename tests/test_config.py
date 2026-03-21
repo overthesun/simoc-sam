@@ -49,10 +49,12 @@ def test_default_vars():
         elif var in path_vars:
             default_path = getattr(defaults, var)
             config_path = getattr(config, var)
+            expected_path = Path(default_path).expanduser().resolve()
             assert isinstance(default_path, str)  # always a str
             assert isinstance(config_path, Path)  # always converted to Path
             assert config_path.is_absolute()
             assert '~' not in str(config_path)  # should be expanded
+            assert str(config_path) == str(expected_path)
         elif var == 'location':
             assert defaults.location is None
             assert config.location == 'testhost'
