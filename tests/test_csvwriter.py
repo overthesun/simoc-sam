@@ -23,12 +23,6 @@ def mock_config(monkeypatch):
     monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'sam/#')
 
 @pytest.fixture
-def mock_size(monkeypatch):
-    size_mock = mock.Mock(st_size=0)
-    monkeypatch.setattr('os.stat', lambda *args, **kwargs: size_mock)
-    yield size_mock
-
-@pytest.fixture
 def mock_open(monkeypatch):
     m = mock.mock_open()
     monkeypatch.setattr('builtins.open', m)
@@ -46,7 +40,9 @@ def test_subscribe_on_connect(mock_mqtt_client, mock_config):
     csvwriter.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_once_with('sam/#')
 
-def test_on_message(mock_size, mock_open, mock_msg):
+def test_on_message(mock_open, mock_msg):
+    # mock tell to return 0 (empty file)
+    mock_open.return_value.tell.return_value = 0
     csvwriter.on_message(client=None, userdata=None, msg=mock_msg)
     csv_path = Path.home() / 'data' / 'sam_test_scd30.csv'
     mock_open.assert_called_with(csv_path, 'a', newline='')
@@ -57,7 +53,8 @@ def test_on_message(mock_size, mock_open, mock_msg):
         mock.call('0,2024-03-06 12:00:00,123,,\r\n'),  # and the readings
     ]
     handle.write.assert_has_calls(calls)
-    mock_size.st_size = 100  # now the file exists and has the header
+    # now mock tell to return > 0 (file has content)
+    mock_open.return_value.tell.return_value = 100
     csvwriter.on_message(client=None, userdata=None, msg=mock_msg)
     calls.append(mock.call('0,2024-03-06 12:00:00,123,,\r\n'))  # readings only
     assert handle.write.call_count == 3

@@ -31,8 +31,8 @@ def on_message(client, userdata, msg):
     with open(csv_file_path, 'a', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
         field_names = ['n', 'timestamp', *sensor_fields]
-        # add headers if the CSV is empty
-        if os.stat(csv_file_path).st_size == 0:
+        # if the file is empty, add headers
+        if csv_file.tell() == 0:
             csv_writer.writerow(field_names)
         # append data row to the CSV file
         csv_writer.writerow([data.get(field, '') for field in field_names])
