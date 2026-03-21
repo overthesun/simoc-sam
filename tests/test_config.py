@@ -27,7 +27,7 @@ def user_config(tmp_path, monkeypatch):
 
 
 def test_default_vars():
-    # all config vars should be include in one of the 3 lists below and tested
+    # all config vars should be included in one of the 3 lists below and tested
     unchanged_vars = [
         'humans', 'volume', 'sensors', 'sensor_read_delay',
         'display', 'display_refresh',
@@ -47,7 +47,7 @@ def test_default_vars():
         if var in unchanged_vars:
             assert getattr(config, var) is getattr(defaults, var)
         elif var in path_vars:
-            default_path= getattr(defaults, var)
+            default_path = getattr(defaults, var)
             config_path = getattr(config, var)
             assert isinstance(default_path, str)  # always a str
             assert isinstance(config_path, Path)  # always converted to Path
