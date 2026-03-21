@@ -22,7 +22,7 @@ def on_message(client, userdata, msg):
     data = json.loads(payload)
 
     # Define file name based on topic
-    csv_file_path = "/home/sam/data/" + topic.replace("/", "_") + ".csv"
+    csv_file_path = config.data_dir / (topic.replace("/", "_") + ".csv")
 
     # Append the data to the CSV file
     with open(csv_file_path, 'a', newline='') as csv_file:

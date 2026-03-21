@@ -1,5 +1,6 @@
 import json
 
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -47,7 +48,8 @@ def test_subscribe_on_connect(mock_mqtt_client, mock_config):
 
 def test_on_message(mock_size, mock_open, mock_msg):
     csv_writer.on_message(client=None, userdata=None, msg=mock_msg)
-    mock_open.assert_called_with('/home/sam/data/sam_test.csv', 'a', newline='')
+    csv_path = Path.home() / 'data' / 'sam_test.csv'
+    mock_open.assert_called_with(csv_path, 'a', newline='')
     handle = mock_open()
     assert handle.write.call_count == 2
     calls = [
