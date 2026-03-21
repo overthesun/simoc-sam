@@ -65,7 +65,6 @@ def test_on_message(mock_size, mock_open, mock_msg):
 
 def test_main(mock_mqtt_client, mock_config, monkeypatch):
     csv_writer.main()
-    # connect is called without keepalive, so it uses the default (60)
     mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
     assert mock_mqtt_client.loop_forever.called
 
