@@ -37,7 +37,7 @@ def mock_open(monkeypatch):
 @pytest.fixture
 def mock_msg():
     payload = json.dumps(dict(n=0, timestamp='2024-03-06 12:00:00', co2=123))
-    yield mock.Mock(payload=payload.encode('utf-8'), topic='sam/test')
+    yield mock.Mock(payload=payload.encode('utf-8'), topic='sam/test/scd30')
 
 
 
@@ -48,18 +48,18 @@ def test_subscribe_on_connect(mock_mqtt_client, mock_config):
 
 def test_on_message(mock_size, mock_open, mock_msg):
     csv_writer.on_message(client=None, userdata=None, msg=mock_msg)
-    csv_path = Path.home() / 'data' / 'sam_test.csv'
+    csv_path = Path.home() / 'data' / 'sam_test_scd30.csv'
     mock_open.assert_called_with(csv_path, 'a', newline='')
     handle = mock_open()
     assert handle.write.call_count == 2
     calls = [
-        mock.call('n,timestamp,co2\r\n'),  # adds the header
-        mock.call('0,2024-03-06 12:00:00,123\r\n'),  # and the readings
+        mock.call('n,timestamp,co2,temperature,humidity\r\n'),  # adds the header
+        mock.call('0,2024-03-06 12:00:00,123,,\r\n'),  # and the readings
     ]
     handle.write.assert_has_calls(calls)
     mock_size.st_size = 100  # now the file exists and has the header
     csv_writer.on_message(client=None, userdata=None, msg=mock_msg)
-    calls.append(mock.call('0,2024-03-06 12:00:00,123\r\n'))  # readings only
+    calls.append(mock.call('0,2024-03-06 12:00:00,123,,\r\n'))  # readings only
     assert handle.write.call_count == 3
     handle.write.assert_has_calls(calls)
 
