@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from simoc_sam import csv_writer
+from simoc_sam import csvwriter
 
 
 @pytest.fixture
@@ -43,11 +43,11 @@ def mock_msg():
 
 def test_subscribe_on_connect(mock_mqtt_client, mock_config):
     # on_connect now reads topic from config
-    csv_writer.on_connect(mock_mqtt_client, None, None, 0)
+    csvwriter.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_once_with('sam/#')
 
 def test_on_message(mock_size, mock_open, mock_msg):
-    csv_writer.on_message(client=None, userdata=None, msg=mock_msg)
+    csvwriter.on_message(client=None, userdata=None, msg=mock_msg)
     csv_path = Path.home() / 'data' / 'sam_test_scd30.csv'
     mock_open.assert_called_with(csv_path, 'a', newline='')
     handle = mock_open()
@@ -58,13 +58,13 @@ def test_on_message(mock_size, mock_open, mock_msg):
     ]
     handle.write.assert_has_calls(calls)
     mock_size.st_size = 100  # now the file exists and has the header
-    csv_writer.on_message(client=None, userdata=None, msg=mock_msg)
+    csvwriter.on_message(client=None, userdata=None, msg=mock_msg)
     calls.append(mock.call('0,2024-03-06 12:00:00,123,,\r\n'))  # readings only
     assert handle.write.call_count == 3
     handle.write.assert_has_calls(calls)
 
 def test_main(mock_mqtt_client, mock_config, monkeypatch):
-    csv_writer.main()
+    csvwriter.main()
     mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
     assert mock_mqtt_client.loop_forever.called
 
@@ -73,9 +73,9 @@ def test_main_custom_topic(mock_mqtt_client, monkeypatch):
     monkeypatch.setattr('simoc_sam.config.mqtt_host', 'test_host')
     monkeypatch.setattr('simoc_sam.config.mqtt_port', 5678)
     monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'custom/topic')
-    csv_writer.main()
+    csvwriter.main()
     # Verify connection uses custom config
     mock_mqtt_client.connect.assert_called_once_with('test_host', 5678)
     # Verify subscription happens in on_connect with custom topic
-    csv_writer.on_connect(mock_mqtt_client, None, None, 0)
+    csvwriter.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_with('custom/topic')
