@@ -7,6 +7,14 @@ from simoc_sam import config
 from simoc_sam import defaults
 
 
+@pytest.fixture(autouse=True)
+def reload_config():
+    """Reload config before and after each test to ensure clean state."""
+    importlib.reload(config)
+    yield
+    importlib.reload(config)
+
+
 @pytest.fixture
 def user_config(tmp_path, monkeypatch):
     """Fixture that sets up user config directory and monkeypatches HOME."""
