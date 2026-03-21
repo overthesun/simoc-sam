@@ -87,6 +87,7 @@ def test_path_variables_user_override(user_config):
     # create user config that sets path vars with strings
     vars = config._path_vars
     paths = ['/custom/certs', '/custom/dist', '/custom/logs', '/custom/data']
+    assert len(vars) == len(paths)
     config_text = '\n'.join(f'{var} = {path!r}' for var, path in zip(vars, paths))
     user_config.write_text(config_text)
     importlib.reload(config)
