@@ -44,7 +44,8 @@ for var in _path_vars:
         continue
     v = globals()[var]
     if not isinstance(v, Path):
-        globals()[var] = Path(v).expanduser()
+        v = Path(v)
+    globals()[var] = v.expanduser().resolve()
 
 # set location from hostname if not set
 if location is None:
