@@ -63,6 +63,19 @@ def test_on_message(mock_size, mock_open, mock_msg):
     assert handle.write.call_count == 3
     handle.write.assert_has_calls(calls)
 
+@pytest.mark.parametrize(
+    "payload, topic",
+    [(b'invalid json', 'sam/test/scd30'),
+     (b'{"n": 0}', 'invalid/topic'),
+     (b'{"n": 0}', 'sam/test/unknown')],
+    ids=["invalid_json", "invalid_topic", "invalid_sensor"],
+)
+def test_invalid_message(mock_open, payload, topic):
+    msg = mock.Mock(payload=payload, topic=topic)
+    csvwriter.on_message(client=None, userdata=None, msg=msg)
+    mock_open.assert_not_called()
+
+
 def test_main(mock_mqtt_client, mock_config, monkeypatch):
     csvwriter.main()
     mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)

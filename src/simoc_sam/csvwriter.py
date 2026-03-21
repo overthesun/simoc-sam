@@ -16,13 +16,21 @@ def on_message(client, userdata, msg):
     payload = msg.payload.decode("utf-8")
     topic = msg.topic
     print(f"Received message <{topic}>: {payload}")
-    data = json.loads(payload)
-    location, host, sensor = topic.split('/')
+    try:
+        data = json.loads(payload)
+        location, host, sensor = topic.split('/')
+        sensor_fields = SENSOR_DATA[sensor].data.keys()
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Skipping invalid message <{topic}>: {payload} ({e})")
+        return
+    except KeyError as e:
+        print(f"Skipping unknown sensor <{topic}>: {sensor} ({e})")
+        return
     csv_file_path = config.data_dir / f'{location}_{host}_{sensor}.csv'
     # append the data to the CSV file
     with open(csv_file_path, 'a', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
-        field_names = ['n', 'timestamp', *SENSOR_DATA[sensor].data.keys()]
+        field_names = ['n', 'timestamp', *sensor_fields]
         # add headers if the CSV is empty
         if os.stat(csv_file_path).st_size == 0:
             csv_writer.writerow(field_names)
