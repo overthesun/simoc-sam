@@ -43,8 +43,13 @@ def main():
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(config.mqtt_host, config.mqtt_port)
-    client.loop_forever()
-    print("Disconnected from MQTT broker")
+    try:
+        client.loop_forever()
+    except KeyboardInterrupt:
+        print("Interrupted by user, disconnecting...")
+        client.disconnect()
+    finally:
+        print("Disconnected from MQTT broker")
 
 if __name__ == '__main__':
     main()
