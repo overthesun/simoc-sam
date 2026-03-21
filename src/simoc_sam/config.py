@@ -38,7 +38,7 @@ load_user_config(user_config_path)
 # validate and update config vars
 
 # ensure path variables are Path objects
-_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
+_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir', 'data_dir']
 for var in _path_vars:
     if var not in globals():
         continue
