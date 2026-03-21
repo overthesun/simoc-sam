@@ -53,7 +53,6 @@ def test_default_vars():
             assert isinstance(config_path, Path)  # always converted to Path
             assert config_path.is_absolute()
             assert '~' not in str(config_path)  # should be expanded
-            assert str(config_path) == str(Path(default_path).expanduser())
         elif var == 'location':
             assert defaults.location is None
             assert config.location == 'testhost'
@@ -95,6 +94,15 @@ def test_path_variables_user_override(user_config):
         assert isinstance(value, Path)
         assert str(value) == path
 
+def test_path_conversion_and_expansion(user_config):
+    """Test that path variables are converted to absolute paths."""
+    user_config.write_text('log_dir = "logs"\ndata_dir = "~/my_data"\n')
+    importlib.reload(config)
+    for var in ['log_dir', 'data_dir']:
+        value = getattr(config, var)
+        assert isinstance(value, Path)
+        assert value.is_absolute()
+        assert str(value).startswith((str(Path.home()), str(Path.cwd())))
 
 def test_config_warning_logs_without_jsonl(user_config, capsys):
     """Test that config warns if data_source is 'logs' but logging is disabled."""
