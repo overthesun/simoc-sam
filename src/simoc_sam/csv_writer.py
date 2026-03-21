@@ -30,6 +30,7 @@ def on_message(client, userdata, msg):
         csv_writer.writerow([data.get(field, '') for field in field_names])
 
 def main():
+    config.data_dir.mkdir(exist_ok=True)  # ensure data directory exists
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
