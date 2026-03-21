@@ -38,13 +38,14 @@ load_user_config(user_config_path)
 # validate and update config vars
 
 # ensure path variables are Path objects
-_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
+_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir', 'data_dir']
 for var in _path_vars:
     if var not in globals():
         continue
     v = globals()[var]
     if not isinstance(v, Path):
-        globals()[var] = Path(v).expanduser()
+        v = Path(v)
+    globals()[var] = v.expanduser().absolute()
 
 # set location from hostname if not set
 if location is None:

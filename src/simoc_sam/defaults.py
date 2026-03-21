@@ -56,3 +56,4 @@ verbose_sensor = False
 verbose_mqtt = False
 enable_jsonl_logging = True
 log_dir = '~/logs'
+data_dir = '~/data'
