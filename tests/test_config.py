@@ -49,7 +49,7 @@ def test_default_vars():
         elif var in path_vars:
             default_path = getattr(defaults, var)
             config_path = getattr(config, var)
-            expected_path = Path(default_path).expanduser().resolve()
+            expected_path = Path(default_path).expanduser().absolute()
             assert isinstance(default_path, str)  # always a str
             assert isinstance(config_path, Path)  # always converted to Path
             assert config_path.is_absolute()
