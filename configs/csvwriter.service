@@ -1,13 +1,8 @@
 # This unit file is used to launch the csvwriter scripts on boot.
-# Symlink it with `ln -s configs/csvwriter.service
-# /etc/systemd/system/csvwriter.service` before using.
-# Use e.g. `systemctl enable csvwriter.service`
-# to enable the service.
-# Once symlinked and enabled for each sensor, the services will
-# start automatically on boot.
-# They can be controlled with `start`/`stop`/`restart`/`status`.
-# Use e.g. `journalctl -u csvwriter.service -f` to
-# see the script output.
+# Use `sam setup-csvwriter` to enable, `sam teardown-csvwriter` to disable.
+# Use `systemctl start/stop/restart/status csvwriter` to control the service.
+# Use `journalctl -u csvwriter.service -f` to see the script output.
+
 [Unit]
 Description=csvwriter service to save MQTT data on CSV files
 StartLimitIntervalSec=0
