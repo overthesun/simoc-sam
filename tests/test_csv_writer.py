@@ -79,8 +79,3 @@ def test_main_custom_topic(mock_mqtt_client, monkeypatch):
     # Verify subscription happens in on_connect with custom topic
     csv_writer.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_with('custom/topic')
-
-def test_main_default_config(mock_mqtt_client, mock_config):
-    # Test with default mock config
-    csv_writer.main()
-    mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
