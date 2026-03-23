@@ -23,6 +23,14 @@ def mock_config(monkeypatch):
     monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'sam/#')
 
 @pytest.fixture
+def mock_data_dir(monkeypatch):
+    """Mock the data directory to avoid filesystem operations"""
+    mock_dir = mock.Mock()
+    mock_dir.exists.return_value = True  # pretend data dir exists
+    monkeypatch.setattr('simoc_sam.config.data_dir', mock_dir)
+    return mock_dir
+
+@pytest.fixture
 def mock_open(monkeypatch):
     m = mock.mock_open()
     monkeypatch.setattr('builtins.open', m)
@@ -73,21 +81,28 @@ def test_invalid_message(mock_open, payload, topic):
     mock_open.assert_not_called()
 
 
-def test_main(mock_mqtt_client, mock_config, monkeypatch, tmp_path):
-    monkeypatch.setattr('simoc_sam.config.data_dir', tmp_path)
+def test_main(mock_mqtt_client, mock_config, mock_data_dir):
     csvwriter.main()
     mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
     assert mock_mqtt_client.loop_forever.called
 
-def test_main_custom_topic(mock_mqtt_client, monkeypatch, tmp_path):
-    # Test with a different config topic
+def test_main_custom_config(mock_mqtt_client, mock_data_dir, monkeypatch):
+    # Test with different configs
     monkeypatch.setattr('simoc_sam.config.mqtt_host', 'test_host')
     monkeypatch.setattr('simoc_sam.config.mqtt_port', 5678)
     monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'custom/topic')
-    monkeypatch.setattr('simoc_sam.config.data_dir', tmp_path)
     csvwriter.main()
-    # Verify connection uses custom config
+    # verify connection uses custom host/port
     mock_mqtt_client.connect.assert_called_once_with('test_host', 5678)
-    # Verify subscription happens in on_connect with custom topic
+    # verify subscription uses custom topic
     csvwriter.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_with('custom/topic')
+
+def test_main_data_dir_creation(mock_mqtt_client, mock_config, mock_data_dir):
+    # when the data dir exists, mkdir should not be called
+    csvwriter.main()
+    mock_data_dir.mkdir.assert_not_called()
+    # when it doesn't exist, mkdir should be called
+    mock_data_dir.exists.return_value = False
+    csvwriter.main()
+    mock_data_dir.mkdir.assert_called_once()
