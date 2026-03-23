@@ -25,7 +25,8 @@ def mock_config(monkeypatch):
 @pytest.fixture
 def mock_data_dir(monkeypatch):
     """Mock the data directory to avoid filesystem operations"""
-    mock_dir = mock.Mock()
+    mock_dir = mock.MagicMock()
+    mock_dir.__truediv__.side_effect = lambda f: Path('/mock/data/') / f
     mock_dir.exists.return_value = True  # pretend data dir exists
     monkeypatch.setattr('simoc_sam.config.data_dir', mock_dir)
     return mock_dir
@@ -48,11 +49,11 @@ def test_subscribe_on_connect(mock_mqtt_client, mock_config):
     csvwriter.on_connect(mock_mqtt_client, None, None, 0)
     mock_mqtt_client.subscribe.assert_called_once_with('sam/#')
 
-def test_on_message(mock_open, mock_msg):
+def test_on_message(mock_open, mock_msg, mock_data_dir):
     # mock tell to return 0 (empty file)
     mock_open.return_value.tell.return_value = 0
     csvwriter.on_message(client=None, userdata=None, msg=mock_msg)
-    csv_path = Path.home() / 'data' / 'sam_test_scd30.csv'
+    csv_path = mock_data_dir / 'sam_test_scd30.csv'
     mock_open.assert_called_with(csv_path, 'a', newline='')
     handle = mock_open()
     assert handle.write.call_count == 2
