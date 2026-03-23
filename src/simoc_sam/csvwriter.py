@@ -39,7 +39,7 @@ def on_message(client, userdata, msg):
 def main():
     if not config.data_dir.exists():
         print(f"Creating data directory: {config.data_dir}")
-        config.data_dir.mkdir()
+        config.data_dir.mkdir(exist_ok=True)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = on_connect
     client.on_message = on_message
