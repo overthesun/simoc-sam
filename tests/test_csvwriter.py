@@ -73,16 +73,18 @@ def test_invalid_message(mock_open, payload, topic):
     mock_open.assert_not_called()
 
 
-def test_main(mock_mqtt_client, mock_config, monkeypatch):
+def test_main(mock_mqtt_client, mock_config, monkeypatch, tmp_path):
+    monkeypatch.setattr('simoc_sam.config.data_dir', tmp_path)
     csvwriter.main()
     mock_mqtt_client.connect.assert_called_once_with('mock_host', 1234)
     assert mock_mqtt_client.loop_forever.called
 
-def test_main_custom_topic(mock_mqtt_client, monkeypatch):
+def test_main_custom_topic(mock_mqtt_client, monkeypatch, tmp_path):
     # Test with a different config topic
     monkeypatch.setattr('simoc_sam.config.mqtt_host', 'test_host')
     monkeypatch.setattr('simoc_sam.config.mqtt_port', 5678)
     monkeypatch.setattr('simoc_sam.config.mqtt_topic_sub', 'custom/topic')
+    monkeypatch.setattr('simoc_sam.config.data_dir', tmp_path)
     csvwriter.main()
     # Verify connection uses custom config
     mock_mqtt_client.connect.assert_called_once_with('test_host', 5678)
