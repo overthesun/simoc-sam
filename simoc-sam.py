@@ -61,8 +61,9 @@ def add_reload_function(cmd):
             teardown_func()
         return setup_func(*args, **kwargs)
     reload_func_name = f'reload_{cmd}'
+    hyphen_cmd = cmd.replace('_', '-')
     reload_func.__name__ = reload_func_name
-    reload_func.__doc__ = f"Same as teardown-{cmd} + setup-{cmd}."
+    reload_func.__doc__ = f"Same as teardown-{hyphen_cmd} + setup-{hyphen_cmd}."
     COMMANDS[reload_func_name] = reload_func
 
 def cmd(func):
