@@ -409,7 +409,6 @@ def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
 
 
-@cmd
 @needs_root
 def setup_or_teardown_sensors(function, sensors=None):
     """Setup systemd services that run the sensors."""
@@ -432,7 +431,6 @@ def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
     setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
-@cmd
 @needs_root
 def setup_or_teardown_display(function, display=None):
     """Setup/teardown systemd service that runs the display."""
