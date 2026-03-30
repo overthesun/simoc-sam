@@ -54,6 +54,12 @@ if location is None:
     # Remove trailing digits from the hostname to get the location
     location = hostname.rstrip('0123456789')
 
+# ensure display_refresh is positive
+if display_refresh <= 0:
+    print(f"Warning: display_refresh must be > 0, got {display_refresh}. "
+          f"Using default value of 1.0.")
+    display_refresh = 1.0
+
 # remove leading/trailing whitespace from display_format
 display_format = display_format.strip()
 
