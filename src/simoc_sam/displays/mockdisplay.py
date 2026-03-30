@@ -17,7 +17,7 @@ MAX_ROWS = 50
 async def update_display():
     """Continuously update the console display with latest sensor values."""
     delimiter = "-" * 40
-    with Live(refresh_per_second=1 / config.display_refresh) as live:
+    with Live(refresh_per_second=1 / (config.display_refresh or 1)) as live:
         try:
             while True:
                 rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
