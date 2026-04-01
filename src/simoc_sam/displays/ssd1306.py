@@ -18,7 +18,7 @@ from simoc_sam.displays import utils as display_utils
 SENSOR_READINGS = {}
 
 # number of rows for 128x64 rotated 90 degrees (including header)
-MAX_ROWS = 9
+MAX_ROWS = 10
 FONT = ImageFont.load_default()
 
 def draw_image(width, height, rows):
