@@ -1,212 +1,93 @@
-import os
-import json
+"""Driver for the Adafruit SSD1306 OLED display (128x64)."""
+
 import time
+import asyncio
 
-from datetime import datetime
+from simoc_sam.sensors import utils as sensor_utils
+board = sensor_utils.import_board()
 
-import board
 import digitalio
 import adafruit_ssd1306
-
 from PIL import Image, ImageDraw, ImageFont
 
-from simoc_sam.sensors.basesensor import get_log_path
+from simoc_sam import utils, config
+from simoc_sam.displays import utils as display_utils
 
 
-def parse_timestamp(ts_str):
-    """Convert ISO string timestamp to float seconds since epoch."""
-    try:
-        dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S.%f")
-        return dt.timestamp()
-    except Exception:
-        return time.time()  # fallback if parsing fails
+# store latest readings from each sensor (updated by MQTT handler)
+SENSOR_READINGS = {}
 
-# =================== CONFIG ===================
-WIDTH = 128
-HEIGHT = 64
-MAX_ROWS = 9  # Max total sensor rows displayed (excluding header)
+# number of rows for 128x64 rotated 90 degrees (including header)
+MAX_ROWS = 9
+FONT = ImageFont.load_default()
 
-FILES = {
-    'SCD30': get_log_path('scd30'),    # 2 rows: CO2, RH
-    'SGP30': get_log_path('sgp30'),    # 1 row: TVOC
-    'BME688': get_log_path('bme688'),  # 1 row: Pressure
-    'TSL': get_log_path('tsl2591'),    # 1 row: TTL LIGHT
-    'BNO085': get_log_path('bno085'),  # 3 rows: A-x, A-y, A-z
-}
-
-DISPLAY_ORDER = ["SCD30", "SGP30", "BME688", "TSL", "BNO085"]
-
-# =================== OLED INIT ===================
-oled_reset = digitalio.DigitalInOut(board.D4)
-oled = adafruit_ssd1306.SSD1306_I2C(
-    WIDTH, HEIGHT, board.I2C(), addr=0x3D, reset=oled_reset
-)
-font = ImageFont.load_default()
-
-# =================== HELPERS ===================
-def read_latest_entry(filepath):
-    """Return the latest JSON entry from a file, or empty dict."""
-    if not os.path.exists(filepath):
-        return {}
-    try:
-        with open(filepath, "r") as f:
-            for line in reversed(f.read().splitlines()):
-                if line.strip():
-                    return json.loads(line)
-    except Exception:
-        pass
-    return {}
-
-def uptime():
-    t = int(time.monotonic())
-    h, r = divmod(t, 3600)
-    m, s = divmod(r, 60)
-    return f"Up {h:02}:{m:02}:{s:02}"
-
-# =================== SENSOR VALUE COLLECTION ===================
-# def get_sensor_values():
-#     values = []
-#     now = time.time()  # current real time in seconds
-
-#     for sensor in DISPLAY_ORDER:
-#         data = read_latest_entry(FILES[sensor])
-#         if not data:
-#             continue
-
-#         # ------------------------------
-#         # SCD30: CO2 and RH, independent timestamps
-#         # ------------------------------
-#         if sensor == "SCD30":
-
-#             ts = parse_timestamp(data.get("timestamp", now))
-#             if now - ts <= 1:
-#                 values.append(f"CO2: {data.get('co2', 0):.2f}")
-#                 values.append(f"RH: {data.get('humidity', 0):.2f}")
-
-#         # ------------------------------
-#         # SGP30: TVOC
-#         # ------------------------------
-#         elif sensor == "SGP30":
-#             ts = parse_timestamp(data.get("timestamp", now))
-#             if now - ts <= 1:
-#                 values.append(f"TVOC: {data.get('tvoc', 0)}")
-
-#         # ------------------------------
-#         # BME688: Pressure
-#         # ------------------------------
-#         elif sensor == "BME688":
-#             ts = parse_timestamp(data.get("timestamp", now))
-#             if now - ts <= 2:
-#                 values.append(f"Pr: {data.get('pressure', 0):.2f}")
-
-#         # ------------------------------
-#         # TSL: Light
-#         # ------------------------------
-#         elif sensor == "TSL":
-#             ts = parse_timestamp(data.get("timestamp", now))
-#             if now - ts <= 1:
-#                 values.append(f"Lt: {data.get('light', 0):.2f}")
-
-#         # ------------------------------
-#         # BNO085: Accelerometer, 3 rows
-#         # ------------------------------
-#         elif sensor == "BNO085":
-#             for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
-#                 val = data.get(axis, {})
-#                 if isinstance(val, dict):
-#                     ts = parse_timestamp(val.get("ts", now))
-#                     if now - ts <= 1:
-#                         values.append(f"{axis.replace('acc','A-')}: {val.get('value',0):.2f}")
-
-#         # Limit total rows
-#         if len(values) >= MAX_ROWS:
-#             values = values[:MAX_ROWS]
-#             break
-
-#     return values
-
-def get_sensor_values():
-    values = []
-
-    for sensor in DISPLAY_ORDER:
-        data = read_latest_entry(FILES[sensor])
-        if not data:
-            continue  # skip if no data at all
-
-        # SCD30: CO2 and RH
-        if sensor == "SCD30":
-            values.append(f"CO2: {data.get('co2', 0):.0f}")
-            values.append(f"T: {data.get('temperature', 0):.2f}C")
-            values.append(f"RH: {data.get('humidity', 0):.2f}%")
-
-        # SGP30: TVOC
-        elif sensor == "SGP30":
-            values.append(f"VOC: {data.get('tvoc', 0)}")
-
-        # BME688: Pressure
-        elif sensor == "BME688":
-            values.append(f"Pr: {data.get('pressure', 0):.2f}")
-
-        # TSL: Light
-        elif sensor == "TSL":
-            values.append(f"Lt: {data.get('light', 0):.2f}")
-
-        # BNO085: Accelerometer, 3 rows
-        elif sensor == "BNO085":
-            for axis in ["linear_accel_x", "linear_accel_y", "linear_accel_z"]:
-                val = data.get(axis, 0)
-                if isinstance(val, str):  # in case of 'EEE' error string
-                    val = 0
-                values.append(f"A-{axis[-1]}: {val:.2f}")
-
-        # Limit total rows
-        if len(values) >= MAX_ROWS:
-            values = values[:MAX_ROWS]
-            break
-
-    return values
-
-# =================== PAGE RENDER ===================
-def draw_page(sensor_values):
-    """
-    Draw OLED page with dynamic spacing.
-    Header (SIMOC LIVE + uptime) always on top.
-    Sensor rows below, dynamic spacing.
-    """
-    image = Image.new("1", (oled.height, oled.width))
+def draw_image(width, height, rows):
+    """Draw sensor values on an image and return it."""
+    if not rows:
+        return  # nothing to display
+    image = Image.new("1", (width, height))
     draw = ImageDraw.Draw(image)
+    # screen is rotated, so oled.width is actually the height
+    spacing = max(8, height // len(rows))  # calc row height dynamically
+    y = 0
+    for row in rows:
+        if not row.strip():
+            y += 6  # add extra spacing for blank lines
+        else:
+            draw.text((0, y), row, font=FONT, fill=255)
+            y += spacing
+    return image
 
-    # Header
-    draw.text((0, 0), "SIMOC LIVE", font=font, fill=255)
-    draw.text((0, 12), uptime(), font=font, fill=255)
-
-    num_rows = len(sensor_values)
-    if num_rows == 0:
-        oled.image(image.rotate(90, expand=True))
-        oled.show()
-        return
-
-    header_height = 30  # 2 lines of header
-    usable_height = WIDTH - header_height
-    spacing = max(8, usable_height // num_rows)
-
-    y = header_height
-    for row in sensor_values:
-        draw.text((0, y), row, font=font, fill=255)
-        y += spacing
-
+def show_image(oled, image):
+    """Show the given image on the OLED display."""
     oled.image(image.rotate(90, expand=True))
-    oled.show()
+    for attempt in range(3):
+        try:
+            oled.show()
+            break
+        except OSError as e:
+            time.sleep(0.1)
+    else:
+        print(f"Failed to update display after 3 attempts")
 
-# =================== MAIN LOOP ===================
-def main():
+
+async def update_display(oled):
+    """Continuously update the display with latest sensor values."""
+    try:
+        while True:
+            rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
+            # swap height/width because the screen is rotated 90 degrees
+            image = draw_image(oled.height, oled.width, rows)
+            if image:
+                show_image(oled, image)
+            await asyncio.sleep(config.display_refresh)
+    except asyncio.CancelledError:
+        # clear display on shutdown
+        oled.fill(0)
+        oled.show()
+        raise
+
+
+async def main():
+    """Main loop: read sensor values and display them on the OLED."""
+    display_config = display_utils.DISPLAY_DATA['ssd1306']
+    # initialize display
+    oled_reset = digitalio.DigitalInOut(getattr(board, display_config.reset_pin))
+    oled = adafruit_ssd1306.SSD1306_I2C(
+        display_config.width,
+        display_config.height,
+        utils.get_i2c(),
+        addr=display_config.i2c_address,
+        reset=oled_reset,
+    )
     oled.fill(0)
     oled.show()
+    # start MQTT monitor and display update tasks
+    await asyncio.gather(
+        display_utils.mqtt_monitor(SENSOR_READINGS),
+        update_display(oled),
+    )
 
-    while True:
-        sensor_values = get_sensor_values()
-        draw_page(sensor_values)
-        #time.sleep(0.2)  # fast refresh for near real-time readings
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

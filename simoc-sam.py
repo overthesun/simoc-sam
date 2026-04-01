@@ -8,6 +8,7 @@ import shutil
 import socket
 import pathlib
 import argparse
+import datetime
 import tempfile
 import functools
 import subprocess
@@ -28,9 +29,11 @@ except ModuleNotFoundError:
 HOME = pathlib.Path.home()
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
+RPI_CONFIG = pathlib.Path('/boot/firmware/config.txt')
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 NM_DIR = pathlib.Path('/etc/NetworkManager/system-connections/')
 NM_TMPL = CONFIGS_DIR / 'nmconnection.tmpl'
+MOSQUITTO_DIR = pathlib.Path('/etc/mosquitto/conf.d/')
 HOTSPOT_CONN = 'hotspot'
 WIFI_CONN = 'wifi'
 VENV_DIR = SIMOC_SAM_DIR / 'venv'
@@ -39,6 +42,10 @@ DEPS = SIMOC_SAM_DIR / 'requirements.txt'
 DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
+
+APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx', 'avahi-utils',
+               'mosquitto', 'mosquitto-clients', 'util-linux-extra']
+APT_REMOVE = ['chromium']
 
 COMMANDS = {}
 
@@ -170,6 +177,51 @@ def copy_repo_git(target):
     copy_repo(target, exclude_git=False)
 
 
+@cmd
+def push_update(target=None):
+    """Push code updates via git directly to the RPi when in hotspot mode."""
+    # get current branch (must match branch on RPi for push to work)
+    cmd = ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
+    branch = subprocess.check_output(cmd, cwd=SIMOC_SAM_DIR, text=True).strip()
+    # determine user@host:path for pushes
+    if target:
+        match = target_re.fullmatch(target)
+        if not match:
+            print(f'Error: Invalid target format: {target}')
+            print('Expected format: [user@]host[:path]')
+            return False
+        user, host, path = match.groups()
+        user = user or 'pi'
+        path = path or '/home/pi/simoc-sam'
+    else:
+        # use default RPi hotspot IP (NetworkManager 'shared' mode)
+        user, host, path = 'pi', '10.42.0.1', '/home/pi/simoc-sam'
+    # push the branch to the RPi
+    git_url = f'{user}@{host}:{path}'
+    print(f'Pushing branch {branch!r} to {git_url}...')
+    cmd = ['git', 'push', git_url, branch]
+    success = run(cmd, cwd=SIMOC_SAM_DIR)
+    if success:
+        print(f'Remote branch {branch!r} successfully updated.')
+    else:
+        print(f'Failed to push updates: see error log above for details.')
+    return success
+
+
+@cmd
+def setup_git_remote_push():
+    """Enable git push updates from remote machines."""
+    # Set receive.denyCurrentBranch = updateInstead to allow pushes
+    cmd = ['git', 'config', 'receive.denyCurrentBranch', 'updateInstead']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
+
+@cmd
+def teardown_git_remote_push():
+    """Revert the changes made by setup-git-remote-push."""
+    cmd = ['git', 'config', '--unset', 'receive.denyCurrentBranch']
+    return run(cmd, cwd=SIMOC_SAM_DIR)
+
+
 host_re = re.compile(r'^samrpi(\d+)$')
 address_re = re.compile(r'^(\s*address\s+)((\d+\.\d+.\d+.)(\d+))(\s*)$')
 @cmd
@@ -217,13 +269,13 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
         ipv4_method='shared',
     )
-    setup_nmconn(hotspot_nmconn, repls)
+    return setup_nmconn(hotspot_nmconn, repls) and setup_git_remote_push()
 
 @cmd
 @needs_root
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
-    teardown_nmconn(HOTSPOT_CONN)
+    return teardown_nmconn(HOTSPOT_CONN) and teardown_git_remote_push()
 
 
 @cmd
@@ -242,13 +294,13 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
         ipv4_method='auto',
     )
-    setup_nmconn(wifi_nmconn, repls)
+    return setup_nmconn(wifi_nmconn, repls)
 
 @cmd
 @needs_root
 def teardown_wifi():
     """Revert the changes made by the setup-wifi command."""
-    teardown_nmconn(WIFI_CONN)
+    return teardown_nmconn(WIFI_CONN)
 
 
 def setup_nmconn(nmconn_file, repls):
@@ -261,36 +313,77 @@ def setup_nmconn(nmconn_file, repls):
     os.chown(nmconn_file, 0, 0)  # owner is now root
     if not run(['systemctl', 'is-enabled', 'NetworkManager']):
         run(['systemctl', 'enable', 'NetworkManager'])
-    run(['nmcli', 'radio', 'wifi', 'on'])  # ensure wifi is on
-    # reload connections (will auto-activate if interface is available)
-    run(['nmcli', 'connection', 'reload'])
+    # ensure wifi is on and reload connections (will auto-activate interface)
+    wifi_enabled = run(['nmcli', 'radio', 'wifi', 'on'])
+    conn_reloaded = run(['nmcli', 'connection', 'reload'])
+    return wifi_enabled and conn_reloaded
 
 def teardown_nmconn(conn_id):
     """Stop and remove the given NetworkManager connection."""
-    run(['nmcli', 'connection', 'delete', conn_id])
+    return run(['nmcli', 'connection', 'delete', conn_id])
 
 
-def setup_systemd_service(name):
-    # create a symlink to the given service, enable it, and start it
-    if '@' in name:
-        target_name = f'{name.split("@")[0]}@.service'
+@cmd
+@needs_root
+def setup_mosquitto():
+    """Setup and configure a local Mosquitto MQTT broker."""
+    if not shutil.which('mosquitto'):
+        sys.exit('Mosquitto not found. Install it with `sudo apt install mosquitto`.')
+    mosquitto_conf_src = CONFIGS_DIR / 'mosquitto-local.conf'
+    mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
+    if mosquitto_conf_dest.exists():
+        print(f'{mosquitto_conf_dest} already exists -- recreating it...')
+        mosquitto_conf_dest.unlink()
+    shutil.copy(mosquitto_conf_src, mosquitto_conf_dest)
+    mosquitto_conf_dest.chmod(0o644)
+    os.chown(mosquitto_conf_dest, 0, 0)  # owner is now root
+    print(f'Mosquitto configuration deployed to {mosquitto_conf_dest}')
+    if (run(['systemctl', 'enable', 'mosquitto']) and
+        run(['systemctl', 'restart', 'mosquitto'])):
+        print('Mosquitto service enabled and started.')
     else:
-        target_name = f'{name}.service'
-    target_path = CONFIGS_DIR / target_name
-    service_path = SYSTEMD_DIR / f'{name}.service'
-    if service_path.exists():
-        print(f'{service_path} already exists -- recreating it...')
-        service_path.unlink()
-    service_path.symlink_to(target_path)
-    print(f'Created symlink {service_path} → {target_path}.')
-    run(['systemctl', 'enable', name])  # ensure that the service starts on boot
-    run(['systemctl', 'start', name])
+        print('Failed to enable/start mosquitto service. Check logs with:')
+        print('  journalctl -u mosquitto -n 50')
 
-def teardown_systemd_service(name):
-    # stop, disable, and remove the symlink to the given service
-    run(['systemctl', 'stop', name])
-    run(['systemctl', 'disable', name])
-    pathlib.Path(SYSTEMD_DIR / f'{name}.service').unlink(missing_ok=True)
+@cmd
+@needs_root
+def teardown_mosquitto():
+    """Revert the changes made by the setup-mosquitto command."""
+    run(['systemctl', 'stop', 'mosquitto'])
+    run(['systemctl', 'disable', 'mosquitto'])
+    print('Mosquitto service stopped and disabled.')
+    mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
+    mosquitto_conf_dest.unlink(missing_ok=True)
+
+
+def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
+    """Setup a systemd unit by creating symlink and optionally enabling/starting."""
+    unit_name = f'{name}.{unit_type}'
+    if '@' in name:
+        # handle templates, e.g. sensor-runner@scd30 -> sensor-runner@.service
+        target_name = f'{name.split("@")[0]}@.{unit_type}'
+    else:
+        target_name = unit_name
+    target_path = CONFIGS_DIR / target_name
+    unit_path = SYSTEMD_DIR / unit_name
+    if unit_path.exists():
+        print(f'{unit_path} already exists -- recreating it...')
+        unit_path.unlink()
+    unit_path.symlink_to(target_path)
+    print(f'Created symlink {unit_path} → {target_path}.')
+    if enable:
+        run(['systemctl', 'enable', unit_name])
+    if start:
+        run(['systemctl', 'start', unit_name])
+
+def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
+    """Optionally stop/disable the unit and then remove the symlink."""
+    unit_name = f'{name}.{unit_type}'
+    if stop:
+        run(['systemctl', 'stop', unit_name])
+    if disable:
+        run(['systemctl', 'disable', unit_name])
+    pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
 
 
 @cmd
@@ -308,13 +401,36 @@ def setup_or_teardown_sensors(function, sensors=None):
 @needs_root
 def setup_sensors(sensors=None):
     """Setup systemd services that run the sensors."""
-    setup_or_teardown_sensors(setup_systemd_service, sensors)
+    setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
 @cmd
 @needs_root
 def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
-    setup_or_teardown_sensors(teardown_systemd_service, sensors)
+    setup_or_teardown_sensors(teardown_systemd_unit, sensors)
+
+@cmd
+@needs_root
+def setup_or_teardown_display(function, display=None):
+    """Setup/teardown systemd service that runs the display."""
+    if display is None:
+        display = config.display
+    if not display:
+        print('No display specified -- aborting.')
+        return
+    function(f'display-runner@{display}')
+
+@cmd
+@needs_root
+def setup_display(display=None):
+    """Setup systemd service that runs the display."""
+    setup_or_teardown_display(setup_systemd_unit, display)
+
+@cmd
+@needs_root
+def teardown_display(display=None):
+    """Revert the changes made by the setup-display command."""
+    setup_or_teardown_display(teardown_systemd_unit, display)
 
 @cmd
 @needs_root
@@ -344,13 +460,26 @@ def teardown_display(display=None):
 @needs_root
 def setup_siobridge():
     """Setup a systemd service that runs the siobridge."""
-    setup_systemd_service('siobridge')
+    setup_systemd_unit('siobridge')
 
 @cmd
 @needs_root
 def teardown_siobridge():
     """Revert the changes made by the setup-siobridge command."""
-    teardown_systemd_service('siobridge')
+    teardown_systemd_unit('siobridge')
+
+
+@cmd
+@needs_root
+def setup_csvwriter():
+    """Setup a systemd service that runs the csvwriter."""
+    setup_systemd_unit('csvwriter')
+
+@cmd
+@needs_root
+def teardown_csvwriter():
+    """Revert the changes made by the setup-csvwriter command."""
+    teardown_systemd_unit('csvwriter')
 
 
 @cmd
@@ -495,13 +624,16 @@ def initial_setup():
     install_bash_aliases()
     print('Removing empty home dirs...')
     remove_home_dirs()
-    print('Updating system and installing deps...')
-    install_deps()
+    print('Enabling i2c...')
+    enable_i2c()
+    print('Setting up locale...')
+    setup_locale()
+    print('Updating apt packages...')
+    update_apt_packages()
     print('Setting up virtualenv...')
     create_venv()
-    print('System updated, deps installed, venv created, home cleaned, '
-          'aliases set up.')
-    print('Run <source ~/.bash_aliases> to install the aliases now.')
+    print('Initial setup complete.\n\nPlease reboot the system.\n')
+
 
 def install_bash_aliases():
     """Install the .bash_aliases file in the home dir."""
@@ -521,13 +653,97 @@ def remove_home_dirs():
         except (FileNotFoundError, OSError):
             pass  # skip missing dirs or dirs that are not empty
 
-def install_deps():
-    """Install dependencies using apt."""
-    packages = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx',
-                'mosquitto-clients', 'avahi-utils']
+def update_apt_packages():
+    """Remove, update, upgrade, and install apt packages."""
+    if APT_REMOVE:
+        run(['sudo', 'apt', 'remove', '-y'] + APT_REMOVE, check=True)
     run(['sudo', 'apt', 'update'], check=True)
     run(['sudo', 'apt', 'upgrade', '-y'], check=True)
-    run(['sudo', 'apt', 'install', '-y'] + packages, check=True)
+    if APT_INSTALL:
+        run(['sudo', 'apt', 'install', '-y'] + APT_INSTALL, check=True)
+    run(['sudo', 'apt', 'autoremove', '-y'], check=True)
+    run(['sudo', 'apt', 'autoclean'], check=True)
+
+def raspi_config(cmd, *args):
+    """Run raspi-config with the specified command and arguments."""
+    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args],
+                          check=True)
+
+@cmd
+def setup_locale(locale='en_US.UTF-8'):
+    """Set up the system locale."""
+    return raspi_config('do_change_locale', locale)
+
+@cmd
+def enable_i2c():
+    """Enable i2c using raspi-config."""
+    raspi_config('do_i2c', '0')
+
+def parse_timestamp(timestamp):
+    """Parse a timestamp string (ISO format or Unix timestamp)."""
+    try:
+        return datetime.datetime.fromisoformat(timestamp)
+    except ValueError:
+        try:
+            return datetime.datetime.fromtimestamp(float(timestamp))
+        except ValueError as e:
+            print(f'Error: Invalid timestamp format: {e}')
+            print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
+            return
+
+@cmd
+def set_rtc_time(timestamp=None):
+    """Set the RTC time to the specified timestamp (ISO or Unix)."""
+    dt = parse_timestamp(timestamp) if timestamp else datetime.datetime.now()
+    if dt is None:
+        return False
+    formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+    return (run(['sudo', 'hwclock', '--set', '--date', formatted]) and
+            run(['timedatectl', 'status']))
+
+@cmd
+@needs_root
+def setup_rtc():
+    """Setup PCF8523 RTC by adding dtoverlay to config.txt."""
+    if not RPI_CONFIG.exists():
+        print(f'{RPI_CONFIG} not found. Are you on a Raspberry Pi?')
+        return False
+    overlay_line = 'dtoverlay=i2c-rtc,pcf8523'
+    # check if the overlay line already exists (uncommented)
+    with open(RPI_CONFIG) as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped == overlay_line or stripped.startswith(overlay_line + ' '):
+                print(f'RTC already configured in {RPI_CONFIG}')
+                return True
+    # add the overlay line
+    with open(RPI_CONFIG, 'a') as f:
+        f.write(f'\n# PCF8523 RTC support\n{overlay_line}\n')
+    print(f'RTC overlay added to {RPI_CONFIG}')
+    print('\nRTC setup complete. Reboot for changes to take effect.')
+    print('After reboot, use the `set-rtc-time` command to set the RTC time.')
+    return True
+
+@cmd
+@needs_root
+def teardown_rtc():
+    """Revert the changes made by the setup-rtc command."""
+    overlay_line = 'dtoverlay=i2c-rtc,pcf8523'
+    new_lines = []
+    found = False
+    with open(RPI_CONFIG) as f:
+        for line in f:
+            if overlay_line in line or '# PCF8523 RTC support' in line:
+                found = True
+                continue  # skip lines related to RTC overlay
+            new_lines.append(line)
+    if not found:
+        print(f'RTC overlay not found in {RPI_CONFIG}')
+        return False
+    RPI_CONFIG.write_text(''.join(new_lines))
+    print(f'Removed RTC overlay from {RPI_CONFIG}')
+    print('Reboot for changes to take effect.')
+    return True
 
 
 @cmd

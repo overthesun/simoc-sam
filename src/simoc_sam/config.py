@@ -38,13 +38,14 @@ load_user_config(user_config_path)
 # validate and update config vars
 
 # ensure path variables are Path objects
-_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
+_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir', 'data_dir']
 for var in _path_vars:
     if var not in globals():
         continue
     v = globals()[var]
     if not isinstance(v, Path):
-        globals()[var] = Path(v)
+        v = Path(v)
+    globals()[var] = v.expanduser().absolute()
 
 # set location from hostname if not set
 if location is None:
@@ -52,6 +53,15 @@ if location is None:
     hostname = socket.gethostname()
     # Remove trailing digits from the hostname to get the location
     location = hostname.rstrip('0123456789')
+
+# ensure display_refresh is positive
+if display_refresh <= 0:
+    print(f"Warning: display_refresh must be > 0, got {display_refresh}. "
+          f"Using default value of 1.0.")
+    display_refresh = 1.0
+
+# remove leading/trailing whitespace from display_format
+display_format = display_format.strip()
 
 # warn if mqtt_secure is True but the certs dir does not exist
 if mqtt_secure and not mqtt_certs_dir.exists():
