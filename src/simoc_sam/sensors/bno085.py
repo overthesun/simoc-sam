@@ -38,16 +38,8 @@ class BNO085(BaseSensor):
         # some features are currently not enabled
         # uncomment them here and in read_sensor_data below to use them
         if features is None:
-            features = [
-                'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
-                'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
-                # 'GRAVITY',
-                'LINEAR_ACCELERATION',
-                'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
-                # 'GEOMAGNETIC_ROTATION_VECTOR',
-                # 'STABILITY_CLASSIFIER', 'ACTIVITY_CLASSIFIER',
-                # 'STEP_COUNTER', 'SHAKE_DETECTOR'
-            ]
+            features = getattr(config, 'bno085_enable_features',
+                               ['LINEAR_ACCELERATION'])
         enabled = 0
         print(f'Enabling {len(features)} features...')
         for feature in features:
