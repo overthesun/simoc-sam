@@ -2,6 +2,7 @@
 import time
 
 from . import utils
+from .. import config
 from .basesensor import BaseSensor
 
 board = utils.import_board()
@@ -17,17 +18,19 @@ from adafruit_bno08x.i2c import BNO08X_I2C
 #   * if a feature can't be enabled, the process will be terminated
 #     (and restarted by systemd)
 # * while reading values, 5 attempts will be made
-#   * if no value is returned, 'EEE' is used instead
+#   * if no value is returned, config.bno085_default_err_value is used
 # * when certain RuntimeErrors happen the reading might stop updating
 #   * to solve this the features are re-enabled again
 #   * note that soft/hard-resetting doesn't seem to solve this problem
+
+ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
 
 
 class BNO085(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.i2c = busio.I2C(board.SCL, board.SDA, frequency=800000)
-        self.bno = bno = BNO08X_I2C(self.i2c)
+        self.bno = BNO08X_I2C(self.i2c)
         self.enable_features()
 
     def enable_features(self, features=None):
@@ -74,9 +77,9 @@ class BNO085(BaseSensor):
         # define placeholder value used when the attributes can't be read
         if attr_name in {'activity_classification', 'stability_classification',
                          'steps', 'shake'}:
-            default = 'EEE'  # these attrs expect a scalar value (int/str)
+            default = ERR_VALUE  # these attrs expect a scalar value (int/str)
         else:
-            default = ['EEE', 'EEE', 'EEE', 'EEE']  # the others have 3/4 values
+            default = [ERR_VALUE] * 4  # the others have 3/4 values
         for attempt in range(5):
             try:
                 return getattr(self.bno, attr_name, default)
@@ -141,7 +144,7 @@ class BNO085(BaseSensor):
             game_quat_i=game_quat[0],
             game_quat_j=game_quat[1],
             game_quat_k=game_quat[2],
-            game_quat_real=quat[3],
+            game_quat_real=game_quat[3],
             # geomag_quat_i=geomag_quat[0],
             # geomag_quat_j=geomag_quat[1],
             # geomag_quat_k=geomag_quat[2],

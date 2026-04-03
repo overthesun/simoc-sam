@@ -57,3 +57,7 @@ verbose_mqtt = False
 enable_jsonl_logging = True
 log_dir = '~/logs'
 data_dir = '~/data'
+
+
+# BNO085 configuration
+bno085_default_err_value = 0
