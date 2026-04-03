@@ -109,8 +109,8 @@ class BNO085(BaseSensor):
             attrs[feature] = self.read_attribute(feature_to_attr[feature])
         reading = {}
         # Raw Acceleration/Gyro/Magnetometer
-        if 'RAW_ACCELERATION' in enabled_features:
-            v = attrs['RAW_ACCELERATION']
+        if 'RAW_ACCELEROMETER' in enabled_features:
+            v = attrs['RAW_ACCELEROMETER']
             reading.update(raw_accel_x=v[0], raw_accel_y=v[1], raw_accel_z=v[2])
         if 'RAW_GYROSCOPE' in enabled_features:
             v = attrs['RAW_GYROSCOPE']
