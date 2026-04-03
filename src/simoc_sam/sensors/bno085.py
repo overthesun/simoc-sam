@@ -53,8 +53,6 @@ class BNO085(BaseSensor):
 
     def enable_features(self, features=None):
         """Enable all requested features."""
-        # some features are currently not enabled
-        # uncomment them here and in read_sensor_data below to use them
         if features is None:
             features = config.bno085_enabled_features
         enabled = 0
