@@ -56,7 +56,7 @@ class BNO085(BaseSensor):
         # some features are currently not enabled
         # uncomment them here and in read_sensor_data below to use them
         if features is None:
-            features = getattr(config, 'bno085_enable_features',
+            features = getattr(config, 'bno085_enabled_features',
                                ['LINEAR_ACCELERATION'])
         enabled = 0
         print(f'Enabling {len(features)} features...')
@@ -65,6 +65,7 @@ class BNO085(BaseSensor):
         print(f'{enabled} features enabled')
         # if we can't enable all requested features abort and quit
         assert enabled == len(features)
+        self.enabled_features = features
 
     def enable_feature(self, feature_name):
         """Enable a single feature (retrying in case of failure)."""
@@ -106,7 +107,7 @@ class BNO085(BaseSensor):
         return default
 
     def read_sensor_data(self):
-        enabled_features = self.bno.enabled_features
+        enabled_features = self.enabled_features
         attrs = {}
         for feature in enabled_features:
             attrs[feature] = self.read_attribute(feature_to_attr[feature])

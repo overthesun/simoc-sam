@@ -61,7 +61,7 @@ data_dir = '~/data'
 
 # BNO085 configuration
 bno085_default_err_value = 0
-bno085_enable_features = [
+bno085_enabled_features = [
     'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
     'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
     # 'GRAVITY',
