@@ -27,7 +27,7 @@ ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
 
 # map feature names to the corresponding BNO085 attributes
 feature_to_attr = {
-    'RAW_ACCELERATION': 'raw_acceleration',
+    'RAW_ACCELEROMETER': 'raw_acceleration',
     'RAW_GYROSCOPE': 'raw_gyro',
     'RAW_MAGNETOMETER': 'raw_magnetic',
     'ACCELEROMETER': 'acceleration',
