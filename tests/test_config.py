@@ -34,6 +34,7 @@ def test_default_vars():
         'mqtt_host', 'mqtt_port', 'mqtt_secure', 'mqtt_reconnect_delay',
         'sio_host', 'sio_port', 'data_source', 'mqtt_topic_sub',
         'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging',
+        'bno085_default_err_value', 'bno085_enabled_features',
     ]
     changed_vars = ['location', 'display_format']
     path_vars = config._path_vars
