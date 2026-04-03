@@ -60,8 +60,8 @@ data_dir = '~/data'
 
 
 # BNO085 accelerometer/gyroscope/magnetometer configuration
-# See the BNO_REPORT_* constants defined here for a list of available features:
-# https://github.com/adafruit/Adafruit_CircuitPython_BNO08x/blob/main/adafruit_bno08x/__init__.py
+# See the keys of the FEATURE_TO_ATTR dict defined in the BNO085 sensor driver
+# (src/simoc_sam/sensors/bno085.py) for a list of available features.
 bno085_default_err_value = 0
 bno085_enabled_features = [
     'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',

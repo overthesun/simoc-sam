@@ -11,7 +11,7 @@ import adafruit_bno08x
 from adafruit_bno08x.i2c import BNO08X_I2C
 
 
-# Note: this sensor seem to have several issues and often receives
+# Note: this sensor seems to have several issues and often receives
 # invalid packets and/or gets stuck.
 # Multiple measures have been taken to avoid this:
 # * while enabling features, 10 attempts will be made for each feature
@@ -25,8 +25,8 @@ from adafruit_bno08x.i2c import BNO08X_I2C
 
 ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
 
-# map feature names to the corresponding BNO085 attributes
-feature_to_attr = {
+# map available feature names to the corresponding BNO085 attributes
+FEATURE_TO_ATTR = {
     'RAW_ACCELEROMETER': 'raw_acceleration',
     'RAW_GYROSCOPE': 'raw_gyro',
     'RAW_MAGNETOMETER': 'raw_magnetic',
@@ -106,7 +106,7 @@ class BNO085(BaseSensor):
         enabled_features = config.bno085_enabled_features
         attrs = {}
         for feature in enabled_features:
-            attrs[feature] = self.read_attribute(feature_to_attr[feature])
+            attrs[feature] = self.read_attribute(FEATURE_TO_ATTR[feature])
         reading = {}
         # Raw Acceleration/Gyro/Magnetometer
         if 'RAW_ACCELEROMETER' in enabled_features:
