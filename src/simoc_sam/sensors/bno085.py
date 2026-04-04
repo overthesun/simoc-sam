@@ -2,6 +2,7 @@
 import time
 
 from . import utils
+from .. import config
 from .basesensor import BaseSensor
 
 board = utils.import_board()
@@ -10,48 +11,61 @@ import adafruit_bno08x
 from adafruit_bno08x.i2c import BNO08X_I2C
 
 
-# Note: this sensor seem to have several issues and often receives
+# Note: this sensor seems to have several issues and often receives
 # invalid packets and/or gets stuck.
 # Multiple measures have been taken to avoid this:
 # * while enabling features, 10 attempts will be made for each feature
 #   * if a feature can't be enabled, the process will be terminated
 #     (and restarted by systemd)
 # * while reading values, 5 attempts will be made
-#   * if no value is returned, 'EEE' is used instead
+#   * if no value is returned, config.bno085_default_err_value is used
 # * when certain RuntimeErrors happen the reading might stop updating
 #   * to solve this the features are re-enabled again
 #   * note that soft/hard-resetting doesn't seem to solve this problem
 
+ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
+
+# map available feature names to the corresponding BNO085 attributes
+FEATURE_TO_ATTR = {
+    'RAW_ACCELEROMETER': 'raw_acceleration',
+    'RAW_GYROSCOPE': 'raw_gyro',
+    'RAW_MAGNETOMETER': 'raw_magnetic',
+    'ACCELEROMETER': 'acceleration',
+    'GYROSCOPE': 'gyro',
+    'MAGNETOMETER': 'magnetic',
+    'GRAVITY': 'gravity',
+    'LINEAR_ACCELERATION': 'linear_acceleration',
+    'ROTATION_VECTOR': 'quaternion',
+    'GAME_ROTATION_VECTOR': 'game_quaternion',
+    'GEOMAGNETIC_ROTATION_VECTOR': 'geomagnetic_quaternion',
+    'STABILITY_CLASSIFIER': 'stability_classification',
+    'ACTIVITY_CLASSIFIER': 'activity_classification',
+    'STEP_COUNTER': 'steps',
+    'SHAKE_DETECTOR': 'shake',
+}
 
 class BNO085(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.i2c = busio.I2C(board.SCL, board.SDA, frequency=800000)
-        self.bno = bno = BNO08X_I2C(self.i2c)
+        self.bno = BNO08X_I2C(self.i2c)
         self.enable_features()
 
     def enable_features(self, features=None):
         """Enable all requested features."""
-        # some features are currently not enabled
-        # uncomment them here and in read_sensor_data below to use them
         if features is None:
-            features = [
-                'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
-                'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
-                # 'GRAVITY',
-                'LINEAR_ACCELERATION',
-                'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
-                # 'GEOMAGNETIC_ROTATION_VECTOR',
-                # 'STABILITY_CLASSIFIER', 'ACTIVITY_CLASSIFIER',
-                # 'STEP_COUNTER', 'SHAKE_DETECTOR'
-            ]
+            features = config.bno085_enabled_features
         enabled = 0
         print(f'Enabling {len(features)} features...')
         for feature in features:
+            if feature not in FEATURE_TO_ATTR:
+                raise ValueError(f'Unknown feature: {feature!r}')
             enabled += self.enable_feature(feature)
-        print(f'{enabled} features enabled')
         # if we can't enable all requested features abort and quit
-        assert enabled == len(features)
+        if enabled != len(features):
+            raise RuntimeError(f'Failed to enable all {len(features)} features.')
+        print(f'{enabled} features enabled')
+        self.enabled_features = features
 
     def enable_feature(self, feature_name):
         """Enable a single feature (retrying in case of failure)."""
@@ -74,9 +88,9 @@ class BNO085(BaseSensor):
         # define placeholder value used when the attributes can't be read
         if attr_name in {'activity_classification', 'stability_classification',
                          'steps', 'shake'}:
-            default = 'EEE'  # these attrs expect a scalar value (int/str)
+            default = ERR_VALUE  # these attrs expect a scalar value (int/str)
         else:
-            default = ['EEE', 'EEE', 'EEE', 'EEE']  # the others have 3/4 values
+            default = [ERR_VALUE] * 4  # the others have 3/4 values
         for attempt in range(5):
             try:
                 return getattr(self.bno, attr_name, default)
@@ -93,65 +107,64 @@ class BNO085(BaseSensor):
         return default
 
     def read_sensor_data(self):
+        enabled_features = self.enabled_features
+        attrs = {}
+        for feature in enabled_features:
+            attrs[feature] = self.read_attribute(FEATURE_TO_ATTR[feature])
+        reading = {}
         # Raw Acceleration/Gyro/Magnetometer
-        raw_accel = self.read_attribute('raw_acceleration')
-        raw_gyro = self.read_attribute('raw_gyro')
-        raw_mag = self.read_attribute('raw_magnetic')
+        if 'RAW_ACCELEROMETER' in enabled_features:
+            v = attrs['RAW_ACCELEROMETER']
+            reading.update(raw_accel_x=v[0], raw_accel_y=v[1], raw_accel_z=v[2])
+        if 'RAW_GYROSCOPE' in enabled_features:
+            v = attrs['RAW_GYROSCOPE']
+            reading.update(raw_gyro_x=v[0], raw_gyro_y=v[1], raw_gyro_z=v[2])
+        if 'RAW_MAGNETOMETER' in enabled_features:
+            v = attrs['RAW_MAGNETOMETER']
+            reading.update(raw_mag_x=v[0], raw_mag_y=v[1], raw_mag_z=v[2])
         # Acceleration (m/s^2), Gyroscope (rad/s), Magnetometer (uT)
-        accel = self.read_attribute('acceleration')
-        gyro = self.read_attribute('gyro')
-        mag = self.read_attribute('magnetic')
+        if 'ACCELEROMETER' in enabled_features:
+            v = attrs['ACCELEROMETER']
+            reading.update(accel_x=v[0], accel_y=v[1], accel_z=v[2])
+        if 'GYROSCOPE' in enabled_features:
+            v = attrs['GYROSCOPE']
+            reading.update(gyro_x=v[0], gyro_y=v[1], gyro_z=v[2])
+        if 'MAGNETOMETER' in enabled_features:
+            v = attrs['MAGNETOMETER']
+            reading.update(mag_x=v[0], mag_y=v[1], mag_z=v[2])
         # Gravity vector (m/s^2), equal to acceleration - linear_acceleration
-        # gravity = self.read_attribute('gravity
+        if 'GRAVITY' in enabled_features:
+            v = attrs['GRAVITY']
+            reading.update(gravity_x=v[0], gravity_y=v[1], gravity_z=v[2])
         # Linear acceleration (m/s^2), equal to acceleration - gravity
-        linear_accel = self.read_attribute('linear_acceleration')
-        # Rotation vector (quaternion)
-        quat = self.read_attribute('quaternion')
-        # Game Rotation Vector (quaternion)
-        game_quat = self.read_attribute('game_quaternion')
-        # Geomagnetic Rotation Vector (quaternion)
-        # geomag_quat = self.read_attribute('geomagnetic_quaternion')
-        # Activity classification (string)
-        # activity = self.read_attribute('activity_classification')
+        if 'LINEAR_ACCELERATION' in enabled_features:
+            v = attrs['LINEAR_ACCELERATION']
+            reading.update(linear_accel_x=v[0], linear_accel_y=v[1], linear_accel_z=v[2])
+        # Rotation / Game Rotation / Geomagnetic Rotation vectors (quaternions)
+        if 'ROTATION_VECTOR' in enabled_features:
+            v = attrs['ROTATION_VECTOR']
+            reading.update(quat_i=v[0], quat_j=v[1],
+                           quat_k=v[2], quat_real=v[3])
+        if 'GAME_ROTATION_VECTOR' in enabled_features:
+            v = attrs['GAME_ROTATION_VECTOR']
+            reading.update(game_quat_i=v[0], game_quat_j=v[1],
+                           game_quat_k=v[2], game_quat_real=v[3])
+        if 'GEOMAGNETIC_ROTATION_VECTOR' in enabled_features:
+            v = attrs['GEOMAGNETIC_ROTATION_VECTOR']
+            reading.update(geomag_quat_i=v[0], geomag_quat_j=v[1],
+                           geomag_quat_k=v[2], geomag_quat_real=v[3])
         # Stability classification (string)
-        # stability = self.read_attribute('stability_classification')
+        if 'STABILITY_CLASSIFIER' in enabled_features:
+            reading.update(stability_classification=attrs['STABILITY_CLASSIFIER'])
+        # Activity classification (string)
+        if 'ACTIVITY_CLASSIFIER' in enabled_features:
+            reading.update(activity_classification=attrs['ACTIVITY_CLASSIFIER'])
         # Step counter (int)
-        # steps = self.read_attribute('steps')
+        if 'STEP_COUNTER' in enabled_features:
+            reading.update(steps=attrs['STEP_COUNTER'])
         # Shake detector (bool)
-        # shake = self.read_attribute('shake')
-        reading = dict(
-            # raw acceleration/gyro/magnetomer
-            raw_accel_x=raw_accel[0], raw_accel_y=raw_accel[1], raw_accel_z=raw_accel[2],
-            raw_gyro_x=raw_gyro[0], raw_gyro_y=raw_gyro[1], raw_gyro_z=raw_gyro[2],
-            raw_mag_x=raw_mag[0], raw_mag_y=raw_mag[1], raw_mag_z=raw_mag[2],
-            # acceleration/gyro/magnetomer
-            accel_x=accel[0], accel_y=accel[1], accel_z=accel[2],
-            gyro_x=gyro[0], gyro_y=gyro[1], gyro_z=gyro[2],
-            mag_x=mag[0], mag_y=mag[1], mag_z=mag[2],
-            # gravity and linear acceleration
-            # gravity_x=gravity[0], gravity_y=gravity[1], gravity_z=gravity[2],
-            linear_accel_x=linear_accel[0],
-            linear_accel_y=linear_accel[1],
-            linear_accel_z=linear_accel[2],
-            # quaternions (rotation/game/geomagnetic)
-            quat_i=quat[0],
-            quat_j=quat[1],
-            quat_k=quat[2],
-            quat_real=quat[3],
-            game_quat_i=game_quat[0],
-            game_quat_j=game_quat[1],
-            game_quat_k=game_quat[2],
-            game_quat_real=quat[3],
-            # geomag_quat_i=geomag_quat[0],
-            # geomag_quat_j=geomag_quat[1],
-            # geomag_quat_k=geomag_quat[2],
-            # geomag_quat_real=geomag_quat[3],
-            # activity/stability/steps/shake
-            # activity=activity,
-            # stability=stability,
-            # steps=steps,
-            # shake=shake,
-        )
+        if 'SHAKE_DETECTOR' in enabled_features:
+            reading.update(shake=attrs['SHAKE_DETECTOR'])
         self.print_reading(reading)
         return reading
 
