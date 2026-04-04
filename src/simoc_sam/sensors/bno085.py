@@ -62,6 +62,7 @@ class BNO085(BaseSensor):
         print(f'{enabled} features enabled')
         # if we can't enable all requested features abort and quit
         assert enabled == len(features)
+        self.enabled_features = features
 
     def enable_feature(self, feature_name):
         """Enable a single feature (retrying in case of failure)."""
@@ -103,7 +104,7 @@ class BNO085(BaseSensor):
         return default
 
     def read_sensor_data(self):
-        enabled_features = config.bno085_enabled_features
+        enabled_features = self.enabled_features
         attrs = {}
         for feature in enabled_features:
             attrs[feature] = self.read_attribute(FEATURE_TO_ATTR[feature])
