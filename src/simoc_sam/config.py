@@ -38,13 +38,14 @@ load_user_config(user_config_path)
 # validate and update config vars
 
 # ensure path variables are Path objects
-_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir']
+_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir', 'data_dir']
 for var in _path_vars:
     if var not in globals():
         continue
     v = globals()[var]
     if not isinstance(v, Path):
-        globals()[var] = Path(v)
+        v = Path(v)
+    globals()[var] = v.expanduser().absolute()
 
 # set location from hostname if not set
 if location is None:
@@ -53,7 +54,26 @@ if location is None:
     # Remove trailing digits from the hostname to get the location
     location = hostname.rstrip('0123456789')
 
+# ensure display_refresh is positive
+if display_refresh <= 0:
+    print(f"Warning: display_refresh must be > 0, got {display_refresh}. "
+          f"Using default value of 1.0.")
+    display_refresh = 1.0
+
+# remove leading/trailing whitespace from display_format
+display_format = display_format.strip()
+
 # warn if mqtt_secure is True but the certs dir does not exist
 if mqtt_secure and not mqtt_certs_dir.exists():
     print(f"Warning: MQTT secure is enabled but the certs dir "
           f"<{mqtt_certs_dir}> does not exist.")
+
+#warn if data_source is invalid or inconsistent with logging settings
+valid_data_sources = {'mqtt', 'logs'}
+if data_source not in valid_data_sources:
+    print(f"Warning: invalid data_source: {data_source!r} (valid options: "
+          f"{valid_data_sources}). Falling back to 'logs'.")
+    data_source = 'logs'
+
+if not enable_jsonl_logging and data_source == 'logs':
+    print("Warning: JSONL logging is disabled but data_source is 'logs'.")
