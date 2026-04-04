@@ -7,16 +7,9 @@ busio = utils.import_busio()
 import adafruit_scd30
 
 
-SCD30_DATA = utils.SENSOR_DATA['SCD-30']
-
 class SCD30(BaseSensor):
-    """Represent a SCD-30 sensor."""
-    sensor_type = SCD30_DATA.name
-    reading_info = SCD30_DATA.data
-
-    def __init__(self, *, name=None, description=None, verbose=False):
-        """Initialize the sensor."""
-        super().__init__(name=name, description=description, verbose=verbose)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
         self.scd = adafruit_scd30.SCD30(i2c)
 

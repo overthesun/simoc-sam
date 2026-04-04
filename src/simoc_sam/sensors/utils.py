@@ -1,11 +1,11 @@
 import os
-import sys
 import pathlib
 import argparse
 import subprocess
 
 from typing import Dict, Any
 from datetime import datetime
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 from .basesensor import MQTTWrapper
@@ -20,7 +20,7 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     n = r.pop('n')
     dt = datetime.strptime(r.pop('timestamp'), '%Y-%m-%d %H:%M:%S.%f')
     timestamp = dt.strftime(time_fmt)
-    sensor_name = sensor_info['sensor_name'] if sensor_info else '-'
+    sensor_id = sensor_info['sensor_id'] if sensor_info else '-'
     reading_info = sensor_info['reading_info'] if sensor_info else None
     result = []
     for key, value in r.items():
@@ -30,7 +30,7 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
             label = reading_info[key]['label']
             unit = ' ' + reading_info[key]['unit']
         result.append(f'{label}: {v}{unit}')
-    return f'{sensor_name}|{timestamp}|{n:<3}  {"; ".join(result)}'
+    return f'{sensor_id}|{timestamp}|{n:<3}  {"; ".join(result)}'
 
 
 def get_sensor_i2c_bus(sensor_i2c_addr, *args, **kwargs):
@@ -57,8 +57,10 @@ class SensorData:
     name: str
     description: str
     module: str
-    i2c_address: str
+    i2c_address: int
     data: Dict[str, Any] = field(default_factory=dict)
+    chip_id_register: int = None
+    chip_id: int = None
 
 SENSORS_TOML = pathlib.Path(__file__).with_name('sensors.toml')
 
@@ -73,11 +75,15 @@ def load_sensor_data(file_path=SENSORS_TOML):
             module=sensor_info['module'],
             i2c_address=sensor_info['i2c_address'],
             data=sensor_info['data'],
+            chip_id_register=sensor_info.get('chip_id_register'),
+            chip_id=sensor_info.get('chip_id'),
         )
     return sensor_data
 
 SENSOR_DATA = load_sensor_data()
-I2C_TO_SENSOR = {info.i2c_address: info for info in SENSOR_DATA.values()}
+I2C_TO_SENSOR_NAMES = defaultdict(list)
+for name, info in SENSOR_DATA.items():
+    I2C_TO_SENSOR_NAMES[info.i2c_address].append(name)
 
 def has_mcp2221():
     return b'MCP2221' in subprocess.check_output("lsusb")
@@ -87,15 +93,18 @@ def import_board():
     if has_mcp2221():
         os.environ['BLINKA_MCP2221'] = '1'
         os.environ['BLINKA_MCP2221_RESET_DELAY'] = '-1'
-    import board
-    return board
+    try:
+        import board
+        return board
+    except (ImportError, OSError, AttributeError) as err:
+        raise RuntimeError(f'Failed to import "board" module: {err}') from err
 
 def import_busio():
     try:
         import busio
         return busio
-    except RuntimeError:
-        sys.exit("Failed to import 'busio', is the sensor plugged in?")
+    except (ImportError, OSError, AttributeError, RuntimeError) as err:
+        raise RuntimeError(f'Failed to import "busio" module: {err}') from err
 
 
 def get_addr_argparser():

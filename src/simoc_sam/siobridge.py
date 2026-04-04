@@ -5,6 +5,7 @@ import asyncio
 import ipaddress
 import traceback
 
+from pathlib import Path
 from datetime import datetime
 from collections import defaultdict, deque
 
@@ -14,8 +15,10 @@ import netifaces
 
 from aiohttp import web
 
-from .sensors import utils
+from . import utils
 from . import config
+from .sensors import utils as sensor_utils
+from .sensors.basesensor import get_log_path, get_sensor_id
 
 
 # default host:port of the server
@@ -25,10 +28,10 @@ MQTT_HOST, MQTT_PORT = config.mqtt_host, config.mqtt_port
 
 def convert_sensor_data():
     info = {}
-    for name, data in utils.SENSOR_DATA.items():
+    for name, data in sensor_utils.SENSOR_DATA.items():
         info[name] = {
             'sensor_type': data.name,
-            'sensor_name': None,
+            'sensor_name': name,
             'sensor_id': None,
             'sensor_desc': None,
             'reading_info': data.data,
@@ -47,7 +50,8 @@ SUBSCRIBERS = set()
 def get_host_ips():
     """Return a list of IPs and hostnames for the current host."""
     hostname = socket.gethostname()
-    ips = {hostname, 'localhost', '127.0.0.1'}  # init with known IPs/hostnames
+    # init with known IPs/hostnames
+    ips = {hostname, f'{hostname}.local', 'localhost', '127.0.0.1'}
     # find all local private networks we are in and our IP in those networks
     for interface in netifaces.interfaces():
         addrs = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
@@ -73,9 +77,9 @@ def get_host_ips():
 # Therefore we need to find all the IPs/hostnames that point to
 # this machine in the different networks and explicitly allow them.
 # The port is also used for CORS validation, and must match the
-# port used by SIMOC web (8080 is used by default).
-port = config.simoc_web_port
-allowed_origins = [f'http://{ip}:{port}' for ip in get_host_ips()]
+# port used by SIMOC web. By default SIMOC web uses port 80,
+# so no port is added.
+allowed_origins = [f'http://{ip}' for ip in get_host_ips()]
 print("Allowed origins:", allowed_origins)
 sio = socketio.AsyncServer(cors_allowed_origins=allowed_origins,
                            async_mode='aiohttp')
@@ -127,8 +131,7 @@ async def emit_to_subscribers(*args, **kwargs):
 
 async def emit_readings():
     """Emit a bundle with the latest reading of all sensors."""
-    args = utils.parse_args()  # TODO: create separate parser for the server
-    delay = args.delay
+    delay = config.sensor_read_delay  # emit at the same rate data is read
     print(f'Broadcasting data every {delay} seconds.')
     n = 0
     while True:
@@ -156,7 +159,7 @@ async def emit_readings():
 
 
 async def mqtt_handler():
-    args = utils.parse_args()
+    args = sensor_utils.parse_args()
     mqtt_broker = args.host or MQTT_HOST
     topic_sub = args.mqtt_topic_sub or config.mqtt_topic_sub
     print(SENSOR_INFO)
@@ -179,7 +182,6 @@ async def mqtt_handler():
                     if sensor_id not in SENSOR_INFO:
                         SENSORS.add(sensor_id)
                         info = copy.deepcopy(SENSOR_DATA[sensor])
-                        info['sensor_name'] = sensor_id
                         info['sensor_id'] = sensor_id
                         info['sensor_desc'] = f'{sensor} sensor on {host}'
                         SENSOR_INFO[sensor_id] = info
@@ -194,24 +196,62 @@ async def mqtt_handler():
             await asyncio.sleep(interval)
 
 
-# app setup
+async def process_sensor_log(sensor):
+    """Process a single sensor's log file continuously."""
+    log_file = get_log_path(sensor)
+    location, host, sensor_name = get_sensor_id(sensor).split('.')
+    sensor_id = f'{host}.{sensor_name}'
+    # ensure sensor info is available
+    if sensor_id not in SENSOR_INFO:
+        SENSORS.add(sensor_id)
+        info = copy.deepcopy(SENSOR_DATA[sensor])
+        info['sensor_id'] = sensor_id
+        info['sensor_desc'] = f'{sensor} sensor from log file {log_file.name}'
+        SENSOR_INFO[sensor_id] = info
+        await emit_to_subscribers('sensor-info', SENSOR_INFO)
+    print(f'Starting to process log file for {sensor}: {log_file}')
+    # read and process each line from the log file continuously
+    try:
+        async for reading in utils.read_jsonl_file(log_file):
+            # add the reading to SENSOR_READINGS
+            SENSOR_READINGS[sensor_id].append(reading)
+    except Exception as e:
+        print(f'Error processing log file for {sensor}: {e}')
+        traceback.print_exc()
 
-async def index(request):
-    """Serve the client-side application."""
-    with open('index.html') as f:
-        return web.Response(text=f.read(), content_type='text/html')
+async def log_handler():
+    """Handle sensor data from log files."""
+    log_dir = Path(config.log_dir)
+    sensors = config.sensors
+    if not log_dir.exists():
+        raise FileNotFoundError(f'Log directory does not exist: {log_dir}')
+    print(f'Starting log handler for directory: {log_dir}')
+    print(f'Looking for sensors: {sensors}')
+    tasks = []
+    for sensor in sensors:
+        task = asyncio.create_task(process_sensor_log(sensor))
+        tasks.append(task)
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
+# app setup
 
 def create_app():
     app = web.Application()
-    # app.router.add_static('/static', 'static')
-    app.router.add_get('/', index)
     return app
 
 async def init_app(app):
-    # Start the MQTT handler in the background
+    # start handlers based on configuration
     sio.attach(app)
     sio.start_background_task(emit_readings)
-    asyncio.ensure_future(mqtt_handler())
+    if config.data_source == 'mqtt':
+        print('Starting MQTT handler for sensor data')
+        asyncio.ensure_future(mqtt_handler())
+    elif config.data_source == 'logs':
+        print('Starting log handler for sensor data')
+        asyncio.ensure_future(log_handler())
+    else:
+        raise ValueError(f"Unsupported data source: {config.data_source}")
     return app
 
 

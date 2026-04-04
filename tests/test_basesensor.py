@@ -1,4 +1,5 @@
 import time
+import pathlib
 import importlib
 
 from unittest.mock import patch
@@ -8,14 +9,14 @@ import pytest
 from simoc_sam import config
 from simoc_sam.sensors import basesensor
 
-READING = dict(co2=100, hum=50, temp=25)
+READING = dict(co2=100, rel_hum=50, temp=25)
 INFO = {
     'co2': dict(label='CO2', unit='ppm'),
     'temp': dict(label='Temperature', unit='°C'),
     'rel_hum': dict(label='Relative Humidity', unit='%'),
 }
 class MySensor(basesensor.BaseSensor):
-    sensor_type = 'TestSensor'
+    type = 'TestSensor'
     reading_info = INFO
     def read_sensor_data(self):
         self.print_reading(READING)
@@ -46,13 +47,45 @@ def mock_paho_client():
     with patch('paho.mqtt.client.Client', autospec=True) as mock_client:
         yield mock_client
 
+# Module-level function tests
+
+def test_get_sensor_id():
+    """Test that get_sensor_id returns correctly formatted sensor ID."""
+    sensor_id = basesensor.get_sensor_id('scd30')
+    assert sensor_id == 'testhost.testhost1.scd30'
+    with patch('simoc_sam.config.location', 'sam'):
+        sensor_id = basesensor.get_sensor_id('scd30')
+        assert sensor_id == 'sam.testhost1.scd30'
+    with patch('simoc_sam.config.location', 'hab'), \
+         patch('socket.gethostname', return_value='samrpi2'):
+        sensor_id = basesensor.get_sensor_id('bme688')
+        assert sensor_id == 'hab.samrpi2.bme688'
+    # Test with custom separator
+    with patch('simoc_sam.config.location', 'sam'):
+        sensor_id = basesensor.get_sensor_id('mock', sep='/')
+        assert sensor_id == 'sam/testhost1/mock'
+        sensor_id = basesensor.get_sensor_id('sgp30', sep='_')
+        assert sensor_id == 'sam_testhost1_sgp30'
+
+def test_get_log_path_format():
+    """Test that get_log_path returns correctly formatted path."""
+    with patch('simoc_sam.config.location', 'sam'), \
+         patch('simoc_sam.config.log_dir', pathlib.Path('/tmp/logs')):
+        log_path = basesensor.get_log_path('scd30')
+        assert log_path == pathlib.Path('/tmp/logs/sam_testhost1_scd30.jsonl')
+    with patch('simoc_sam.config.location', 'sam'), \
+         patch('simoc_sam.config.log_dir', pathlib.Path('/var/logs')), \
+         patch('socket.gethostname', return_value='samrpi2'):
+        log_path = basesensor.get_log_path('bme688')
+        assert log_path == pathlib.Path('/var/logs/sam_samrpi2_bme688.jsonl')
 
 # BaseSensor tests
 
 def test_abstract_method():
     # this should fail if read_sensor_data is not implemented
     class BrokenSensorSubclass(basesensor.BaseSensor):
-        pass
+        type = 'Broken'
+        reading_info = {}
     with pytest.raises(TypeError):
         s = BrokenSensorSubclass()
 
@@ -61,12 +94,12 @@ def test_context_manager():
         assert isinstance(sensor, MySensor)
 
 def test_name_type():
-    with MySensor(name='HAL 9000') as sensor:
-        assert sensor.sensor_type == 'TestSensor'
-        assert sensor.sensor_name == 'HAL 9000'
+    with MySensor(description='HAL 9000') as sensor:
+        assert sensor.type == 'TestSensor'
+        assert sensor.description == 'HAL 9000'
 
 def test_log_path(sensor):
-    assert str(sensor.log_path).endswith('/testhost_testhost1_TestSensor.jsonl')
+    assert str(sensor.log_path).endswith('/testhost_testhost1_mysensor.jsonl')
 
 def test_iter_readings(sensor):
     # check that iter_readings() yields values returned by read_sensor_data()
@@ -126,9 +159,29 @@ def test_log(sensor, tmp_path):
         assert '/nonexistent/path/testlog.jsonl' in str(mock_print.call_args[0][0])
 
 def test_print_reading(sensor):
+    # Test basic printing functionality
     with patch.object(sensor, 'print') as mock_print:
         sensor.print_reading(READING)
-        mock_print.assert_called_once()
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 100ppm; Temperature: 25°C; Relative Humidity: 50%'
+    # Test with float values (should be formatted to 1 decimal place)
+    reading_with_floats = {'co2': 123.456, 'temp': 25.789, 'rel_hum': 50.123}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(reading_with_floats)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 123.5ppm; Temperature: 25.8°C; Relative Humidity: 50.1%'
+    # Test with missing fields (should skip them gracefully)
+    partial_reading = {'co2': 100}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(partial_reading)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] CO2: 100ppm'
+    # Test with non existing fields (should skip them gracefully)
+    partial_reading = {'non-existing': 100, 'temp': 22}
+    with patch.object(sensor, 'print') as mock_print:
+        sensor.print_reading(partial_reading)
+        output = mock_print.call_args[0][0]
+        assert output == '[TestSensor] Temperature: 22°C'
 
 def test_iter_readings_logs(sensor, monkeypatch):
     from simoc_sam import config
@@ -153,13 +206,13 @@ def test_mqttwrapper_init(sensor):
     assert wrapper.read_delay == config.sensor_read_delay
     assert wrapper.verbose == config.verbose_sensor
     assert wrapper.topic.startswith(config.location)
-    assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
+    assert wrapper.topic == f'testhost/testhost1/{sensor.name}'
     # test with custom args
     wrapper = basesensor.MQTTWrapper(sensor, read_delay=5, verbose=True)
     assert wrapper.sensor is sensor
     assert wrapper.read_delay == 5
     assert wrapper.verbose is True
-    assert wrapper.topic == f'testhost/testhost1/{sensor.sensor_name}'
+    assert wrapper.topic == f'testhost/testhost1/{sensor.name}'
 
 def test_mqttwrapper_connect_start_stop(wrapper):
     mqttc = wrapper.mqttc
@@ -202,8 +255,7 @@ def test_mqttwrapper_insecure_init(sensor):
 
 def test_mqttwrapper_secure_init(sensor):
     """Test MQTTWrapper initialization with secure=True."""
-    from pathlib import Path
-    certs_dir = Path('/test/certs')
+    certs_dir = pathlib.Path('/test/certs')
     wrapper = basesensor.MQTTWrapper(sensor, secure=True, certs_dir=certs_dir)
     wrapper.mqttc.tls_set.assert_called_once_with(
         ca_certs='/test/certs/ca.crt',
