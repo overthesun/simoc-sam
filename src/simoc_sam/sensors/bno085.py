@@ -59,9 +59,10 @@ class BNO085(BaseSensor):
         print(f'Enabling {len(features)} features...')
         for feature in features:
             enabled += self.enable_feature(feature)
-        print(f'{enabled} features enabled')
         # if we can't enable all requested features abort and quit
-        assert enabled == len(features)
+        if enabled != len(features):
+            raise RuntimeError(f'Failed to enable all {len(features)} features.')
+        print(f'{enabled} features enabled')
         self.enabled_features = features
 
     def enable_feature(self, feature_name):
