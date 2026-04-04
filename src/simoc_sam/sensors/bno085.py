@@ -156,10 +156,10 @@ class BNO085(BaseSensor):
                            geomag_quat_k=v[2], geomag_quat_real=v[3])
         # Stability classification (string)
         if 'STABILITY_CLASSIFIER' in enabled_features:
-            reading.update(stability=attrs['STABILITY_CLASSIFIER'])
+            reading.update(stability_classification=attrs['STABILITY_CLASSIFIER'])
         # Activity classification (string)
         if 'ACTIVITY_CLASSIFIER' in enabled_features:
-            reading.update(activity=attrs['ACTIVITY_CLASSIFIER'])
+            reading.update(activity_classification=attrs['ACTIVITY_CLASSIFIER'])
         # Step counter (int)
         if 'STEP_COUNTER' in enabled_features:
             reading.update(steps=attrs['STEP_COUNTER'])
