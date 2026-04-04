@@ -58,6 +58,8 @@ class BNO085(BaseSensor):
         enabled = 0
         print(f'Enabling {len(features)} features...')
         for feature in features:
+            if feature not in FEATURE_TO_ATTR:
+                raise ValueError(f'Unknown feature: {feature!r}')
             enabled += self.enable_feature(feature)
         # if we can't enable all requested features abort and quit
         if enabled != len(features):
@@ -108,10 +110,7 @@ class BNO085(BaseSensor):
         enabled_features = self.enabled_features
         attrs = {}
         for feature in enabled_features:
-            try:
-                attrs[feature] = self.read_attribute(FEATURE_TO_ATTR[feature])
-            except KeyError:
-                raise ValueError(f'Unknown feature: {feature!r}')
+            attrs[feature] = self.read_attribute(FEATURE_TO_ATTR[feature])
         reading = {}
         # Raw Acceleration/Gyro/Magnetometer
         if 'RAW_ACCELEROMETER' in enabled_features:
