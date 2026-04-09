@@ -16,3 +16,11 @@ width = 128
 height = 64
 i2c_address = 0x3D
 reset_pin = "D4"
+
+[ssd1327]
+name = "SSD1327"
+description = "Grayscale 128x128 OLED display"
+module = "simoc_sam.displays.ssd1327"
+width = 128
+height = 128
+i2c_address = 0x3D
