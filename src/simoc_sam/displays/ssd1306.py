@@ -8,7 +8,6 @@ board = sensor_utils.import_board()
 
 import digitalio
 import adafruit_ssd1306
-from PIL import Image, ImageDraw, ImageFont
 
 from simoc_sam import utils, config
 from simoc_sam.displays import utils as display_utils
@@ -19,24 +18,7 @@ SENSOR_READINGS = {}
 
 # number of rows for 128x64 rotated 90 degrees (including header)
 MAX_ROWS = 10
-FONT = ImageFont.load_default()
 
-def draw_image(width, height, rows):
-    """Draw sensor values on an image and return it."""
-    if not rows:
-        return  # nothing to display
-    image = Image.new("1", (width, height))
-    draw = ImageDraw.Draw(image)
-    # screen is rotated, so oled.width is actually the height
-    spacing = max(8, height // len(rows))  # calc row height dynamically
-    y = 0
-    for row in rows:
-        if not row.strip():
-            y += 6  # add extra spacing for blank lines
-        else:
-            draw.text((0, y), row, font=FONT, fill=255)
-            y += spacing
-    return image
 
 def show_image(oled, image):
     """Show the given image on the OLED display."""
@@ -57,7 +39,7 @@ async def update_display(oled):
         while True:
             rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
             # swap height/width because the screen is rotated 90 degrees
-            image = draw_image(oled.height, oled.width, rows)
+            image = display_utils.draw_image(oled.height, oled.width, rows)
             if image:
                 show_image(oled, image)
             await asyncio.sleep(config.display_refresh)
