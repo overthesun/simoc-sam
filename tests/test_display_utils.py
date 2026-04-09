@@ -331,7 +331,7 @@ def test_draw_image_blank_rows_add_space():
     white_with_blank = sum(1 for p in image_with_blank.getdata() if p)
     # same text so the same white pixel count, but different images
     assert white_no_blank == white_with_blank
-    assert image_no_blank.getdata() != image_with_blank.getdata()
+    assert image_no_blank.tobytes() != image_with_blank.tobytes()
 
 def test_draw_image_respects_dimensions():
     """Test that draw_image works with different display dimensions."""
