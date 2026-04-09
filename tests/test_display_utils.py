@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from PIL import Image
+
 from simoc_sam import config
 from simoc_sam.displays import utils
 from simoc_sam.displays.utils import DisplayData
@@ -253,7 +255,6 @@ async def test_mqtt_monitor_handles_json_error(mock_mqtt_message, mock_mqtt_clie
             await wait_until(lambda: processed['value'])
             assert sensor_readings == {}
 
-
 @pytest.mark.asyncio
 async def test_mqtt_monitor_verbose_mode(mock_mqtt_client, capfd):
     """Test that verbose MQTT mode prints received messages."""
@@ -267,7 +268,6 @@ async def test_mqtt_monitor_verbose_mode(mock_mqtt_client, capfd):
             await wait_until(lambda: 'scd30' in sensor_readings)
             captured = capfd.readouterr()
             assert "Received from scd30: {'co2': 450}\n" in captured.out
-
 
 @pytest.mark.asyncio
 async def test_mqtt_monitor_reconnects_on_error(mock_mqtt_client, mock_mqtt_message, capfd):
@@ -294,3 +294,51 @@ async def test_mqtt_monitor_reconnects_on_error(mock_mqtt_client, mock_mqtt_mess
             assert captured.out.count('Connection lost') == 1
             assert captured.out.count('Reconnecting in') >= 1
             assert "Received from scd30: {'co2': 450}\n" in captured.out
+
+
+def test_draw_image_returns_none_for_empty_rows():
+    """Test that draw_image returns None when given no rows."""
+    assert utils.draw_image(128, 128, []) is None
+    assert utils.draw_image(128, 128, None) is None
+
+def test_draw_image_returns_1bit_image():
+    """Test that draw_image returns a 1-bit PIL image of the correct size."""
+    width, height = 128, 64
+    image = utils.draw_image(width, height, ["Test"])
+    assert isinstance(image, Image.Image)
+    assert image.size == (width, height)
+    assert image.mode == "1"
+
+def test_draw_image_black_background():
+    """Test that draw_image renders a black background."""
+    image = utils.draw_image(128, 64, [" "])  # empty line with no text
+    pixels = set(image.getdata())
+    assert pixels == {0}  # all pixels should be black (0)
+
+def test_draw_image_has_white_pixels_for_text():
+    """Test that draw_image renders text as white pixels on black background."""
+    image = utils.draw_image(128, 64, ["Test"])
+    pixels = list(image.getdata())
+    # should only have black (0) and white (255) pixels
+    assert set(pixels) == {0, 255}
+    assert pixels.count(0) > pixels.count(255)  # more black than white
+
+def test_draw_image_blank_rows_add_space():
+    """Test that blank rows add spacing but no text pixels."""
+    image_no_blank = utils.draw_image(128, 64, ["Row 1", "Row 2"])
+    image_with_blank = utils.draw_image(128, 64, ["Row 1", "   ", "Row 2"])
+    white_no_blank = sum(1 for p in image_no_blank.getdata() if p)
+    white_with_blank = sum(1 for p in image_with_blank.getdata() if p)
+    # same text so the same white pixel count, but different images
+    assert white_no_blank == white_with_blank
+    assert image_no_blank.getdata() != image_with_blank.getdata()
+
+def test_draw_image_respects_dimensions():
+    """Test that draw_image works with different display dimensions."""
+    one_row = ["Test"]
+    many_rows = ["Test" * 100] * 100  # shouldn't affect image size
+    for width, height in [(128, 64), (128, 128), (64, 32)]:
+        image = utils.draw_image(width, height, one_row)
+        assert image.size == (width, height)
+        image = utils.draw_image(width, height, many_rows)
+        assert image.size == (width, height)
