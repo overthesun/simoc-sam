@@ -23,4 +23,4 @@ godirect==1.2.1
 rich==15.0.0
 pillow==11.3.0
 adafruit-circuitpython-ssd1306==2.12.23
-adafruit-circuitpython-ssd1327==1.4.9
+adafruit-circuitpython-ssd1327==1.4.10
