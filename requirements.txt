@@ -13,7 +13,7 @@ adafruit-circuitpython-scd30==2.2.19
 adafruit-circuitpython-scd4x==1.4.10
 adafruit-circuitpython-sgp30==3.0.16
 adafruit-circuitpython-bme680==3.7.16
-adafruit-circuitpython-bmp3xx==1.3.26
+adafruit-circuitpython-bmp3xx==1.3.27
 adafruit-circuitpython-tsl2591==1.4.8
 adafruit-circuitpython-veml7700==2.2.2
 adafruit-circuitpython-bno08x==1.3.2
