@@ -16,7 +16,7 @@ def patch_gethostname():
 @pytest.fixture
 def db_conn(tmp_path):
     """Open a fresh isolated DB for each test and close it after."""
-    conn = init_db(tmp_path / 'test.db')
+    conn = init_db(tmp_path / 'test.db', verbose=False)
     yield conn
     close_db()
 
