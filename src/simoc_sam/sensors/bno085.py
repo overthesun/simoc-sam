@@ -86,11 +86,12 @@ class BNO085(BaseSensor):
     def read_attribute(self, attr_name):
         """Try to read an attribute (retrying in case of failure)."""
         # define placeholder value used when the attributes can't be read
-        if attr_name in {'activity_classification', 'stability_classification',
-                         'steps', 'shake'}:
+        if attr_name in {'stability_classification', 'steps', 'shake'}:
             default = ERR_VALUE  # these attrs expect a scalar value (int/str)
+        elif attr_name == 'activity_classification':
+            default = {'most_likely': ERR_VALUE}  # dict with a most_likely key
         else:
-            default = [ERR_VALUE] * 4  # the others have 3/4 values
+            default = [ERR_VALUE] * 4  # lists with 3/4 values
         for attempt in range(5):
             try:
                 return getattr(self.bno, attr_name, default)
