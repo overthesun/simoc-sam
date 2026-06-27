@@ -114,6 +114,8 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
     rows = cursor.fetchall()
     if not rows:
         return {}
+    if decimate is not None and decimate <= 0:
+        raise ValueError(f'decimate must be a positive integer, got {decimate!r}')
     if decimate and len(rows) > decimate:
         step = len(rows) / decimate
         rows = [rows[int(i * step)] for i in range(decimate)]

@@ -121,6 +121,13 @@ def test_get_readings_decimate(db_conn):
     assert len(result['co2']) == 10
 
 
+@pytest.mark.parametrize('decimate', [0, -1, -100])
+def test_get_readings_decimate_invalid(db_conn, decimate):
+    _insert_row(db_conn, 'scd30', co2=450.0, temperature=23.5, humidity=45.2)
+    with pytest.raises(ValueError, match='decimate must be a positive integer'):
+        get_readings('scd30', conn=db_conn, decimate=decimate)
+
+
 # --- get_sensor_ids ---
 
 def test_get_sensor_ids_for_sensor(db_conn):
