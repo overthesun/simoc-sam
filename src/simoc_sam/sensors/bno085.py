@@ -158,7 +158,12 @@ class BNO085(BaseSensor):
             reading.update(stability_classification=attrs['STABILITY_CLASSIFIER'])
         # Activity classification (string)
         if 'ACTIVITY_CLASSIFIER' in enabled_features:
-            reading.update(activity_classification=attrs['ACTIVITY_CLASSIFIER'])
+            classification = attrs['ACTIVITY_CLASSIFIER']
+            if isinstance(classification, dict):
+                most_likely = classification.get('most_likely', ERR_VALUE)
+            else:
+                most_likely = classification
+            reading.update(activity_most_likely=most_likely)
         # Step counter (int)
         if 'STEP_COUNTER' in enabled_features:
             reading.update(steps=attrs['STEP_COUNTER'])

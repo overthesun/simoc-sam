@@ -57,6 +57,7 @@ verbose_mqtt = False
 enable_jsonl_logging = True
 log_dir = '~/logs'
 data_dir = '~/data'
+db_name = 'simoc_sam.db'
 
 
 # BNO085 accelerometer/gyroscope/magnetometer configuration
