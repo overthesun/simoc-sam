@@ -48,7 +48,7 @@ def main():
     if not db_dir.exists():
         print(f'Creating database directory: {db_dir}')
         db_dir.mkdir(parents=True, exist_ok=True)
-    conn = db.init_db()
+    db.init_db()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = on_connect
     client.on_message = on_message

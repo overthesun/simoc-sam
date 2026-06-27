@@ -17,6 +17,9 @@ def init_db(db_path=None, verbose=True):
     Returns the open connection.
     """
     global _conn
+    if _conn is not None:
+        _conn.close()
+        _conn = None
     if db_path is None:
         from simoc_sam import config
         db_path = config.db_path

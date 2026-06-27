@@ -1,6 +1,8 @@
 import pytest
 
-from simoc_sam.db import get_readings, get_sensor_ids
+import simoc_sam.db as db
+
+from simoc_sam.db import get_readings, get_sensor_ids, init_db, close_db
 from simoc_sam.sensors.utils import SENSOR_DATA
 
 
@@ -16,6 +18,22 @@ def _insert_row(conn, sensor, *, location='lab', host='rpi1', n=0,
         list(row.values()),
     )
     conn.commit()
+
+
+def test_init_db_twice_closes_first(tmp_path):
+    path_a = tmp_path / 'a.db'
+    path_b = tmp_path / 'b.db'
+    conn_a = init_db(path_a, verbose=False)
+    assert db._conn is conn_a
+    conn_b = init_db(path_b, verbose=False)  # should close conn_a first
+    assert conn_b is not conn_a
+    assert db._conn is conn_b
+    # conn_a should be closed -- any operation on it raises ProgrammingError
+    with pytest.raises(Exception):
+        conn_a.execute('SELECT 1')
+    # conn_b should still be usable
+    conn_b.execute('SELECT 1')
+    close_db()
 
 
 # --- init_db ---
