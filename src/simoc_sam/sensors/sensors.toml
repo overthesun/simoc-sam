@@ -163,16 +163,38 @@ i2c_address = 0x39
     unit = ""
     label = "Proximity"
     description = "Proximity"
+    type = "int"
 
     [apds9960.data.gesture]
     unit = ""
     label = "Gesture"
     description = "Gesture"
+    type = "str"
 
-    [apds9960.data.color]
+
+    [apds9960.data.color_r]
     unit = ""
-    label = "Color"
-    description = "Color"
+    label = "Red"
+    description = "Red channel"
+    type = "int"
+
+    [apds9960.data.color_g]
+    unit = ""
+    label = "Green"
+    description = "Green channel"
+    type = "int"
+
+    [apds9960.data.color_b]
+    unit = ""
+    label = "Blue"
+    description = "Blue channel"
+    type = "int"
+
+    [apds9960.data.color_c]
+    unit = ""
+    label = "Clear"
+    description = "Clear (unfiltered) channel"
+    type = "int"
 
 [tsl2591]
 name = "TSL2591"
@@ -189,11 +211,13 @@ i2c_address = 0x29
     unit = ""
     label = "Visible"
     description = "Visible Light Level"
+    type = "int"
 
     [tsl2591.data.infrared]
     unit = ""
     label = "Infrared"
     description = "Infrared Light Level"
+    type = "int"
 
 [veml7700]
 name = "VEML7700"
@@ -216,40 +240,49 @@ i2c_address = 0x4A
     unit = ""
     label = "Raw Accel X"
     description = "Raw accelerometer X"
+    type = "int"
     [bno085.data.raw_accel_y]
     unit = ""
     label = "Raw Accel Y"
     description = "Raw accelerometer Y"
+    type = "int"
     [bno085.data.raw_accel_z]
     unit = ""
     label = "Raw Accel Z"
     description = "Raw accelerometer Z"
+    type = "int"
 
     [bno085.data.raw_gyro_x]
     unit = ""
     label = "Raw Gyro X"
     description = "Raw gyroscope X"
+    type = "int"
     [bno085.data.raw_gyro_y]
     unit = ""
     label = "Raw Gyro Y"
     description = "Raw gyroscope Y"
+    type = "int"
     [bno085.data.raw_gyro_z]
     unit = ""
     label = "Raw Gyro Z"
     description = "Raw gyroscope Z"
+    type = "int"
 
     [bno085.data.raw_mag_x]
     unit = ""
     label = "Raw Mag X"
     description = "Raw magnetometer X"
+    type = "int"
     [bno085.data.raw_mag_y]
     unit = ""
     label = "Raw Mag Y"
     description = "Raw magnetometer Y"
+    type = "int"
     [bno085.data.raw_mag_z]
     unit = ""
     label = "Raw Mag Z"
     description = "Raw magnetometer Z"
+    type = "int"
 
     [bno085.data.accel_x]
     unit = "m/s²"
@@ -371,18 +404,22 @@ i2c_address = 0x4A
     unit = ""
     label = "Stability"
     description = "Stability classification"
+    type = "str"
 
     [bno085.data.activity_classification]
     unit = ""
     label = "Activity"
     description = "Activity classification"
+    type = "str"
 
     [bno085.data.steps]
     unit = ""
     label = "Steps"
     description = "Step count"
+    type = "int"
 
     [bno085.data.shake]
     unit = ""
     label = "Shake"
     description = "Shake detection flag"
+    type = "int"

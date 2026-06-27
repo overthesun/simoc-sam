@@ -1,0 +1,22 @@
+# This unit file is used to launch the sqlwriter scripts on boot.
+# Use `sam setup-sqlwriter` to enable, `sam teardown-sqlwriter` to disable.
+# Use `systemctl start/stop/restart/status sqlwriter` to control the service.
+# Use `journalctl -u sqlwriter.service -f` to see the script output.
+
+[Unit]
+Description=sqlwriter service to save MQTT data in a SQLite database
+StartLimitIntervalSec=0
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/simoc-sam
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.sqlwriter
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
