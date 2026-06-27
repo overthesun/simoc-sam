@@ -26,10 +26,14 @@ def on_message(client, userdata, msg):
         print(f'Skipping unknown sensor in <{topic}>')
         return
     sensor_id = f'{location}.{host}.{sensor}'
+    n = data.get('n')
+    timestamp = data.get('timestamp')
+    if n is None or timestamp is None:
+        print(f'Skipping message missing n/timestamp <{topic}>: {payload}')
+        return
     cols = ['sensor_id', 'location', 'host', 'n', 'timestamp', *fields]
-    values = [sensor_id, location, host,
-               data.get('n'), data.get('timestamp'),
-               *[data.get(f) for f in fields]]
+    values = [sensor_id, location, host, n, timestamp,
+              *[data.get(f) for f in fields]]
     placeholders = ', '.join('?' * len(cols))
     conn = db.get_conn()
     conn.execute(

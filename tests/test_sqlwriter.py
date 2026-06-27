@@ -22,16 +22,24 @@ def test_on_message_inserts_row(mock_msg, db_conn):
                    '2024-03-06 12:00:00', 450.0, 23.5, 45.2)
 
 
-@pytest.mark.parametrize('payload, topic', [
-    (b'invalid json', 'sam/testhost/scd30'),
-    (b'{"n": 0}', 'invalid/topic'),
-    (b'{"n": 0}', 'sam/testhost/unknown_sensor'),
-], ids=['invalid_json', 'invalid_topic', 'unknown_sensor'])
-def test_invalid_message_skipped(payload, topic, db_conn):
+_valid_msg = b'{"n": 0, "timestamp": "2024-03-06 12:00:00"}'
+
+@pytest.mark.parametrize('payload, topic, expected_msg', [
+    (b'invalid json', 'sam/testhost/scd30', 'invalid message'),
+    (_valid_msg, 'invalid/topic', 'invalid message'),
+    (_valid_msg, 'another/longer/invalid/topic', 'invalid message'),
+    (_valid_msg, 'sam/testhost/unknown_sensor', 'unknown sensor'),
+    (b'{"n": 0}', 'sam/testhost/scd30', 'missing n/timestamp'),
+    (b'{"timestamp": "2024-03-06 12:00:00"}', 'sam/testhost/scd30',
+     'missing n/timestamp'),
+], ids=['invalid_json', 'invalid_topic', 'invalid_longer_topic',
+        'unknown_sensor', 'missing_timestamp', 'missing_n'])
+def test_invalid_message_skipped(payload, topic, expected_msg, db_conn, capsys):
     msg = mock.Mock(payload=payload, topic=topic)
     sqlwriter.on_message(client=None, userdata=None, msg=msg)
     count = db_conn.execute('SELECT COUNT(*) FROM scd30').fetchone()[0]
     assert count == 0
+    assert expected_msg in capsys.readouterr().out
 
 
 def test_subscribe_on_connect(monkeypatch):
