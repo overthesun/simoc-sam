@@ -2,12 +2,8 @@ import json
 
 import paho.mqtt.client as mqtt
 
-from simoc_sam import config
-from simoc_sam.db import init_db
+from simoc_sam import config, db
 from simoc_sam.sensors.utils import SENSOR_DATA
-
-
-DB_CONN = None
 
 
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -35,21 +31,20 @@ def on_message(client, userdata, msg):
                data.get('n'), data.get('timestamp'),
                *[data.get(f) for f in fields]]
     placeholders = ', '.join('?' * len(cols))
-    DB_CONN.execute(
+    conn = db.get_conn()
+    conn.execute(
         f'INSERT INTO {sensor} ({", ".join(cols)}) VALUES ({placeholders})',
         values,
     )
-    DB_CONN.commit()
+    conn.commit()
 
 
 def main():
-    global DB_CONN
-    if not config.data_dir.exists():
-        print(f'Creating data directory: {config.data_dir}')
-        config.data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = config.data_dir / config.db_name
-    print(f'Opening SQLite database: {db_path}')
-    DB_CONN = init_db(db_path)
+    db_dir = config.db_path.parent
+    if not db_dir.exists():
+        print(f'Creating database directory: {db_dir}')
+        db_dir.mkdir(parents=True, exist_ok=True)
+    conn = db.init_db()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = on_connect
     client.on_message = on_message
@@ -60,7 +55,7 @@ def main():
         print('Interrupted by user, disconnecting...')
         client.disconnect()
     finally:
-        DB_CONN.close()
+        db.close_db()
         print('Disconnected from MQTT broker')
 
 

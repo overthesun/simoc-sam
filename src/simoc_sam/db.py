@@ -6,10 +6,23 @@ from simoc_sam.sensors.utils import SENSOR_DATA
 
 _PYTHON_TO_SQL = {'float': 'REAL', 'int': 'INTEGER', 'str': 'TEXT'}
 
+_conn = None  # module-level cached connection
 
-def init_db(db_path):
-    """Open the SQLite DB and create one table per sensor type."""
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+
+def init_db(db_path=None, verbose=True):
+    """Open the SQLite DB and create one table per sensor type.
+
+    If db_path is not given, uses config.db_path.
+    Caches the connection to the module-level variable _conn.
+    Returns the open connection.
+    """
+    global _conn
+    if db_path is None:
+        from simoc_sam import config
+        db_path = config.db_path
+    if verbose:
+        print(f'Opening SQLite database: {db_path}')
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.execute('PRAGMA journal_mode=WAL')  # for safe concurrent reads
     for sensor_name, sensor_data in SENSOR_DATA.items():
         field_defs = []
@@ -32,16 +45,32 @@ def init_db(db_path):
             ON {sensor_name} (sensor_id, timestamp)
         ''')
     conn.commit()
+    _conn = conn
     return conn
 
 
-def get_readings(conn, sensor, *, sensor_id=None, location=None, host=None,
+def get_conn(db_path=None):
+    """Return the cached connection, opening it if needed."""
+    if _conn is None:
+        return init_db(db_path)
+    return _conn
+
+
+def close_db():
+    """Close the cached connection and reset it."""
+    global _conn
+    if _conn is not None:
+        _conn.close()
+        _conn = None
+
+
+def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
                  start=None, end=None, decimate=None):
     """Query sensor readings and return them in columnar format.
 
     Args:
-        conn:      open SQLite connection
         sensor:    sensor table name, e.g. 'scd30'
+        conn:      open SQLite connection (uses cached connection if omitted)
         sensor_id: filter by exact sensor_id, e.g. 'lab.rpi1.scd30'
         location:  filter by location
         host:      filter by host
@@ -54,6 +83,8 @@ def get_readings(conn, sensor, *, sensor_id=None, location=None, host=None,
         {'n': [...], 'timestamp': [...], 'co2': [...], 'temperature': [...]}
         Returns an empty dict if no rows match.
     """
+    if conn is None:
+        conn = get_conn()
     if sensor not in SENSOR_DATA:
         raise ValueError(f'Unknown sensor: {sensor!r}')
     conditions, params = [], []
@@ -90,13 +121,16 @@ def get_readings(conn, sensor, *, sensor_id=None, location=None, host=None,
     }
 
 
-def get_sensor_ids(conn, sensor=None):
+def get_sensor_ids(sensor=None, *, conn=None):
     """Return a sorted list of distinct sensor_ids present in the DB.
 
     Args:
         sensor: if given, query only that sensor's table; otherwise
                 aggregate across all sensor tables.
+        conn:   open SQLite connection (uses cached connection if omitted)
     """
+    if conn is None:
+        conn = get_conn()
     if sensor is not None:
         if sensor not in SENSOR_DATA:
             raise ValueError(f'Unknown sensor: {sensor!r}')

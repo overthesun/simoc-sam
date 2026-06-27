@@ -4,11 +4,21 @@ from unittest.mock import patch
 
 import pytest
 
+from simoc_sam.db import init_db, close_db
+
 
 @pytest.fixture(autouse=True)
 def patch_gethostname():
     with patch('socket.gethostname', return_value='testhost1'):
         yield
+
+
+@pytest.fixture
+def db_conn(tmp_path):
+    """Open a fresh isolated DB for each test and close it after."""
+    conn = init_db(tmp_path / 'test.db')
+    yield conn
+    close_db()
 
 
 @pytest.fixture
