@@ -9,6 +9,18 @@ _PYTHON_TO_SQL = {'float': 'REAL', 'int': 'INTEGER', 'str': 'TEXT'}
 _conn = None  # module-level cached connection
 
 
+def connect(db_path=None, verbose=False):
+    """Open and return a new connection to the db."""
+    if db_path is None:
+        from simoc_sam import config
+        db_path = config.db_path
+    if verbose:
+        print(f'Opening SQLite database: {db_path}')
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
+    conn.execute('PRAGMA journal_mode=WAL')  # for safe concurrent reads
+    return conn
+
+
 def init_db(db_path=None, verbose=True):
     """Open the SQLite DB and create one table per sensor type.
 
@@ -20,13 +32,7 @@ def init_db(db_path=None, verbose=True):
     if _conn is not None:
         _conn.close()
         _conn = None
-    if db_path is None:
-        from simoc_sam import config
-        db_path = config.db_path
-    if verbose:
-        print(f'Opening SQLite database: {db_path}')
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
-    conn.execute('PRAGMA journal_mode=WAL')  # for safe concurrent reads
+    conn = connect(db_path, verbose=verbose)
     for sensor_name, sensor_data in SENSOR_DATA.items():
         field_defs = []
         for fname, finfo in sensor_data.data.items():
@@ -59,12 +65,15 @@ def get_conn(db_path=None):
     return _conn
 
 
-def close_db():
-    """Close the cached connection and reset it."""
+def close_db(conn=None):
+    """Close a the given (or cached, if not given) connection."""
     global _conn
-    if _conn is not None:
-        _conn.close()
-        _conn = None
+    if conn is None or conn is _conn:
+        if _conn is not None:
+            _conn.close()
+            _conn = None
+    else:
+        conn.close()
 
 
 def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,

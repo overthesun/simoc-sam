@@ -2,7 +2,7 @@ import pytest
 
 import simoc_sam.db as db
 
-from simoc_sam.db import get_readings, get_sensor_ids, init_db, close_db
+from simoc_sam.db import connect, get_readings, get_sensor_ids, init_db, close_db
 from simoc_sam.sensors.utils import SENSOR_DATA
 
 
@@ -18,6 +18,59 @@ def _insert_row(conn, sensor, *, location='lab', host='rpi1', n=0,
         list(row.values()),
     )
     conn.commit()
+
+
+# --- connect ---
+
+def test_connect_returns_usable_connection(tmp_path):
+    conn = connect(tmp_path / 'test.db')
+    conn.execute('SELECT 1')
+    conn.close()
+
+
+def test_connect_not_cached(tmp_path):
+    conn1 = connect(tmp_path / 'test.db')
+    conn2 = connect(tmp_path / 'test.db')
+    assert conn1 is not conn2
+    conn1.close()
+    conn2.close()
+
+
+def test_connect_independent_of_singleton(tmp_path):
+    """connect() works even when no singleton is open."""
+    db_path = tmp_path / 'test.db'
+    init_db(db_path, verbose=False)
+    close_db()
+    conn = connect(db_path)
+    conn.execute('SELECT 1')
+    conn.close()
+
+
+def test_close_db_no_arg_closes_singleton(tmp_path):
+    conn = init_db(tmp_path / 'test.db', verbose=False)
+    close_db()
+    assert db._conn is None
+    with pytest.raises(Exception):
+        conn.execute('SELECT 1')
+
+
+def test_close_db_with_singleton_closes_singleton(tmp_path):
+    conn = init_db(tmp_path / 'test.db', verbose=False)
+    close_db(conn)  # same as _conn
+    assert db._conn is None
+    with pytest.raises(Exception):
+        conn.execute('SELECT 1')
+
+
+def test_close_db_with_other_conn_leaves_singleton(tmp_path):
+    singleton = init_db(tmp_path / 'a.db', verbose=False)
+    other = connect(tmp_path / 'b.db')
+    close_db(other)
+    assert db._conn is singleton        # singleton untouched
+    singleton.execute('SELECT 1')       # still usable
+    with pytest.raises(Exception):
+        other.execute('SELECT 1')       # other is closed
+    close_db()
 
 
 def test_init_db_twice_closes_first(tmp_path):
