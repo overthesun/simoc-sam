@@ -66,7 +66,7 @@ def get_conn(db_path=None):
 
 
 def close_db(conn=None):
-    """Close a the given (or cached, if not given) connection."""
+    """Close the given connection (or the cached one if not provided)."""
     global _conn
     if conn is None or conn is _conn:
         if _conn is not None:
