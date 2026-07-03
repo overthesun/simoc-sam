@@ -18,7 +18,8 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     """Format a sensor reading and return it as a string."""
     r = dict(reading)  # make a copy
     n = r.pop('n')
-    dt = datetime.strptime(r.pop('timestamp'), '%Y-%m-%d %H:%M:%S.%f')
+    # convert UTC timestamp to local time
+    dt = datetime.fromisoformat(r.pop('timestamp')).astimezone()
     timestamp = dt.strftime(time_fmt)
     sensor_id = sensor_info['sensor_id'] if sensor_info else '-'
     reading_info = sensor_info['reading_info'] if sensor_info else None

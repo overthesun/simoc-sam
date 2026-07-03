@@ -3,7 +3,7 @@ import json
 import random
 import socket
 
-from datetime import datetime
+from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 
 import paho.mqtt.client as mqtt
@@ -63,8 +63,8 @@ class BaseSensor(ABC):
         return False  # let exceptions propagate
 
     def get_timestamp(self):
-        """Return the current timestamp as a string."""
-        return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        """Return the current timestamp as a UTC ISO 8601 string."""
+        return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
     def sensor_info(self):
         """Return information about the sensor and the value it returns."""
