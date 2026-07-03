@@ -4,7 +4,7 @@ import argparse
 import subprocess
 
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -18,9 +18,11 @@ def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
     """Format a sensor reading and return it as a string."""
     r = dict(reading)  # make a copy
     n = r.pop('n')
-    # convert UTC timestamp to local time
-    dt = datetime.fromisoformat(r.pop('timestamp')).astimezone()
-    timestamp = dt.strftime(time_fmt)
+    # convert UTC timestamp to local time; treat naive timestamps as UTC
+    dt = datetime.fromisoformat(r.pop('timestamp'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    timestamp = dt.astimezone().strftime(time_fmt)
     sensor_id = sensor_info['sensor_id'] if sensor_info else '-'
     reading_info = sensor_info['reading_info'] if sensor_info else None
     result = []
