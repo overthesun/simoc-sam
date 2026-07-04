@@ -34,7 +34,12 @@ async function fetchJSON(url, options) {
 }
 
 function formatLocal(tsMs) {
-  return new Date(tsMs).toLocaleString();
+  const d = new Date(tsMs);
+  return `${d.toLocaleDateString('en-CA')} ${d.toLocaleTimeString('en-GB')}`;
+}
+
+function formatTimeNow() {
+  return new Date().toLocaleTimeString('en-GB');
 }
 
 
@@ -78,7 +83,7 @@ async function refreshLive() {
     return;
   }
   state.sensors = sensors.sensors;
-  $('#live-status').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+  $('#live-status').textContent = `Last update: ${formatTimeNow()}`;
   renderLiveCards(sensors.sensors, latest.sensors);
 }
 
@@ -258,7 +263,21 @@ function makeChartBox(sensor, metric, data) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: {type: 'time', ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
+        x: {type: 'time',
+            time: {
+              displayFormats: {
+                millisecond: 'HH:mm:ss.SSS',
+                second:      'HH:mm:ss',
+                minute:      'HH:mm',
+                hour:        'HH:mm',
+                day:         'yyyy-MM-dd',
+                week:        'yyyy-MM-dd',
+                month:       'yyyy-MM',
+                quarter:     'yyyy-MM',
+                year:        'yyyy',
+              },
+            },
+            ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
         y: {ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
       },
       plugins: {legend: {display: false}},
