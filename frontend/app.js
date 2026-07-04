@@ -226,29 +226,33 @@ function renderResults() {
     const data = state.lastResult[sensor];
     if (!data) continue;
     if (state.viewMode === 'plot') {
-      container.appendChild(makeChartBox(sensor, metrics, data));
+      for (const metric of metrics) {
+        container.appendChild(makeChartBox(sensor, metric, data));
+      }
     } else {
       container.appendChild(makeTableBox(sensor, metrics, data));
     }
   }
 }
 
-function makeChartBox(sensor, metrics, data) {
+function makeChartBox(sensor, metric, data) {
   const info = state.sensors[sensor];
+  const meta = info.metrics[metric];
+  const label = meta.unit ? `${meta.label} (${meta.unit})` : meta.label;
   const box = document.createElement('div');
   box.className = 'chart-box';
-  box.innerHTML = `<h3>${info.name}</h3><div class="chart-wrap"><canvas></canvas></div>`;
-  const datasets = metrics.map((metric, i) => ({
-    label: `${info.metrics[metric].label} (${info.metrics[metric].unit})`,
-    data: data.timestamps.map((ts, j) => ({x: ts, y: data[metric][j]})),
-    borderColor: CHART_COLORS[i % CHART_COLORS.length],
-    backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+  box.innerHTML = `<h3>${info.name} — ${label}</h3><div class="chart-wrap"><canvas></canvas></div>`;
+  const dataset = {
+    label,
+    data: data.timestamps.map((ts, i) => ({x: ts, y: data[metric][i]})),
+    borderColor: CHART_COLORS[0],
+    backgroundColor: CHART_COLORS[0],
     pointRadius: 0,
     borderWidth: 1.5,
-  }));
+  };
   const chart = new Chart(box.querySelector('canvas'), {
     type: 'line',
-    data: {datasets},
+    data: {datasets: [dataset]},
     options: {
       animation: false,
       responsive: true,
@@ -257,7 +261,7 @@ function makeChartBox(sensor, metrics, data) {
         x: {type: 'time', ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
         y: {ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
       },
-      plugins: {legend: {labels: {color: '#dde4ec'}}},
+      plugins: {legend: {display: false}},
     },
   });
   charts.push(chart);
