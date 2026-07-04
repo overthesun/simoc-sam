@@ -39,7 +39,7 @@ def mock_open(monkeypatch):
 
 @pytest.fixture
 def mock_msg():
-    payload = json.dumps(dict(n=0, timestamp='2024-03-06 12:00:00', co2=123))
+    payload = json.dumps(dict(n=0, timestamp='2024-03-06T12:00:00+00:00', co2=123))
     yield mock.Mock(payload=payload.encode('utf-8'), topic='sam/test/scd30')
 
 
@@ -59,13 +59,13 @@ def test_on_message(mock_open, mock_msg, mock_data_dir):
     assert handle.write.call_count == 2
     calls = [
         mock.call('n,timestamp,co2,temperature,humidity\r\n'),  # adds the header
-        mock.call('0,2024-03-06 12:00:00,123,,\r\n'),  # and the readings
+        mock.call('0,2024-03-06T12:00:00+00:00,123,,\r\n'),  # and the readings
     ]
     handle.write.assert_has_calls(calls)
     # now mock tell to return > 0 (file has content)
     mock_open.return_value.tell.return_value = 100
     csvwriter.on_message(client=None, userdata=None, msg=mock_msg)
-    calls.append(mock.call('0,2024-03-06 12:00:00,123,,\r\n'))  # readings only
+    calls.append(mock.call('0,2024-03-06T12:00:00+00:00,123,,\r\n'))  # readings only
     assert handle.write.call_count == 3
     handle.write.assert_has_calls(calls)
 
