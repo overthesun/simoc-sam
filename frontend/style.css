@@ -74,6 +74,8 @@ main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
 .controls legend { color: var(--muted); font-size: 0.85rem; padding: 0 0.4rem; }
 
 .sensor-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.3rem 0; align-items: center; }
+.sensor-row.stale .toggle { opacity: 0.5; }
+.sensor-row.stale .toggle.sensor::after { content: ' (stale)'; font-size: 0.75em; font-weight: normal; }
 
 .toggle {
   background: var(--bg);

@@ -114,11 +114,13 @@ def create_app(db_path=None):
         sensors = {}
         for sensor, sensor_data in SENSOR_DATA.items():
             ts = latest.get(sensor)
-            active = (ts is not None and
+            has_data = ts is not None
+            active = (has_data and
                       now - parse_timestamp(ts) <= threshold)
             sensors[sensor] = {
                 'name': sensor_data.name,
                 'description': sensor_data.description,
+                'has_data': has_data,
                 'active': active,
                 'metrics': {
                     metric: {'label': info.get('label', metric),

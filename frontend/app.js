@@ -117,8 +117,9 @@ async function buildSelectionUI() {
   state.sensors = data.sensors;
   const fieldset = $('#sensor-selection');
   for (const [sensor, info] of Object.entries(data.sensors)) {
+    if (!info.has_data) continue;  // skip sensors with no DB rows
     const row = document.createElement('div');
-    row.className = 'sensor-row';
+    row.className = info.active ? 'sensor-row' : 'sensor-row stale';
     const sensorBtn = document.createElement('button');
     sensorBtn.className = 'toggle sensor';
     sensorBtn.textContent = info.name;
@@ -141,7 +142,11 @@ async function buildSelectionUI() {
       const on = sensorBtn.classList.toggle('on');
       if (on) {
         state.selection[sensor] = new Set();
-        metricBtns.forEach(([, btn]) => { btn.disabled = false; });
+        metricBtns.forEach(([metric, btn]) => {
+          btn.disabled = false;
+          btn.classList.add('on');
+          state.selection[sensor].add(metric);
+        });
       } else {
         delete state.selection[sensor];
         metricBtns.forEach(([, btn]) => {

@@ -68,6 +68,21 @@ def test_sensors_inactive_when_empty(client):
     data = client.get('/api/sensors').get_json()
     assert all(not s['active'] for s in data['sensors'].values())
 
+def test_sensors_no_has_data_when_empty(client):
+    data = client.get('/api/sensors').get_json()
+    assert all(not s['has_data'] for s in data['sensors'].values())
+
+def test_sensors_has_data_true_with_any_data(client, db_conn):
+    # even very old data counts
+    insert_row(db_conn, 'scd30', timestamp=make_timestamp(-86400 * 30), co2=700)
+    data = client.get('/api/sensors').get_json()
+    assert data['sensors']['scd30']['has_data'] is True
+
+def test_sensors_has_data_false_for_empty_sensor(client, db_conn):
+    insert_row(db_conn, 'scd30', co2=700)
+    data = client.get('/api/sensors').get_json()
+    assert data['sensors']['bme688']['has_data'] is False
+
 def test_sensors_active_with_recent_data(client, db_conn):
     insert_row(db_conn, 'scd30', timestamp=make_timestamp(), co2=700)
     data = client.get('/api/sensors').get_json()
