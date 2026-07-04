@@ -1,0 +1,6 @@
+# Pinned versions of vendored frontend libraries.
+# Update by downloading new versions from these URLs (see zero_frontend.md).
+chart.umd.js                 4.5.0    https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js
+chartjs-adapter-date-fns.js  3.0.0    https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js
+flatpickr.js                 4.6.13   https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js
+flatpickr.css                4.6.13   https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css

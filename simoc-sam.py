@@ -486,7 +486,8 @@ def setup_nginx():
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
     dist_dir = config.simoc_web_dist_dir
-    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
+    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir,
+                                    api_port=config.api_port))
     (sites_enabled / 'simoc_live').symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start/reload nginx
@@ -504,6 +505,42 @@ def teardown_nginx():
     run(['systemctl', 'stop', 'nginx'])
     run(['systemctl', 'disable', 'nginx'])
     pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
+
+
+@cmd
+@needs_root
+def setup_flask():
+    """Setup a systemd service that runs the Flask API."""
+    setup_systemd_unit('flaskapi')
+
+@cmd
+@needs_root
+def teardown_flask():
+    """Revert the changes made by the setup-flask command."""
+    teardown_systemd_unit('flaskapi')
+
+
+@cmd
+@needs_root
+def setup_frontend():
+    """Copy the frontend to the web dir and set up nginx and the Flask API."""
+    frontend_dir = SIMOC_SAM_DIR / 'frontend'
+    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    print(f'Copying {frontend_dir} to {dist_dir}...')
+    shutil.copytree(frontend_dir, dist_dir, dirs_exist_ok=True)
+    setup_nginx()
+    setup_flask()
+
+@cmd
+@needs_root
+def teardown_frontend():
+    """Revert the changes made by the setup-frontend command."""
+    teardown_flask()
+    teardown_nginx()
+    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    if dist_dir.exists():
+        print(f'Removing {dist_dir}...')
+        shutil.rmtree(dist_dir)
 
 
 @cmd

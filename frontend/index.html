@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIMOC Live</title>
+  <link rel="stylesheet" href="vendor/flatpickr.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>SIMOC Live</h1>
+    <nav>
+      <button id="nav-live" class="nav-btn active" data-section="live">Live</button>
+      <button id="nav-history" class="nav-btn" data-section="history">History</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Live Dashboard -->
+    <section id="section-live">
+      <div id="live-status" class="status-line"></div>
+      <div id="live-cards" class="cards"></div>
+    </section>
+
+    <!-- Historical Data -->
+    <section id="section-history" hidden>
+      <div class="controls">
+        <fieldset id="sensor-selection">
+          <legend>Sensors &amp; metrics</legend>
+          <!-- populated by JS: one row of toggles per sensor -->
+        </fieldset>
+
+        <fieldset>
+          <legend>Time range</legend>
+          <div class="time-range">
+            <label>From <input id="time-start" type="text" placeholder="start"></label>
+            <label>To <input id="time-end" type="text" placeholder="end"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>View</legend>
+          <label><input type="radio" name="view-mode" value="plot" checked> Plot</label>
+          <label><input type="radio" name="view-mode" value="table"> Table</label>
+        </fieldset>
+
+        <div class="actions">
+          <button id="btn-query" class="primary">Show data</button>
+          <select id="export-format">
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+          <button id="btn-export-visible">Export visible</button>
+          <button id="btn-export-full">Export full range</button>
+        </div>
+      </div>
+
+      <div id="history-status" class="status-line"></div>
+      <div id="history-results"></div>
+    </section>
+  </main>
+
+  <dialog id="modal">
+    <p id="modal-message"></p>
+    <form method="dialog">
+      <button class="primary">OK</button>
+    </form>
+  </dialog>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="vendor/chartjs-adapter-date-fns.js"></script>
+  <script src="vendor/flatpickr.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

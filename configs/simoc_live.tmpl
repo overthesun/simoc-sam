@@ -9,6 +9,11 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    location /api/ {
+        proxy_pass http://localhost:{{api_port}};
+        proxy_set_header Host $host;
+    }
+
     location /socket.io/ {
         proxy_pass http://localhost:8081;
         proxy_http_version 1.1;

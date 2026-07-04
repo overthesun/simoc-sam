@@ -1,0 +1,144 @@
+/* SIMOC Live -- lightweight frontend */
+
+:root {
+  --bg: #12161c;
+  --panel: #1c232d;
+  --border: #2e3946;
+  --text: #dde4ec;
+  --muted: #8899aa;
+  --accent: #e28a2b;
+  --active: #3fae6a;
+  --inactive: #666;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 { font-size: 1.2rem; margin: 0; color: var(--accent); }
+
+.nav-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.nav-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
+
+.status-line { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin-bottom: 0.75rem; }
+
+/* live dashboard */
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+.card h2 { margin: 0 0 0.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.card .dot { width: 0.6em; height: 0.6em; border-radius: 50%; background: var(--inactive); }
+.card.active .dot { background: var(--active); }
+.card table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.card td { padding: 0.15rem 0; }
+.card td.value { text-align: right; font-variant-numeric: tabular-nums; }
+.card .ts { color: var(--muted); font-size: 0.75rem; margin-top: 0.5rem; }
+
+/* history controls */
+
+.controls fieldset {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+.controls legend { color: var(--muted); font-size: 0.85rem; padding: 0 0.4rem; }
+
+.sensor-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.3rem 0; align-items: center; }
+
+.toggle {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.toggle.on { background: var(--accent); border-color: var(--accent); color: #000; }
+.toggle.sensor { font-weight: bold; min-width: 6.5rem; }
+.toggle:disabled { opacity: 0.4; cursor: default; }
+
+.time-range { display: flex; flex-wrap: wrap; gap: 1rem; }
+.time-range input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  width: 12.5rem;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+.actions button, .actions select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #000; }
+
+/* history results */
+
+.chart-box, .table-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+.chart-box h3, .table-box h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.chart-box .chart-wrap { position: relative; height: 300px; }
+
+.table-box { overflow-x: auto; }
+.table-box table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+.table-box th, .table-box td {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.6rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.table-box th { color: var(--accent); }
+.table-box td:first-child, .table-box th:first-child { text-align: left; }
+
+/* modal */
+
+dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-width: 24rem;
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
