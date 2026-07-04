@@ -35,6 +35,7 @@ def test_default_vars():
         'sio_host', 'sio_port', 'data_source', 'mqtt_topic_sub',
         'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging',
         'bno085_default_err_value', 'bno085_enabled_features',
+
     ]
     changed_vars = ['location', 'display_format']
     path_vars = config._path_vars
@@ -87,7 +88,8 @@ def test_path_variables_user_override(user_config):
     """Test that string paths are converted to Path objects."""
     # create user config that sets path vars with strings
     vars = config._path_vars
-    paths = ['/custom/certs', '/custom/dist', '/custom/logs', '/custom/data']
+    paths = ['/custom/certs', '/custom/dist', '/custom/logs',
+             '/custom/data', '/custom/data/sensor_data.db']
     assert len(vars) == len(paths)
     config_text = '\n'.join(f'{var} = {path!r}' for var, path in zip(vars, paths))
     user_config.write_text(config_text)

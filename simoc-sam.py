@@ -458,6 +458,18 @@ def teardown_csvwriter():
     """Revert the changes made by the setup-csvwriter command."""
     teardown_systemd_unit('csvwriter')
 
+@cmd
+@needs_root
+def setup_sqlwriter():
+    """Setup a systemd service that runs the sqlwriter."""
+    setup_systemd_unit('sqlwriter')
+
+@cmd
+@needs_root
+def teardown_sqlwriter():
+    """Revert the changes made by the setup-sqlwriter command."""
+    teardown_systemd_unit('sqlwriter')
+
 
 @cmd
 @needs_root
