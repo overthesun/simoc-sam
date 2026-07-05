@@ -116,6 +116,9 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
         conditions.append('timestamp < ?')
         params.append(end)
     where = f'WHERE {" AND ".join(conditions)}' if conditions else ''
+    # This query interpolates the table name (sensor) which must be
+    # a value included in SENSOR_DATA (see check above), and uses parameterized
+    # queries (where) for all other values to avoid SQL injection.
     cursor = conn.execute(
         f'SELECT * FROM {sensor} {where} ORDER BY timestamp', params
     )
