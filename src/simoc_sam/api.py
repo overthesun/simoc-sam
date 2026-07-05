@@ -12,6 +12,7 @@ import pathlib
 from datetime import datetime, timezone, timedelta
 
 from flask import Flask, jsonify, request, g, Response
+from werkzeug.exceptions import HTTPException
 
 from simoc_sam import config, db
 from simoc_sam.sensors.utils import SENSOR_DATA
@@ -55,6 +56,13 @@ def create_app(db_path=None):
         conn = g.pop('db_conn', None)
         if conn is not None:
             conn.close()
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(err):
+        if isinstance(err, HTTPException):
+            return err  # let Flask handle 4xx/5xx HTTP errors normally
+        app.logger.exception('Unhandled exception')
+        return jsonify({'error': 'Internal server error'}), 500
 
     def get_latest_timestamps(conn):
         """Return a dict of sensor -> latest timestamp (ISO string or None)."""
@@ -157,6 +165,7 @@ def create_app(db_path=None):
         try:
             start, end, selection, limit = parse_selection(request.get_json())
         except ValueError as err:
+            app.logger.debug('Bad request to /api/query: %s', err)
             return jsonify({'error': str(err)}), 400
         conn = get_db()
         result = query_selection(conn, start, end, selection, limit)
@@ -173,6 +182,7 @@ def create_app(db_path=None):
         try:
             start, end, selection, _ = parse_selection(payload)
         except ValueError as err:
+            app.logger.debug('Bad request to /api/export: %s', err)
             return jsonify({'error': str(err)}), 400
         conn = get_db()
         result = query_selection(conn, start, end, selection, limit=None)
