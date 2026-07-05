@@ -100,8 +100,9 @@ function renderLiveCards(sensors, latest) {
       const value = reading?.[metric];
       const display = (value === null || value === undefined) ? '--'
         : (typeof value === 'number' ? value.toFixed(1) : value);
+      const unit = meta.unit ? ` ${meta.unit}` : '';
       return `<tr><td>${meta.label}</td>
-              <td class="value">${display} ${meta.unit}</td></tr>`;
+              <td class="value">${display}${unit}</td></tr>`;
     }).join('');
     const ts = reading ? formatLocal(Date.parse(reading.timestamp)) : 'no data';
     card.innerHTML = `
@@ -292,8 +293,11 @@ function makeTableBox(sensor, metrics, data) {
   const info = state.sensors[sensor];
   const box = document.createElement('div');
   box.className = 'table-box';
-  const headers = metrics.map(
-    (m) => `<th>${info.metrics[m].label} (${info.metrics[m].unit})</th>`).join('');
+  const headers = metrics.map((m) => {
+    const {label, unit} = info.metrics[m];
+    const text = unit ? `${label} (${unit})` : label;
+    return `<th>${text}</th>`;
+  }).join('');
   const rows = data.timestamps.map((ts, i) => {
     const cells = metrics.map((m) => `<td>${data[m][i] ?? ''}</td>`).join('');
     return `<tr><td>${formatLocal(ts)}</td>${cells}</tr>`;
