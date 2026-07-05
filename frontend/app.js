@@ -62,6 +62,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
 /* ---------- live dashboard ---------- */
 
 function startPolling() {
+  if (pollTimer !== null) return;
   refreshLive();
   pollTimer = setInterval(refreshLive, POLL_INTERVAL);
 }
