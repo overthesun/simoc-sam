@@ -8,6 +8,7 @@ import io
 import csv
 import json
 import pathlib
+import sqlite3
 
 from datetime import datetime, timezone, timedelta
 
@@ -68,10 +69,13 @@ def create_app(db_path=None):
         """Return a dict of sensor -> latest timestamp (ISO string or None)."""
         latest = {}
         for sensor in SENSOR_DATA:
-            row = conn.execute(
-                f'SELECT MAX(timestamp) FROM {sensor}'
-            ).fetchone()
-            latest[sensor] = row[0]
+            try:
+                row = conn.execute(
+                    f'SELECT MAX(timestamp) FROM {sensor}'
+                ).fetchone()
+                latest[sensor] = row[0]
+            except sqlite3.OperationalError:
+                latest[sensor] = None  # missing sensor table
         return latest
 
     def parse_selection(payload):
@@ -99,8 +103,11 @@ def create_app(db_path=None):
         """Query the DB and return {sensor: {timestamps: [...], metric: [...]}}."""
         result = {}
         for sensor, metrics in selection.items():
-            readings = db.get_readings(sensor, conn=conn, start=start,
-                                       end=end, decimate=limit)
+            try:
+                readings = db.get_readings(sensor, conn=conn, start=start,
+                                           end=end, decimate=limit)
+            except sqlite3.OperationalError:
+                readings = {}  # missing sensor table
             if not readings:
                 result[sensor] = {'timestamps': []}
                 result[sensor].update({m: [] for m in metrics})
@@ -145,10 +152,13 @@ def create_app(db_path=None):
         sensors = {}
         for sensor, sensor_data in SENSOR_DATA.items():
             metrics = list(sensor_data.data.keys())
-            row = conn.execute(
-                f'SELECT sensor_id, timestamp, {", ".join(metrics)} '
-                f'FROM {sensor} ORDER BY timestamp DESC LIMIT 1'
-            ).fetchone()
+            try:
+                row = conn.execute(
+                    f'SELECT sensor_id, timestamp, {", ".join(metrics)} '
+                    f'FROM {sensor} ORDER BY timestamp DESC LIMIT 1'
+                ).fetchone()
+            except sqlite3.OperationalError:
+                continue  # missing sensor table
             if row is None:
                 continue
             sensor_id, timestamp, *values = row

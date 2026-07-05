@@ -83,6 +83,26 @@ def test_sensors_has_data_false_for_empty_sensor(client, db_conn):
     data = client.get('/api/sensors').get_json()
     assert data['sensors']['bme688']['has_data'] is False
 
+def test_sensors_tolerates_missing_table(tmp_path):
+    """Sensors added to sensors.toml before sqlwriter runs have no table yet."""
+    # open a DB with no tables at all
+    app = create_app(db_path=tmp_path / 'empty.db')
+    app.config['TESTING'] = True
+    with app.test_client() as c:
+        response = c.get('/api/sensors')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert all(not s['has_data'] for s in data['sensors'].values())
+
+def test_latest_tolerates_missing_table(tmp_path):
+    """api/latest returns empty sensors dict when no tables exist."""
+    app = create_app(db_path=tmp_path / 'empty.db')
+    app.config['TESTING'] = True
+    with app.test_client() as c:
+        response = c.get('/api/latest')
+        assert response.status_code == 200
+        assert response.get_json() == {'sensors': {}}
+
 def test_sensors_active_with_recent_data(client, db_conn):
     insert_row(db_conn, 'scd30', timestamp=make_timestamp(), co2=700)
     data = client.get('/api/sensors').get_json()
