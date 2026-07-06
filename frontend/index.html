@@ -51,15 +51,19 @@
           <label><input type="radio" name="view-mode" value="table"> Table</label>
         </fieldset>
 
-        <div class="actions">
-          <button id="btn-query" class="primary">Show data</button>
-          <select id="export-format">
-            <option value="csv">CSV</option>
-            <option value="json">JSON</option>
-          </select>
-          <button id="btn-export-visible">Export visible</button>
-          <button id="btn-export-full">Export full range</button>
-        </div>
+        <fieldset>
+          <legend>Export</legend>
+          <div class="export-controls">
+            <select id="export-format">
+              <option value="csv">CSV</option>
+              <option value="json">JSON</option>
+            </select>
+            <button id="btn-export-visible">Export visible</button>
+            <button id="btn-export-full">Export full range</button>
+          </div>
+        </fieldset>
+
+        <button id="btn-query" class="primary btn-query-full">Show data</button>
       </div>
 
       <div id="history-status" class="status-line"></div>
