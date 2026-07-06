@@ -19,6 +19,7 @@ const state = {
 let charts = [];            // Chart.js instances (destroyed on re-render)
 let pollTimer = null;
 let datePicker = null;
+let selectionUIReady = null;
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -46,13 +47,21 @@ function formatTimeNow() {
 
 /* ---------- navigation ---------- */
 
-function showSection(name) {
+async function showSection(name) {
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.section === name);
   });
   $('#section-live').hidden = name !== 'live';
   $('#section-history').hidden = name !== 'history';
-  if (name === 'live') startPolling(); else stopPolling();
+  if (name === 'live') {
+    startPolling();
+  } else {
+    stopPolling();
+    if (!state.lastResult) {
+      await selectionUIReady;  // ensure UI is ready before querying
+      if (Object.keys(getSelection()).length) runQuery();
+    }
+  }
 }
 
 document.querySelectorAll('.nav-btn').forEach((btn) => {
@@ -165,6 +174,8 @@ async function buildSelectionUI() {
     });
     fieldset.appendChild(row);
   }
+  // auto-select all active (non-stale) sensors
+  document.querySelectorAll('.sensor-row:not(.stale) .toggle.sensor').forEach((btn) => btn.click());
 }
 
 function getSelection() {
@@ -416,7 +427,7 @@ $('#btn-export-visible').addEventListener('click', exportVisible);
 $('#btn-export-full').addEventListener('click', exportFull);
 
 initTimePickers();
-buildSelectionUI().catch((err) => {
+selectionUIReady = buildSelectionUI().catch((err) => {
   $('#history-status').textContent = `Error loading sensors: ${err.message}`;
 });
 startPolling();
