@@ -18,6 +18,7 @@ const state = {
 
 let charts = [];            // Chart.js instances (destroyed on re-render)
 let pollTimer = null;
+let datePicker = null;
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -178,18 +179,43 @@ function getSelection() {
 /* ---------- time range ---------- */
 
 function initTimePickers() {
-  const options = {enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i'};
-  flatpickr('#time-start', options);
-  flatpickr('#time-end', options);
+  datePicker = flatpickr('#date-range', {mode: 'range', dateFormat: 'Y-m-d'});
+  const timeOpts = {enableTime: true, noCalendar: true, time_24hr: true, dateFormat: 'H:i'};
+  flatpickr('#time-start', timeOpts);
+  flatpickr('#time-end', timeOpts);
 }
 
 function getTimeRange() {
-  // convert local picker values to UTC ISO strings for the API
-  const toUTC = (value) => {
-    if (!value) return null;
-    return new Date(value).toISOString().replace(/\.\d{3}Z$/, '+00:00');
+  const startTime = $('#time-start').value;
+  const endTime   = $('#time-end').value;
+  let dates = datePicker ? datePicker.selectedDates : [];
+  if (!dates.length) {
+    if (!startTime && !endTime) return {start: null, end: null};
+    // time entered without a date: default to today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dates = [today];
+  }
+  const startDate = dates[0];
+  const endDate   = dates[1] || dates[0];
+  const combine = (date, timeStr) => {
+    const d = new Date(date);
+    const [h, m] = (timeStr || '00:00').split(':').map(Number);
+    d.setHours(h, m, 0, 0);
+    return d.toISOString().replace(/\.\d{3}Z$/, '+00:00');
   };
-  return {start: toUTC($('#time-start').value), end: toUTC($('#time-end').value)};
+  const start = combine(startDate, startTime);
+  let end;
+  if (endTime) {
+    end = combine(endDate, endTime);
+  } else {
+    // no end time: advance to next-day midnight so the whole last day is included
+    const next = new Date(endDate);
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+    end = next.toISOString().replace(/\.\d{3}Z$/, '+00:00');
+  }
+  return {start, end};
 }
 
 
