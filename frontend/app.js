@@ -266,12 +266,26 @@ function renderResults() {
   container.replaceChildren();
   if (!state.lastResult) return;
   const selection = getSelection();
+
+  // shared x-axis bounds: use the selected time range when set, otherwise
+  // span all data so every chart has the same x scale
+  const {start, end} = getTimeRange();
+  let xMin = start ? new Date(start).getTime() : undefined;
+  let xMax = end   ? new Date(end).getTime()   : undefined;
+  if (xMin === undefined || xMax === undefined) {
+    const all = Object.values(state.lastResult).flatMap(d => d.timestamps || []);
+    if (all.length) {
+      if (xMin === undefined) xMin = Math.min(...all);
+      if (xMax === undefined) xMax = Math.max(...all);
+    }
+  }
+
   for (const [sensor, metrics] of Object.entries(selection)) {
     const data = state.lastResult[sensor];
     if (!data) continue;
     if (state.viewMode === 'plot') {
       for (const metric of metrics) {
-        container.appendChild(makeChartBox(sensor, metric, data));
+        container.appendChild(makeChartBox(sensor, metric, data, xMin, xMax));
       }
     } else {
       container.appendChild(makeTableBox(sensor, metrics, data));
@@ -279,7 +293,7 @@ function renderResults() {
   }
 }
 
-function makeChartBox(sensor, metric, data) {
+function makeChartBox(sensor, metric, data, xMin, xMax) {
   const info = state.sensors[sensor];
   const meta = info.metrics[metric];
   const label = meta.unit ? `${meta.label} (${meta.unit})` : meta.label;
@@ -302,21 +316,30 @@ function makeChartBox(sensor, metric, data) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: {type: 'time',
-            time: {
-              displayFormats: {
-                millisecond: 'HH:mm:ss.SSS',
-                second:      'HH:mm:ss',
-                minute:      'HH:mm',
-                hour:        'HH:mm',
-                day:         'yyyy-MM-dd',
-                week:        'yyyy-MM-dd',
-                month:       'yyyy-MM',
-                quarter:     'yyyy-MM',
-                year:        'yyyy',
-              },
+        x: {
+          type: 'time',
+          ...(xMin !== undefined && {min: xMin}),
+          ...(xMax !== undefined && {max: xMax}),
+          time: {
+            displayFormats: {
+              millisecond: 'HH:mm:ss.SSS',
+              second:      'HH:mm:ss',
+              minute:      'HH:mm',
+              hour:        'HH:mm',
+              day:         'yyyy-MM-dd',
+              week:        'yyyy-MM-dd',
+              month:       'yyyy-MM',
+              year:        'yyyy',
             },
-            ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
+          },
+          ticks: {
+            color: '#8899aa',
+            maxTicksLimit: 10,
+            major: {enabled: true},
+            font: (ctx) => ctx.tick?.major ? {weight: 'bold'} : {},
+          },
+          grid: {color: '#2e3946'},
+        },
         y: {ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
       },
       plugins: {legend: {display: false}},
