@@ -77,6 +77,24 @@ main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
 .sensor-row.stale .toggle { opacity: 0.5; }
 .sensor-row.stale .toggle.sensor::after { content: ' (stale)'; font-size: 0.75em; font-weight: normal; }
 
+.view-toggle { display: flex; gap: 0.4rem; }
+.view-toggle input[type="radio"] { display: none; }
+.view-toggle label {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  user-select: none;
+}
+.view-toggle label:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
 .toggle {
   background: var(--bg);
   border: 1px solid var(--border);
