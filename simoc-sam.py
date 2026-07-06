@@ -487,7 +487,10 @@ def setup_nginx():
     shutil.copy(simoc_live_tmpl, simoc_live)
     dist_dir = config.simoc_web_dist_dir
     write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
-    (sites_enabled / 'simoc_live').symlink_to(simoc_live)
+    simoc_live_link = sites_enabled / 'simoc_live'
+    if simoc_live_link.exists() or simoc_live_link.is_symlink():
+        simoc_live_link.unlink()
+    simoc_live_link.symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start/reload nginx
     if not run(['systemctl', 'is-enabled', 'nginx']):
