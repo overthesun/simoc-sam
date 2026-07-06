@@ -1,5 +1,12 @@
 /* SIMOC Live -- lightweight frontend */
 
+@font-face {
+  font-family: 'Nasalization';
+  src: url('nasalization-rg-webfont.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
 :root {
   --bg: #12161c;
   --panel: #1c232d;
@@ -29,7 +36,17 @@ header {
   border-bottom: 1px solid var(--border);
 }
 
-header h1 { font-size: 1.2rem; margin: 0; color: var(--accent); }
+header h1 {
+  font-size: 1.2rem;
+  margin: 0;
+  color: var(--accent);
+  font-family: 'Nasalization', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-logo { height: 2rem; width: auto; }
 
 .nav-btn {
   background: none;
