@@ -10,12 +10,12 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://localhost:{{api_port}};
+        proxy_pass http://127.0.0.1:{{api_port}};
         proxy_set_header Host $host;
     }
 
     location /socket.io/ {
-        proxy_pass http://localhost:8081;
+        proxy_pass http://127.0.0.1:{{sio_port}};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
