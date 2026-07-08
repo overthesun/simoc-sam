@@ -13,7 +13,11 @@ Wants=sqlwriter.service
 User=pi
 WorkingDirectory=/home/pi/simoc-sam
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.api
+ExecStart=/home/pi/simoc-sam/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:8082 \
+    --access-logfile - \
+    "simoc_sam.api:create_app()"
 Restart=always
 RestartSec=5
 StandardOutput=journal
