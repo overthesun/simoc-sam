@@ -126,6 +126,7 @@ main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
 .toggle:disabled { opacity: 0.4; cursor: default; }
 
 .time-range { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+.quick-range { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 .time-range label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--muted); }
 .time-range input {
   background: var(--bg);

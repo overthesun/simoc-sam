@@ -35,14 +35,21 @@
         <fieldset>
           <legend>Time range</legend>
           <div class="time-range">
-            <label>Dates <input id="date-range" type="text" placeholder="start - end"></label>
+            <label>Dates <input id="date-range" type="text" placeholder="start — end"></label>
             <label>Time (optional)
               <span class="time-inputs">
                 <input id="time-start" type="text" placeholder="from">
-                <span>-</span>
+                <span>—</span>
                 <input id="time-end" type="text" placeholder="to">
               </span>
             </label>
+          </div>
+          <div class="quick-range">
+            <button class="toggle" data-range="hour">Last hour</button>
+            <button class="toggle" data-range="day">Last day</button>
+            <button class="toggle" data-range="week">Last week</button>
+            <button class="toggle" data-range="month">Last month</button>
+            <button class="toggle" data-range="all">All data</button>
           </div>
         </fieldset>
 
@@ -66,7 +73,7 @@
           </div>
         </fieldset>
 
-        <button id="btn-query" class="primary btn-query-full">Show data</button>
+        <button id="btn-query" class="primary btn-query-full">↻ Refresh</button>
       </div>
 
       <div id="history-status" class="status-line"></div>

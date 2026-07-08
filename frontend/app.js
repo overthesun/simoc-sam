@@ -19,6 +19,8 @@ const state = {
 let charts = [];            // Chart.js instances (destroyed on re-render)
 let pollTimer = null;
 let datePicker = null;
+let timeStartPicker = null;
+let timeEndPicker = null;
 let selectionUIReady = null;
 
 const $ = (sel) => document.querySelector(sel);
@@ -189,11 +191,47 @@ function getSelection() {
 
 /* ---------- time range ---------- */
 
+function clearQuickRangeHighlight() {
+  document.querySelectorAll('.quick-range [data-range]').forEach((b) => b.classList.remove('on'));
+}
+
 function initTimePickers() {
-  datePicker = flatpickr('#date-range', {mode: 'range', dateFormat: 'Y-m-d'});
-  const timeOpts = {enableTime: true, noCalendar: true, time_24hr: true, dateFormat: 'H:i'};
-  flatpickr('#time-start', timeOpts);
-  flatpickr('#time-end', timeOpts);
+  datePicker = flatpickr('#date-range', {mode: 'range', dateFormat: 'Y-m-d',
+    onChange: clearQuickRangeHighlight});
+  const timeOpts = {enableTime: true, noCalendar: true, time_24hr: true, dateFormat: 'H:i',
+    onChange: clearQuickRangeHighlight};
+  timeStartPicker = flatpickr('#time-start', timeOpts);
+  timeEndPicker   = flatpickr('#time-end',   timeOpts);
+}
+
+function applyQuickRange(range) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  timeStartPicker.clear();
+  timeEndPicker.clear();
+  if (range === 'all') {
+    datePicker.clear();
+  } else if (range === 'hour') {
+    const start = new Date(now - 3600 * 1000);
+    datePicker.setDate([start, now]);
+    timeStartPicker.setDate(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
+    timeEndPicker.setDate(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+  } else if (range === 'day') {
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    datePicker.setDate([today, now]);
+  } else if (range === 'week') {
+    const weekAgo = new Date(now - 7 * 86400 * 1000);
+    weekAgo.setHours(0, 0, 0, 0);
+    datePicker.setDate([weekAgo, now]);
+  } else if (range === 'month') {
+    const monthAgo = new Date(now - 30 * 86400 * 1000);
+    monthAgo.setHours(0, 0, 0, 0);
+    datePicker.setDate([monthAgo, now]);
+  }
+  // highlight the active button
+  document.querySelectorAll('.quick-range [data-range]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.range === range);
+  });
 }
 
 function getTimeRange() {
@@ -448,6 +486,10 @@ document.querySelectorAll('input[name="view-mode"]').forEach((radio) => {
 $('#btn-query').addEventListener('click', runQuery);
 $('#btn-export-visible').addEventListener('click', exportVisible);
 $('#btn-export-full').addEventListener('click', exportFull);
+
+document.querySelectorAll('.quick-range [data-range]').forEach((btn) => {
+  btn.addEventListener('click', () => applyQuickRange(btn.dataset.range));
+});
 
 initTimePickers();
 selectionUIReady = buildSelectionUI().catch((err) => {
