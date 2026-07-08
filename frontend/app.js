@@ -140,12 +140,14 @@ async function buildSelectionUI() {
     const row = document.createElement('div');
     row.className = info.active ? 'sensor-row' : 'sensor-row stale';
     const sensorBtn = document.createElement('button');
+    sensorBtn.type = 'button';
     sensorBtn.className = 'toggle sensor';
     sensorBtn.textContent = info.name;
     row.appendChild(sensorBtn);
     const metricBtns = [];
     for (const [metric, meta] of Object.entries(info.metrics)) {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'toggle';
       btn.textContent = meta.label;
       btn.disabled = true;
