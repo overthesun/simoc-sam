@@ -6,7 +6,8 @@
 [Unit]
 Description=Flask API serving SQLite sensor data to the frontend
 StartLimitIntervalSec=0
-After=network.target
+After=network.target sqlwriter.service
+Wants=sqlwriter.service
 
 [Service]
 User=pi

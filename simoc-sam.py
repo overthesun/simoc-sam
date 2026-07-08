@@ -527,11 +527,12 @@ def teardown_flask():
 @cmd
 @needs_root
 def setup_frontend():
-    """Copy the frontend to the web dir and set up nginx and the Flask API."""
+    """Copy the frontend to the web dir and set up nginx, Flask API, and sqlwriter."""
     frontend_dir = SIMOC_SAM_DIR / 'frontend'
     dist_dir = pathlib.Path(config.simoc_web_dist_dir)
     print(f'Copying {frontend_dir} to {dist_dir}...')
     shutil.copytree(frontend_dir, dist_dir, dirs_exist_ok=True)
+    setup_sqlwriter()
     setup_nginx()
     setup_flask()
 
