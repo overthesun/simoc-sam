@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import pwd
 import uuid
 import shutil
 import socket
@@ -26,7 +27,17 @@ except ModuleNotFoundError:
     config = None
 
 
-HOME = pathlib.Path.home()
+RUNNING_WITH_SUDO = os.geteuid() == 0 and os.environ.get('SUDO_USER')
+if RUNNING_WITH_SUDO:
+    # non-root user running the script with sudo
+    USER = os.environ['SUDO_USER']
+    HOME = pathlib.Path(pwd.getpwnam(USER).pw_dir)
+else:
+    # script is run without sudo, or by root directly
+    HOME = pathlib.Path.home()
+    USER = os.environ.get('USER') or os.environ.get('LOGNAME')
+HOSTNAME = socket.gethostname()
+
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 RPI_CONFIG = pathlib.Path('/boot/firmware/config.txt')
@@ -41,7 +52,6 @@ VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = SIMOC_SAM_DIR / 'requirements.txt'
 DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
-HOSTNAME = socket.gethostname()
 
 APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx', 'avahi-utils',
                'mosquitto', 'mosquitto-clients', 'util-linux-extra']
@@ -364,6 +374,10 @@ def write_service_env_file():
     }
     env_file = SIMOC_SAM_DIR / '.env'
     env_file.write_text(''.join(f'{k}={v}\n' for k, v in env_vars.items()))
+    # ensure the file is accessible/editable by other commands without sudo
+    if RUNNING_WITH_SUDO:
+        pw = pwd.getpwnam(USER)
+        os.chown(env_file, pw.pw_uid, pw.pw_gid)
     print(f'Service environment file written to {env_file}')
 
 def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
