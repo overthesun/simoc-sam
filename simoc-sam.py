@@ -27,10 +27,11 @@ except ModuleNotFoundError:
     config = None
 
 
-RUNNING_WITH_SUDO = os.geteuid() == 0 and os.environ.get('SUDO_USER')
+SUDO_USER = os.environ.get('SUDO_USER')  # the original user who invoked sudo
+RUNNING_WITH_SUDO = os.geteuid() == 0 and bool(SUDO_USER)
 if RUNNING_WITH_SUDO:
     # non-root user running the script with sudo
-    USER = os.environ['SUDO_USER']
+    USER = SUDO_USER
     HOME = pathlib.Path(pwd.getpwnam(USER).pw_dir)
 else:
     # script is run without sudo, or by root directly
