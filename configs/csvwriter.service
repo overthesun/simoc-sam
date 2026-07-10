@@ -12,7 +12,8 @@ After=network.target
 User=pi
 WorkingDirectory=/home/pi/simoc-sam
 Environment=PYTHONUNBUFFERED=1
-EnvironmentFile=%h/simoc-sam/.env
+Environment=VENV_PY=/home/pi/simoc-sam/venv/bin/python3
+EnvironmentFile=-%h/simoc-sam/.env
 ExecStart=${VENV_PY} -m simoc_sam.csvwriter
 Restart=always
 RestartSec=5
