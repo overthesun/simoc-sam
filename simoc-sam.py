@@ -536,6 +536,7 @@ def setup_frontend():
     setup_sqlwriter()
     setup_nginx()
     setup_flask()
+    print(f'\nFrontend available at: http://{HOSTNAME}.local/')
 
 @cmd
 @needs_root
