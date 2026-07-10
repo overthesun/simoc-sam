@@ -374,11 +374,16 @@ def write_service_env_file():
         'VENV_PY': VENV_PY,
     }
     env_file = SIMOC_SAM_DIR / '.env'
-    env_file.write_text(''.join(f'{k}={v}\n' for k, v in env_vars.items()))
+    content = ''.join(f'{k}={v}\n' for k, v in env_vars.items())
+    # write to a temp file in the same dir, then atomically replace
+    with tempfile.NamedTemporaryFile(mode='w', dir=SIMOC_SAM_DIR, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = pathlib.Path(tmp.name)
     # ensure the file is accessible/editable by other commands without sudo
     if RUNNING_WITH_SUDO:
         pw = pwd.getpwnam(USER)
-        os.chown(env_file, pw.pw_uid, pw.pw_gid)
+        os.chown(tmp_path, pw.pw_uid, pw.pw_gid)
+    os.replace(tmp_path, env_file)
     print(f'Service environment file written to {env_file}')
 
 def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
