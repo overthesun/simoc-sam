@@ -155,7 +155,7 @@ def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     user = user or 'pi'
     path = path or '/home/pi/simoc-sam'
     repo = f'{pathlib.Path(__file__).parent}/'  # rsync wants the trailing /
-    excludes = ['--exclude', '**/__pycache__']
+    excludes = ['--exclude', '**/__pycache__', '--exclude', '.env']
     if exclude_venv:
         excludes.extend(['--exclude', 'venv'])
     if exclude_git:
