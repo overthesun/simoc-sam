@@ -12,7 +12,8 @@ After=network.target
 User=pi
 WorkingDirectory=/home/pi/simoc-sam
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/pi/simoc-sam/venv/bin/python -m simoc_sam.siobridge
+EnvironmentFile=%h/simoc-sam/.env
+ExecStart=${VENV_PY} -m simoc_sam.siobridge
 Restart=always
 RestartSec=5
 StandardOutput=journal

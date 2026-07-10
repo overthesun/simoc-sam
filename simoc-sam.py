@@ -132,6 +132,7 @@ def update():
         print('Code updated successfully.')
     else:
         print('Update failed: see error log above for details.')
+    write_service_env_file()  # update .env file
     return success
 
 
@@ -356,8 +357,18 @@ def teardown_mosquitto():
     mosquitto_conf_dest.unlink(missing_ok=True)
 
 
+def write_service_env_file():
+    """Create environment file for systemd services."""
+    env_vars = {
+        'VENV_PY': VENV_PY,
+    }
+    env_file = SIMOC_SAM_DIR / '.env'
+    env_file.write_text(''.join(f'{k}={v}\n' for k, v in env_vars.items()))
+    print(f'Service environment file written to {env_file}')
+
 def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
     """Setup a systemd unit by creating symlink and optionally enabling/starting."""
+    write_service_env_file()
     unit_name = f'{name}.{unit_type}'
     if '@' in name:
         # handle templates, e.g. sensor-runner@scd30 -> sensor-runner@.service
