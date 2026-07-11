@@ -35,8 +35,8 @@ if RUNNING_WITH_SUDO:
     HOME = pathlib.Path(pwd.getpwnam(USER).pw_dir)
 else:
     # script is run without sudo, or by root directly
-    HOME = pathlib.Path.home()
     USER = os.environ.get('USER') or os.environ.get('LOGNAME')
+    HOME = pathlib.Path.home()
 HOSTNAME = socket.gethostname()
 
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
