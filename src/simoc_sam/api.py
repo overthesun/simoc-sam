@@ -7,6 +7,7 @@ read connection (WAL mode allows safe concurrent reads with the writer).
 import io
 import csv
 import json
+import time
 import pathlib
 import sqlite3
 
@@ -102,12 +103,17 @@ def create_app(db_path=None):
     def query_selection(conn, start, end, selection, limit):
         """Query the DB and return {sensor: {timestamps: [...], metric: [...]}}."""
         result = {}
+        t_total = time.perf_counter()
         for sensor, metrics in selection.items():
+            t0 = time.perf_counter()
             try:
                 readings = db.get_readings(sensor, conn=conn, start=start,
                                            end=end, decimate=limit)
             except sqlite3.OperationalError:
                 readings = {}  # missing sensor table
+            app.logger.debug('get_readings(%s): %.3fs, %d rows', sensor,
+                             time.perf_counter() - t0,
+                             len(readings.get('timestamp', [])))
             if not readings:
                 result[sensor] = {'timestamps': []}
                 result[sensor].update({m: [] for m in metrics})
@@ -117,6 +123,7 @@ def create_app(db_path=None):
             }
             for metric in metrics:
                 result[sensor][metric] = readings[metric]
+        app.logger.debug('query_selection total: %.3fs', time.perf_counter() - t_total)
         return result
 
     @app.get('/api/sensors')
