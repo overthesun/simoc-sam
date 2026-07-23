@@ -7,6 +7,7 @@ read connection (WAL mode allows safe concurrent reads with the writer).
 import io
 import csv
 import json
+import logging
 import time
 import pathlib
 import sqlite3
@@ -42,6 +43,13 @@ def create_app(db_path=None):
     """Create and return the Flask app (db_path overrides config.db_path)."""
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path='')
     app.config['DB_PATH'] = db_path or config.db_path
+
+    # When running under Gunicorn, inherit its log handlers and level so
+    # app.logger messages appear in journalctl alongside Gunicorn's own logs.
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    if gunicorn_logger.handlers:
+        app.logger.handlers = gunicorn_logger.handlers
+        app.logger.setLevel(gunicorn_logger.level)
 
     @app.get('/')
     def index():
@@ -111,9 +119,9 @@ def create_app(db_path=None):
                                            end=end, decimate=limit)
             except sqlite3.OperationalError:
                 readings = {}  # missing sensor table
-            app.logger.debug('get_readings(%s): %.3fs, %d rows', sensor,
-                             time.perf_counter() - t0,
-                             len(readings.get('timestamp', [])))
+            app.logger.info('get_readings(%s): %.3fs, %d rows', sensor,
+                            time.perf_counter() - t0,
+                            len(readings.get('timestamp', [])))
             if not readings:
                 result[sensor] = {'timestamps': []}
                 result[sensor].update({m: [] for m in metrics})
@@ -123,7 +131,7 @@ def create_app(db_path=None):
             }
             for metric in metrics:
                 result[sensor][metric] = readings[metric]
-        app.logger.debug('query_selection total: %.3fs', time.perf_counter() - t_total)
+        app.logger.info('query_selection total: %.3fs', time.perf_counter() - t_total)
         return result
 
     @app.get('/api/sensors')
@@ -182,7 +190,7 @@ def create_app(db_path=None):
         try:
             start, end, selection, limit = parse_selection(request.get_json())
         except ValueError as err:
-            app.logger.debug('Bad request to /api/query: %s', err)
+            app.logger.warning('Bad request to /api/query: %s', err)
             return jsonify({'error': str(err)}), 400
         conn = get_db()
         result = query_selection(conn, start, end, selection, limit)
@@ -199,7 +207,7 @@ def create_app(db_path=None):
         try:
             start, end, selection, _ = parse_selection(payload)
         except ValueError as err:
-            app.logger.debug('Bad request to /api/export: %s', err)
+            app.logger.warning('Bad request to /api/export: %s', err)
             return jsonify({'error': str(err)}), 400
         conn = get_db()
         result = query_selection(conn, start, end, selection, limit=None)
