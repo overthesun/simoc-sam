@@ -418,7 +418,7 @@ function downloadBlob(content, filename, mimetype) {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function exportVisible() {
