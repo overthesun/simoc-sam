@@ -135,7 +135,7 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
             cursor = conn.execute(full_sql, params)
         else:
             # Fetch only evenly-spaced rows by rowid, skipping the rest.
-            stride = max(1, (last_id - first_id) // (decimate - 1))
+            stride = max(1, (last_id - first_id) // ((decimate - 1) or 1))
             target_ids = list(range(first_id, last_id + 1, stride))[:decimate]
             id_placeholders = ','.join('?' * len(target_ids))
             extra = f' AND {" AND ".join(conditions)}' if conditions else ''

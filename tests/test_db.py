@@ -174,6 +174,15 @@ def test_get_readings_decimate(db_conn):
     assert len(result['co2']) == 10
 
 
+def test_get_readings_decimate_one(db_conn):
+    for i in range(10):
+        _insert_row(db_conn, 'scd30', n=i,
+                    timestamp=f'2026-01-01 {i:02d}:00:00',
+                    co2=float(400 + i), temperature=23.0, humidity=45.0)
+    result = get_readings('scd30', conn=db_conn, decimate=1)
+    assert len(result['co2']) == 1
+
+
 @pytest.mark.parametrize('decimate', [0, -1, -100])
 def test_get_readings_decimate_invalid(db_conn, decimate):
     _insert_row(db_conn, 'scd30', co2=450.0, temperature=23.5, humidity=45.2)
