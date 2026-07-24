@@ -3,7 +3,7 @@
 'use strict';
 
 const POLL_INTERVAL = 5000;  // live dashboard refresh (ms)
-const PLOT_LIMIT = 1000;     // max points per sensor in plot/table mode
+const PLOT_LIMIT = 500;      // max points per sensor in plot/table mode
 
 const CHART_COLORS = ['#e28a2b', '#4488ff', '#3fae6a', '#ff5566',
                       '#b06cd9', '#3fc4c4', '#e2d02b', '#ff9955'];
