@@ -374,7 +374,7 @@ def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
     if enable:
         run(['systemctl', 'enable', unit_name])
     if start:
-        run(['systemctl', 'start', unit_name])
+        run(['systemctl', 'restart', unit_name])
 
 def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     """Optionally stop/disable the unit and then remove the symlink."""
