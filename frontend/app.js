@@ -17,6 +17,32 @@ const state = {
 };
 
 let charts = [];            // Chart.js instances (destroyed on re-render)
+
+/* ---------- preference persistence ---------- */
+
+const PREFS_KEY = 'simoc_prefs';
+let _restoringPrefs = false;  // suppress saves while replaying saved state on load
+
+function savePrefs() {
+  if (_restoringPrefs) return;
+  const activeRange = document.querySelector('.quick-range [data-range].on');
+  const prefs = {
+    selection: Object.fromEntries(
+      Object.entries(state.selection).map(([s, m]) => [s, [...m]])
+    ),
+    viewMode: state.viewMode,
+    quickRange: activeRange ? activeRange.dataset.range : null,
+  };
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+}
+
+function loadPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
 let pollTimer = null;
 let datePicker = null;
 let timeStartPicker = null;
@@ -135,6 +161,7 @@ async function buildSelectionUI() {
   const data = await fetchJSON('/api/sensors');
   state.sensors = data.sensors;
   const fieldset = $('#sensor-selection');
+  const sensorControls = {};  // sensor -> {sensorBtn, metricBtns: {metric -> btn}}
   for (const [sensor, info] of Object.entries(data.sensors)) {
     if (!info.has_data) continue;  // skip sensors with no DB rows
     const row = document.createElement('div');
@@ -145,6 +172,7 @@ async function buildSelectionUI() {
     sensorBtn.textContent = info.name;
     row.appendChild(sensorBtn);
     const metricBtns = [];
+    const metricBtnMap = {};
     for (const [metric, meta] of Object.entries(info.metrics)) {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -155,8 +183,10 @@ async function buildSelectionUI() {
         btn.classList.toggle('on');
         const set = state.selection[sensor];
         if (btn.classList.contains('on')) set.add(metric); else set.delete(metric);
+        savePrefs();
       });
       metricBtns.push([metric, btn]);
+      metricBtnMap[metric] = btn;
       row.appendChild(btn);
     }
     sensorBtn.addEventListener('click', () => {
@@ -175,11 +205,26 @@ async function buildSelectionUI() {
           btn.classList.remove('on');
         });
       }
+      savePrefs();
     });
     fieldset.appendChild(row);
+    sensorControls[sensor] = {sensorBtn, metricBtns: metricBtnMap};
   }
-  // auto-select all active (non-stale) sensors
-  document.querySelectorAll('.sensor-row:not(.stale) .toggle.sensor').forEach((btn) => btn.click());
+  // restore saved selection, or auto-select all active (non-stale) sensors
+  const prefs = loadPrefs();
+  if (prefs.selection && Object.keys(prefs.selection).length) {
+    for (const [sensor, savedMetrics] of Object.entries(prefs.selection)) {
+      const ctrl = sensorControls[sensor];
+      if (!ctrl) continue;  // sensor no longer available
+      ctrl.sensorBtn.click();  // turn on sensor, enabling all its metrics
+      const savedSet = new Set(savedMetrics);
+      for (const [metric, btn] of Object.entries(ctrl.metricBtns)) {
+        if (!savedSet.has(metric)) btn.click();  // turn off unsaved metrics
+      }
+    }
+  } else {
+    document.querySelectorAll('.sensor-row:not(.stale) .toggle.sensor').forEach((btn) => btn.click());
+  }
 }
 
 function getSelection() {
@@ -195,6 +240,7 @@ function getSelection() {
 
 function clearQuickRangeHighlight() {
   document.querySelectorAll('.quick-range [data-range]').forEach((b) => b.classList.remove('on'));
+  savePrefs();
 }
 
 function initTimePickers() {
@@ -234,6 +280,7 @@ function applyQuickRange(range) {
   document.querySelectorAll('.quick-range [data-range]').forEach((b) => {
     b.classList.toggle('on', b.dataset.range === range);
   });
+  savePrefs();
 }
 
 function getTimeRange() {
@@ -486,6 +533,7 @@ async function exportFull() {
 $('#view-mode-toggle').addEventListener('change', (e) => {
   state.viewMode = e.target.checked ? 'table' : 'plot';
   renderResults();
+  savePrefs();
 });
 
 $('#btn-query').addEventListener('click', runQuery);
@@ -497,6 +545,15 @@ document.querySelectorAll('.quick-range [data-range]').forEach((btn) => {
 });
 
 initTimePickers();
+// restore view mode and quick range; suppress saves until selection is also restored
+_restoringPrefs = true;
+const {viewMode: _savedViewMode, quickRange: _savedQuickRange} = loadPrefs();
+if (_savedViewMode) {
+  state.viewMode = _savedViewMode;
+  $('#view-mode-toggle').checked = _savedViewMode === 'table';
+}
+if (_savedQuickRange) applyQuickRange(_savedQuickRange);
+_restoringPrefs = false;
 selectionUIReady = buildSelectionUI().catch((err) => {
   $('#history-status').textContent = `Error loading sensors: ${err.message}`;
 });
