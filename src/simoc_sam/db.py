@@ -86,7 +86,7 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
         sensor_id: filter by exact sensor_id, e.g. 'lab.rpi1.scd30'
         location:  filter by location
         host:      filter by host
-        start:     filter timestamp >= start (ISO string, e.g. '2026-01-01', inclusive)
+        start:     filter timestamp >= start (ISO string, e.g. '2026-01-01T00:00:00+00:00', inclusive)
         end:       filter timestamp < end (ISO string, exclusive)
         decimate:  if set, return ~this many evenly-spaced rows
 
@@ -99,6 +99,8 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
         conn = get_conn()
     if sensor not in SENSOR_DATA:
         raise ValueError(f'Unknown sensor: {sensor!r}')
+    if decimate is not None and decimate <= 0:
+        raise ValueError(f'decimate must be a positive integer, got {decimate!r}')
     conditions, params = [], []
     if sensor_id:
         conditions.append('sensor_id = ?')
@@ -116,18 +118,37 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
         conditions.append('timestamp < ?')
         params.append(end)
     where = f'WHERE {" AND ".join(conditions)}' if conditions else ''
-    cursor = conn.execute(
-        f'SELECT * FROM {sensor} {where} ORDER BY timestamp', params
-    )
+    # Interpolates sensor (validated against SENSOR_DATA above); all other
+    # values use parameterized queries to prevent SQL injection.
+    full_sql = f'SELECT * FROM {sensor} {where} ORDER BY timestamp'
+    if decimate:
+        # Two O(log N) index seeks give the rowid range of matching rows.
+        # Fast when WHERE uses an indexed column (e.g. sensor_id).
+        boundary_sql = f'SELECT id FROM {sensor} {where} ORDER BY timestamp'
+        first_row = conn.execute(f'{boundary_sql} ASC LIMIT 1', params).fetchone()
+        if first_row is None:
+            return {}
+        last_row = conn.execute(f'{boundary_sql} DESC LIMIT 1', params).fetchone()
+        first_id, last_id = first_row[0], last_row[0]
+        if last_id - first_id < decimate:
+            # Fewer candidate rows than target; return all matching rows.
+            cursor = conn.execute(full_sql, params)
+        else:
+            # Fetch only evenly-spaced rows by rowid, skipping the rest.
+            stride = max(1, (last_id - first_id) // ((decimate - 1) or 1))
+            target_ids = list(range(first_id, last_id + 1, stride))[:decimate]
+            id_placeholders = ','.join('?' * len(target_ids))
+            extra = f' AND {" AND ".join(conditions)}' if conditions else ''
+            cursor = conn.execute(
+                f'SELECT * FROM {sensor} WHERE id IN ({id_placeholders}){extra} ORDER BY id',
+                [*target_ids, *params]
+            )
+    else:
+        cursor = conn.execute(full_sql, params)
     col_names = [d[0] for d in cursor.description]
     rows = cursor.fetchall()
     if not rows:
         return {}
-    if decimate is not None and decimate <= 0:
-        raise ValueError(f'decimate must be a positive integer, got {decimate!r}')
-    if decimate and len(rows) > decimate:
-        step = len(rows) / decimate
-        rows = [rows[int(i * step)] for i in range(decimate)]
     return {
         col: [row[i] for row in rows]
         for i, col in enumerate(col_names)

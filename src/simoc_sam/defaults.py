@@ -51,6 +51,11 @@ mqtt_topic_sub = '#'
 simoc_web_dist_dir = '/var/www/simoc'
 
 
+# Flask API configuration (lightweight frontend)
+api_host = 'localhost'
+api_port = 8082
+
+
 # Verbosity and logging
 verbose_sensor = False
 verbose_mqtt = False
