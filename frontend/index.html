@@ -54,14 +54,6 @@
         </fieldset>
 
         <fieldset>
-          <legend>View</legend>
-          <div class="view-toggle">
-            <label><input type="radio" name="view-mode" value="plot" checked> Plot</label>
-            <label><input type="radio" name="view-mode" value="table"> Table</label>
-          </div>
-        </fieldset>
-
-        <fieldset>
           <legend>Export</legend>
           <div class="export-controls">
             <select id="export-format">
@@ -76,7 +68,17 @@
         <button id="btn-query" class="primary btn-query-full">↻ Refresh</button>
       </div>
 
-      <div id="history-status" class="status-line"></div>
+      <div class="status-row">
+        <div id="history-status" class="status-line"></div>
+        <div id="view-mode-switch" class="view-mode-switch" hidden>
+          <span>Plot</span>
+          <label class="switch">
+            <input type="checkbox" id="view-mode-toggle">
+            <span class="slider"></span>
+          </label>
+          <span>Table</span>
+        </div>
+      </div>
       <div id="history-results"></div>
     </section>
   </main>

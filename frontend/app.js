@@ -304,6 +304,7 @@ function renderResults() {
   charts.forEach((c) => c.destroy());
   charts = [];
   container.replaceChildren();
+  $('#view-mode-switch').hidden = true;
   if (!state.lastResult) return;
   const selection = getSelection();
 
@@ -323,14 +324,18 @@ function renderResults() {
   for (const [sensor, metrics] of Object.entries(selection)) {
     const data = state.lastResult[sensor];
     if (!data) continue;
+    // only render metrics that were actually fetched
+    const available = metrics.filter(m => Array.isArray(data[m]));
+    if (!available.length) continue;
     if (state.viewMode === 'plot') {
-      for (const metric of metrics) {
+      for (const metric of available) {
         container.appendChild(makeChartBox(sensor, metric, data, xMin, xMax));
       }
     } else {
-      container.appendChild(makeTableBox(sensor, metrics, data));
+      container.appendChild(makeTableBox(sensor, available, data));
     }
   }
+  $('#view-mode-switch').hidden = container.children.length === 0;
 }
 
 function makeChartBox(sensor, metric, data, xMin, xMax) {
@@ -478,11 +483,9 @@ async function exportFull() {
 
 /* ---------- init ---------- */
 
-document.querySelectorAll('input[name="view-mode"]').forEach((radio) => {
-  radio.addEventListener('change', () => {
-    state.viewMode = radio.value;
-    renderResults();
-  });
+$('#view-mode-toggle').addEventListener('change', (e) => {
+  state.viewMode = e.target.checked ? 'table' : 'plot';
+  renderResults();
 });
 
 $('#btn-query').addEventListener('click', runQuery);
