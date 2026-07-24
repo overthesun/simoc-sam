@@ -172,15 +172,24 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .chart-box h3, .table-box h3 { margin: 0 0 0.5rem; font-size: 1rem; }
 .chart-box .chart-wrap { position: relative; height: 300px; }
 
-.table-box { overflow-x: auto; }
-.table-box table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+.table-scroll { overflow: auto; max-height: 400px; }
+.table-box table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 0.85rem; }
 .table-box th, .table-box td {
-  border: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 0.25rem 0.6rem;
   text-align: right;
   white-space: nowrap;
 }
-.table-box th { color: var(--accent); }
+.table-box th:first-child, .table-box td:first-child { border-left: 1px solid var(--border); }
+.table-box thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 1;
+  border-top: 1px solid var(--border);
+  color: var(--accent);
+}
 .table-box td:first-child, .table-box th:first-child { text-align: left; }
 
 /* modal */

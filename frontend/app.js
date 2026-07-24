@@ -403,8 +403,8 @@ function makeTableBox(sensor, metrics, data) {
     return `<tr><td>${formatLocal(ts)}</td>${cells}</tr>`;
   }).join('');
   box.innerHTML = `<h3>${info.name}</h3>
-    <table><thead><tr><th>Timestamp</th>${headers}</tr></thead>
-    <tbody>${rows}</tbody></table>`;
+    <div class="table-scroll"><table><thead><tr><th>Timestamp</th>${headers}</tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
   return box;
 }
 
