@@ -118,8 +118,9 @@ async function refreshLive() {
   }
   // Background-refresh sensor metadata periodically (non-blocking).
   if (Date.now() - sensorsRefreshedAt > SENSORS_TTL) {
+    sensorsRefreshedAt = Date.now();
     fetchJSON('/api/sensors')
-      .then(data => { state.sensors = data.sensors; sensorsRefreshedAt = Date.now(); })
+      .then(data => { state.sensors = data.sensors; })
       .catch(() => {});  // non-fatal: keep using cached metadata
   }
   $('#live-status').textContent = 'Loading\u2026';
