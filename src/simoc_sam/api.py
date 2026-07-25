@@ -77,6 +77,7 @@ def create_app(db_path=None):
     def get_latest_timestamps(conn):
         """Return a dict of sensor -> latest timestamp (ISO string or None)."""
         latest = {}
+        t_total = time.perf_counter()
         for sensor in SENSOR_DATA:
             try:
                 row = conn.execute(
@@ -85,6 +86,9 @@ def create_app(db_path=None):
                 latest[sensor] = row[0] if row else None
             except sqlite3.OperationalError:
                 latest[sensor] = None  # missing sensor table
+        n_active = sum(1 for v in latest.values() if v is not None)
+        app.logger.info('get_latest_timestamps: %.3fs, %d/%d sensors with data',
+                        time.perf_counter() - t_total, n_active, len(latest))
         return latest
 
     def parse_selection(payload):
@@ -165,8 +169,10 @@ def create_app(db_path=None):
         """Return the latest reading for each sensor that has data."""
         conn = get_db()
         sensors = {}
+        t_total = time.perf_counter()
         for sensor, sensor_data in SENSOR_DATA.items():
             metrics = list(sensor_data.data.keys())
+            t0 = time.perf_counter()
             try:
                 row = conn.execute(
                     f'SELECT sensor_id, timestamp, {", ".join(metrics)} '
@@ -174,6 +180,7 @@ def create_app(db_path=None):
                 ).fetchone()
             except sqlite3.OperationalError:
                 continue  # missing sensor table
+            app.logger.info('api_latest(%s): %.3fs', sensor, time.perf_counter() - t0)
             if row is None:
                 continue
             sensor_id, timestamp, *values = row
@@ -182,6 +189,8 @@ def create_app(db_path=None):
                 'timestamp': timestamp,
                 **dict(zip(metrics, values)),
             }
+        app.logger.info('api_latest total: %.3fs, %d sensors',
+                        time.perf_counter() - t_total, len(sensors))
         return jsonify({'sensors': sensors})
 
     @app.post('/api/query')
