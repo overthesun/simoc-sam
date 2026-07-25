@@ -80,9 +80,9 @@ def create_app(db_path=None):
         for sensor in SENSOR_DATA:
             try:
                 row = conn.execute(
-                    f'SELECT MAX(timestamp) FROM {sensor}'
+                    f'SELECT timestamp FROM {sensor} ORDER BY id DESC LIMIT 1'
                 ).fetchone()
-                latest[sensor] = row[0]
+                latest[sensor] = row[0] if row else None
             except sqlite3.OperationalError:
                 latest[sensor] = None  # missing sensor table
         return latest
@@ -170,7 +170,7 @@ def create_app(db_path=None):
             try:
                 row = conn.execute(
                     f'SELECT sensor_id, timestamp, {", ".join(metrics)} '
-                    f'FROM {sensor} ORDER BY timestamp DESC LIMIT 1'
+                    f'FROM {sensor} ORDER BY id DESC LIMIT 1'
                 ).fetchone()
             except sqlite3.OperationalError:
                 continue  # missing sensor table

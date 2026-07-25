@@ -48,6 +48,8 @@ let datePicker = null;
 let timeStartPicker = null;
 let timeEndPicker = null;
 let selectionUIReady = null;
+let sensorsRefreshedAt = 0;
+const SENSORS_TTL = 5 * 60 * 1000;  // refresh sensor metadata every 5 minutes
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -111,19 +113,25 @@ function stopPolling() {
 }
 
 async function refreshLive() {
-  let sensors, latest;
+  if (!Object.keys(state.sensors).length) {
+    await selectionUIReady;  // ensure sensor metadata is ready before first render
+  }
+  // Background-refresh sensor metadata periodically (non-blocking).
+  if (Date.now() - sensorsRefreshedAt > SENSORS_TTL) {
+    fetchJSON('/api/sensors')
+      .then(data => { state.sensors = data.sensors; sensorsRefreshedAt = Date.now(); })
+      .catch(() => {});  // non-fatal: keep using cached metadata
+  }
+  $('#live-status').textContent = 'Loading\u2026';
+  let latest;
   try {
-    [sensors, latest] = await Promise.all([
-      fetchJSON('/api/sensors'),
-      fetchJSON('/api/latest'),
-    ]);
+    latest = await fetchJSON('/api/latest');
   } catch (err) {
-    $('#live-status').textContent = `Error fetching data: ${err.message}`;
+    $('#live-status').textContent = `Error: ${err.message}`;
     return;
   }
-  state.sensors = sensors.sensors;
   $('#live-status').textContent = `Last update: ${formatTimeNow()}`;
-  renderLiveCards(sensors.sensors, latest.sensors);
+  renderLiveCards(state.sensors, latest.sensors);
 }
 
 function renderLiveCards(sensors, latest) {
@@ -554,7 +562,9 @@ if (_savedViewMode) {
 }
 if (_savedQuickRange) applyQuickRange(_savedQuickRange);
 _restoringPrefs = false;
-selectionUIReady = buildSelectionUI().catch((err) => {
-  $('#history-status').textContent = `Error loading sensors: ${err.message}`;
-});
+selectionUIReady = buildSelectionUI()
+  .then(() => { sensorsRefreshedAt = Date.now(); })
+  .catch((err) => {
+    $('#history-status').textContent = `Error loading sensors: ${err.message}`;
+  });
 startPolling();
