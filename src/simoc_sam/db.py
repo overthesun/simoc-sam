@@ -134,9 +134,10 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
             # Fewer candidate rows than target; return all matching rows.
             cursor = conn.execute(full_sql, params)
         else:
-            # Fetch only evenly-spaced rows by rowid, skipping the rest.
-            stride = max(1, (last_id - first_id) // ((decimate - 1) or 1))
-            target_ids = list(range(first_id, last_id + 1, stride))[:decimate]
+            # Evenly-spaced rowid targets spanning first_id..last_id inclusive.
+            # Integer linspace: target[i] = first + (last-first)*i//(n-1).
+            target_ids = [first_id + (last_id - first_id) * i // ((decimate - 1) or 1)
+                          for i in range(decimate)]
             id_placeholders = ','.join('?' * len(target_ids))
             extra = f' AND {" AND ".join(conditions)}' if conditions else ''
             cursor = conn.execute(
