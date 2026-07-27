@@ -66,33 +66,29 @@ def test_sensors_metric_metadata(client):
 
 def test_sensors_inactive_when_empty(client):
     data = client.get('/api/sensors').get_json()
-    assert all(not s['active'] for s in data['sensors'].values())
+    # static endpoint — no active/has_data fields
+    assert all('active' not in s for s in data['sensors'].values())
+    assert all('has_data' not in s for s in data['sensors'].values())
 
-def test_sensors_no_has_data_when_empty(client):
-    data = client.get('/api/sensors').get_json()
-    assert all(not s['has_data'] for s in data['sensors'].values())
-
-def test_sensors_has_data_true_with_any_data(client, db_conn):
-    # even very old data counts
-    insert_row(db_conn, 'scd30', timestamp=make_timestamp(-86400 * 30), co2=700)
-    data = client.get('/api/sensors').get_json()
-    assert data['sensors']['scd30']['has_data'] is True
-
-def test_sensors_has_data_false_for_empty_sensor(client, db_conn):
-    insert_row(db_conn, 'scd30', co2=700)
-    data = client.get('/api/sensors').get_json()
-    assert data['sensors']['bme688']['has_data'] is False
 
 def test_sensors_tolerates_missing_table(tmp_path):
     """Sensors added to sensors.toml before sqlwriter runs have no table yet."""
-    # open a DB with no tables at all
     app = create_app(db_path=tmp_path / 'empty.db')
     app.config['TESTING'] = True
     with app.test_client() as c:
         response = c.get('/api/sensors')
         assert response.status_code == 200
         data = response.get_json()
-        assert all(not s['has_data'] for s in data['sensors'].values())
+        # static endpoint always lists all configured sensors
+        assert 'scd30' in data['sensors']
+
+
+# --- /api/latest ---
+
+def test_latest_empty_db(client):
+    data = client.get('/api/latest').get_json()
+    assert data == {'sensors': {}}
+
 
 def test_latest_tolerates_missing_table(tmp_path):
     """api/latest returns empty sensors dict when no tables exist."""
@@ -103,22 +99,33 @@ def test_latest_tolerates_missing_table(tmp_path):
         assert response.status_code == 200
         assert response.get_json() == {'sensors': {}}
 
-def test_sensors_active_with_recent_data(client, db_conn):
+
+def test_latest_has_data_appears_in_response(client, db_conn):
+    insert_row(db_conn, 'scd30', co2=700)
+    data = client.get('/api/latest').get_json()
+    assert 'scd30' in data['sensors']
+    assert 'bme688' not in data['sensors']  # no rows inserted
+
+
+def test_latest_active_with_recent_data(client, db_conn):
     insert_row(db_conn, 'scd30', timestamp=make_timestamp(), co2=700)
-    data = client.get('/api/sensors').get_json()
+    data = client.get('/api/latest').get_json()
     assert data['sensors']['scd30']['active'] is True
 
-def test_sensors_inactive_with_old_data(client, db_conn):
+
+def test_latest_inactive_with_old_data(client, db_conn):
     insert_row(db_conn, 'scd30', timestamp=make_timestamp(-3600), co2=700)
-    data = client.get('/api/sensors').get_json()
+    data = client.get('/api/latest').get_json()
     assert data['sensors']['scd30']['active'] is False
 
 
-# --- /api/latest ---
+def test_latest_sensor_filter(client, db_conn):
+    insert_row(db_conn, 'scd30', co2=700)
+    insert_row(db_conn, 'bme688', temperature=21.0)
+    data = client.get('/api/latest?sensors=scd30').get_json()
+    assert 'scd30' in data['sensors']
+    assert 'bme688' not in data['sensors']
 
-def test_latest_empty_db(client):
-    data = client.get('/api/latest').get_json()
-    assert data == {'sensors': {}}
 
 def test_latest_returns_most_recent(client, db_conn):
     insert_row(db_conn, 'scd30', n=0,

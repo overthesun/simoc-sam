@@ -48,8 +48,9 @@ let datePicker = null;
 let timeStartPicker = null;
 let timeEndPicker = null;
 let selectionUIReady = null;
-let sensorsRefreshedAt = 0;
-const SENSORS_TTL = 5 * 60 * 1000;  // refresh sensor metadata every 5 minutes
+let activeSensors = new Set();   // sensors known to have data (grow-only)
+let discoveryLastRun = 0;
+const DISCOVERY_TTL = 5 * 60 * 1000;  // re-check for new sensors every 5 minutes
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -116,21 +117,21 @@ async function refreshLive() {
   if (!Object.keys(state.sensors).length) {
     await selectionUIReady;  // ensure sensor metadata is ready before first render
   }
-  // Background-refresh sensor metadata periodically (non-blocking).
-  if (Date.now() - sensorsRefreshedAt > SENSORS_TTL) {
-    sensorsRefreshedAt = Date.now();
-    fetchJSON('/api/sensors')
-      .then(data => { state.sensors = data.sensors; })
-      .catch(() => {});  // non-fatal: keep using cached metadata
-  }
+  // Full discovery every 5 minutes to detect newly active sensors.
+  const isDiscovery = Date.now() - discoveryLastRun > DISCOVERY_TTL;
+  if (isDiscovery) discoveryLastRun = Date.now();
+  const url = (isDiscovery || !activeSensors.size)
+    ? '/api/latest'
+    : `/api/latest?sensors=${[...activeSensors].join(',')}`;
   $('#live-status').textContent = 'Loading\u2026';
   let latest;
   try {
-    latest = await fetchJSON('/api/latest');
+    latest = await fetchJSON(url);
   } catch (err) {
     $('#live-status').textContent = `Error: ${err.message}`;
     return;
   }
+  for (const sensor of Object.keys(latest.sensors)) activeSensors.add(sensor);
   $('#live-status').textContent = `Last update: ${formatTimeNow()}`;
   renderLiveCards(state.sensors, latest.sensors);
 }
@@ -139,10 +140,11 @@ function renderLiveCards(sensors, latest) {
   const container = $('#live-cards');
   container.replaceChildren();
   for (const [sensor, info] of Object.entries(sensors)) {
+    if (!activeSensors.has(sensor)) continue;  // skip sensors that never had data
     const reading = latest[sensor];
-    if (!reading && !info.active) continue;  // skip sensors with no data
+    const isActive = reading?.active ?? false;
     const card = document.createElement('div');
-    card.className = info.active ? 'card active' : 'card';
+    card.className = isActive ? 'card active' : 'card';
     const rows = Object.entries(info.metrics).map(([metric, meta]) => {
       const value = reading?.[metric];
       const display = (value === null || value === undefined) ? '--'
@@ -167,14 +169,21 @@ function renderLiveCards(sensors, latest) {
 /* ---------- sensor + metric selection ---------- */
 
 async function buildSelectionUI() {
-  const data = await fetchJSON('/api/sensors');
-  state.sensors = data.sensors;
+  const [sensorsData, latestData] = await Promise.all([
+    fetchJSON('/api/sensors'),
+    fetchJSON('/api/latest'),   // discover which sensors have data
+  ]);
+  state.sensors = sensorsData.sensors;
+  for (const sensor of Object.keys(latestData.sensors)) activeSensors.add(sensor);
+  discoveryLastRun = Date.now();
   const fieldset = $('#sensor-selection');
   const sensorControls = {};  // sensor -> {sensorBtn, metricBtns: {metric -> btn}}
-  for (const [sensor, info] of Object.entries(data.sensors)) {
-    if (!info.has_data) continue;  // skip sensors with no DB rows
+  for (const [sensor, info] of Object.entries(sensorsData.sensors)) {
+    if (!activeSensors.has(sensor)) continue;  // skip sensors with no DB rows
+    const reading = latestData.sensors[sensor];
+    const isActive = reading?.active ?? false;
     const row = document.createElement('div');
-    row.className = info.active ? 'sensor-row' : 'sensor-row stale';
+    row.className = isActive ? 'sensor-row' : 'sensor-row stale';
     const sensorBtn = document.createElement('button');
     sensorBtn.type = 'button';
     sensorBtn.className = 'toggle sensor';
@@ -564,7 +573,6 @@ if (_savedViewMode) {
 if (_savedQuickRange) applyQuickRange(_savedQuickRange);
 _restoringPrefs = false;
 selectionUIReady = buildSelectionUI()
-  .then(() => { sensorsRefreshedAt = Date.now(); })
   .catch((err) => {
     $('#history-status').textContent = `Error loading sensors: ${err.message}`;
   });

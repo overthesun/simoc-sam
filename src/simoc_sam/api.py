@@ -74,23 +74,6 @@ def create_app(db_path=None):
         app.logger.exception('Unhandled exception')
         return jsonify({'error': 'Internal server error'}), 500
 
-    def get_latest_timestamps(conn):
-        """Return a dict of sensor -> latest timestamp (ISO string or None)."""
-        latest = {}
-        t_total = time.perf_counter()
-        for sensor in SENSOR_DATA:
-            try:
-                row = conn.execute(
-                    f'SELECT timestamp FROM {sensor} ORDER BY id DESC LIMIT 1'
-                ).fetchone()
-                latest[sensor] = row[0] if row else None
-            except sqlite3.OperationalError:
-                latest[sensor] = None  # missing sensor table
-        n_active = sum(1 for v in latest.values() if v is not None)
-        app.logger.info('get_latest_timestamps: %.3fs, %d/%d sensors with data',
-                        time.perf_counter() - t_total, n_active, len(latest))
-        return latest
-
     def parse_selection(payload):
         """Validate and return (start, end, selection, limit) from a request payload."""
         if not payload:
@@ -140,37 +123,44 @@ def create_app(db_path=None):
 
     @app.get('/api/sensors')
     def api_sensors():
-        """Return configured sensors with metric metadata and active state."""
-        conn = get_db()
-        latest = get_latest_timestamps(conn)
-        threshold = timedelta(seconds=max(600, config.sensor_read_delay))
-        now = datetime.now(timezone.utc)
-        sensors = {}
-        for sensor, sensor_data in SENSOR_DATA.items():
-            ts = latest.get(sensor)
-            has_data = ts is not None
-            active = (has_data and
-                      now - parse_timestamp(ts) <= threshold)
-            sensors[sensor] = {
+        """Return static sensor metadata from sensors.toml (no DB queries).
+
+        The response only changes when sensors.toml changes; clients should
+        cache it and only refetch after a page reload.
+        """
+        sensors = {
+            sensor: {
                 'name': sensor_data.name,
                 'description': sensor_data.description,
-                'has_data': has_data,
-                'active': active,
                 'metrics': {
                     metric: {'label': info.get('label', metric),
                              'unit': info.get('unit', '')}
                     for metric, info in sensor_data.data.items()
                 },
             }
+            for sensor, sensor_data in SENSOR_DATA.items()
+        }
         return jsonify({'sensors': sensors})
 
     @app.get('/api/latest')
     def api_latest():
-        """Return the latest reading for each sensor that has data."""
+        """Return the latest reading for each sensor that has data.
+
+        Accepts optional ?sensors=name1,name2 to limit which sensors are queried.
+        Without a filter all configured sensors are queried (used for discovery).
+        """
         conn = get_db()
-        sensors = {}
+        requested = request.args.get('sensors', '')
+        sensors_to_query = (
+            [s for s in requested.split(',') if s in SENSOR_DATA]
+            if requested else list(SENSOR_DATA.keys())
+        )
+        threshold = timedelta(seconds=max(600, config.sensor_read_delay))
+        now = datetime.now(timezone.utc)
+        result = {}
         t_total = time.perf_counter()
-        for sensor, sensor_data in SENSOR_DATA.items():
+        for sensor in sensors_to_query:
+            sensor_data = SENSOR_DATA[sensor]
             metrics = list(sensor_data.data.keys())
             t0 = time.perf_counter()
             try:
@@ -184,14 +174,15 @@ def create_app(db_path=None):
             if row is None:
                 continue
             sensor_id, timestamp, *values = row
-            sensors[sensor] = {
+            result[sensor] = {
                 'sensor_id': sensor_id,
                 'timestamp': timestamp,
+                'active': now - parse_timestamp(timestamp) <= threshold,
                 **dict(zip(metrics, values)),
             }
-        app.logger.info('api_latest total: %.3fs, %d sensors',
-                        time.perf_counter() - t_total, len(sensors))
-        return jsonify({'sensors': sensors})
+        app.logger.info('api_latest total: %.3fs, %d/%d sensors',
+                        time.perf_counter() - t_total, len(result), len(sensors_to_query))
+        return jsonify({'sensors': result})
 
     @app.post('/api/query')
     def api_query():
