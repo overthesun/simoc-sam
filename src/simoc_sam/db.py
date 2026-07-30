@@ -124,6 +124,8 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
     if decimate:
         # Two O(log N) index seeks give the rowid range of matching rows.
         # Fast when WHERE uses an indexed column (e.g. sensor_id).
+        # Assumes rows are inserted in timestamp order so the id range
+        # corresponds to the timestamp range.
         boundary_sql = f'SELECT id FROM {sensor} {where} ORDER BY timestamp'
         first_row = conn.execute(f'{boundary_sql} ASC LIMIT 1', params).fetchone()
         if first_row is None:

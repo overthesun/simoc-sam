@@ -164,6 +164,8 @@ def create_app(db_path=None):
             metrics = list(sensor_data.data.keys())
             t0 = time.perf_counter()
             try:
+                # Assumes that the most recent reading has the highest id
+                # (much faster than ordering by timestamp).
                 row = conn.execute(
                     f'SELECT sensor_id, timestamp, {", ".join(metrics)} '
                     f'FROM {sensor} ORDER BY id DESC LIMIT 1'
