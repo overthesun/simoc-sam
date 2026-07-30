@@ -124,6 +124,8 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
     if decimate:
         # Two O(log N) index seeks give the rowid range of matching rows.
         # Fast when WHERE uses an indexed column (e.g. sensor_id).
+        # Assumes rows are inserted in timestamp order so the id range
+        # corresponds to the timestamp range.
         boundary_sql = f'SELECT id FROM {sensor} {where} ORDER BY timestamp'
         first_row = conn.execute(f'{boundary_sql} ASC LIMIT 1', params).fetchone()
         if first_row is None:
@@ -134,9 +136,10 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
             # Fewer candidate rows than target; return all matching rows.
             cursor = conn.execute(full_sql, params)
         else:
-            # Fetch only evenly-spaced rows by rowid, skipping the rest.
-            stride = max(1, (last_id - first_id) // ((decimate - 1) or 1))
-            target_ids = list(range(first_id, last_id + 1, stride))[:decimate]
+            # Evenly-spaced rowid targets spanning first_id..last_id inclusive.
+            # Integer linspace: target[i] = first + (last-first)*i//(n-1).
+            target_ids = [first_id + (last_id - first_id) * i // ((decimate - 1) or 1)
+                          for i in range(decimate)]
             id_placeholders = ','.join('?' * len(target_ids))
             extra = f' AND {" AND ".join(conditions)}' if conditions else ''
             cursor = conn.execute(
