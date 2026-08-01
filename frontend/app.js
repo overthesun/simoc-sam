@@ -471,7 +471,11 @@ function makeChartBox(sensor, metric, data, xMin, xMax) {
         },
         y: {ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
       },
-      plugins: {legend: {display: false}},
+      interaction: {mode: 'nearest', intersect: false},
+      plugins: {
+        legend: {display: false},
+        tooltip: {mode: 'nearest', intersect: false},
+      },
     },
   });
   charts.push(chart);
