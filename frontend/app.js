@@ -449,6 +449,7 @@ function makeChartBox(sensor, metric, data, xMin, xMax) {
           ...(xMin !== undefined && {min: xMin}),
           ...(xMax !== undefined && {max: xMax}),
           time: {
+            tooltipFormat: 'yyyy-MM-dd HH:mm:ss',
             displayFormats: {
               millisecond: 'HH:mm:ss.SSS',
               second:      'HH:mm:ss',
