@@ -403,6 +403,24 @@ function renderResults() {
   $('#view-mode-switch').hidden = container.children.length === 0;
 }
 
+// Map timestamps/values to Chart.js {x,y} points, inserting a null sentinel
+// between consecutive points whose interval exceeds `factor` × the median.
+// Chart.js breaks the line on null values (spanGaps defaults to false).
+function prepareData(timestamps, values, factor = 5) {
+  const pts = timestamps.map((ts, i) => ({x: ts, y: values[i]}));
+  if (pts.length < 2) return pts;
+  const intervals = pts.slice(1).map((p, i) => p.x - pts[i].x);
+  const median = [...intervals].sort((a, b) => a - b)[Math.floor(intervals.length / 2)];
+  const threshold = median * factor;
+  const result = [];
+  for (let i = 0; i < pts.length; i++) {
+    if (i > 0 && intervals[i - 1] > threshold)
+      result.push({x: (pts[i - 1].x + pts[i].x) / 2, y: null});
+    result.push(pts[i]);
+  }
+  return result;
+}
+
 function makeChartBox(sensor, metric, data, xMin, xMax) {
   const info = state.sensors[sensor];
   const meta = info.metrics[metric];
@@ -412,7 +430,7 @@ function makeChartBox(sensor, metric, data, xMin, xMax) {
   box.innerHTML = `<h3>${info.name} — ${label}</h3><div class="chart-wrap"><canvas></canvas></div>`;
   const dataset = {
     label,
-    data: data.timestamps.map((ts, i) => ({x: ts, y: data[metric][i]})),
+    data: prepareData(data.timestamps, data[metric]),
     borderColor: CHART_COLORS[0],
     backgroundColor: CHART_COLORS[0],
     pointRadius: 0,
@@ -431,6 +449,7 @@ function makeChartBox(sensor, metric, data, xMin, xMax) {
           ...(xMin !== undefined && {min: xMin}),
           ...(xMax !== undefined && {max: xMax}),
           time: {
+            tooltipFormat: 'yyyy-MM-dd HH:mm:ss',
             displayFormats: {
               millisecond: 'HH:mm:ss.SSS',
               second:      'HH:mm:ss',
@@ -452,7 +471,11 @@ function makeChartBox(sensor, metric, data, xMin, xMax) {
         },
         y: {ticks: {color: '#8899aa'}, grid: {color: '#2e3946'}},
       },
-      plugins: {legend: {display: false}},
+      interaction: {mode: 'nearest', intersect: false},
+      plugins: {
+        legend: {display: false},
+        tooltip: {mode: 'nearest', intersect: false},
+      },
     },
   });
   charts.push(chart);
