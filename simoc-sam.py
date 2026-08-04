@@ -835,17 +835,19 @@ def clean_config():
 
 
 def create_help(cmds):
-    help = ['Full list of available commands:']
-    for cmd, func in cmds.items():
-        help.append(f'{cmd.replace("_", "-"):18} {func.__doc__}')
-    return '\n'.join(help)
+    lines = ['Available commands:']
+    for name, func in cmds.items():
+        doc = (func.__doc__ or '').strip().split('\n')[0]
+        lines.append(f'  {name.replace("_", "-"):<22} {doc}')
+    return '\n'.join(lines)
 
 
 def create_parser():
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         description="Setup and run SIMOC-SAM.",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=create_help(COMMANDS),
     )
     subparsers = parser.add_subparsers(dest='cmd', required=True)
     # Create subparser for each command from its signature

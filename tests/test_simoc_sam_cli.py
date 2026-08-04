@@ -84,6 +84,19 @@ def test_parser_spaces_in_args():
     assert args.ssid == 'My Network'
 
 
+def test_parser_help_shows_commands(capsys):
+    """Test that top-level --help lists all registered commands."""
+    parser = simoc_sam_cli.create_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(['--help'])
+    out = capsys.readouterr().out
+    # Spot-check a few commands from different parts of the file
+    assert 'create-venv' in out
+    assert 'setup-hotspot' in out
+    assert 'setup-sensors' in out
+    assert 'services-info' in out
+
+
 def test_main_positional_args_only(clean_commands):
     """Test main() with positional arguments distributes correctly."""
     # Create a test command
