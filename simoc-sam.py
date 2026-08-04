@@ -566,10 +566,12 @@ def teardown_frontend():
 
 @cmd
 @needs_venv
-def test(*args):
-    """Run the tests."""
-    pytest = str(VENV_DIR / 'bin' / 'pytest')
-    return run([pytest, '-v', *args])
+def test(test_path=None):
+    """Run the tests (pass an optional path or test-id to filter)."""
+    cmd = [str(VENV_DIR / 'bin' / 'pytest'), '-v']
+    if test_path:
+        cmd.append(test_path)
+    return run(cmd)
 
 
 @cmd
@@ -856,13 +858,12 @@ def create_parser():
             cmd_name.replace('_', '-'),
             help=func.__doc__
         )
-        # Add positional collector to accept arguments in order
+        sig = inspect.signature(func)
         subparser.add_argument('_positional', nargs='*')
         # Add optional --flag for each parameter
-        sig = inspect.signature(func)
         for param_name, param in sig.parameters.items():
             if param.kind == inspect.Parameter.VAR_POSITIONAL:
-                continue  # Skip *args in --flag form
+                continue  # handled by _positional above
             flag_name = f'--{param_name.replace("_", "-")}'
             subparser.add_argument(flag_name, dest=param_name, default=argparse.SUPPRESS)
     return parser
