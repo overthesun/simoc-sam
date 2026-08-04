@@ -910,7 +910,9 @@ def main():
         # Otherwise: parameter has a default and wasn't provided, so don't pass it
 
     result = func(*call_args, **call_kwargs)
-    sys.exit(0 if result else 1)
+    # Treat None as success: informational commands (info, services-info, …) have
+    # no meaningful return value.  Only an explicit False signals failure.
+    sys.exit(0 if result is not False else 1)
 
 
 if __name__ == '__main__':
