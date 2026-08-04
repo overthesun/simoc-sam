@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIMOC Live</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="vendor/flatpickr.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1><img src="simoc-logo.svg" alt="SIMOC" class="header-logo"> SIMOC Live</h1>
+    <nav>
+      <button id="nav-live" class="nav-btn active" data-section="live">Live</button>
+      <button id="nav-history" class="nav-btn" data-section="history">History</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Live Dashboard -->
+    <section id="section-live">
+      <div id="live-status" class="status-line"></div>
+      <div id="live-cards" class="cards"></div>
+    </section>
+
+    <!-- Historical Data -->
+    <section id="section-history" hidden>
+      <div class="controls">
+        <fieldset id="sensor-selection">
+          <legend>Sensors &amp; metrics</legend>
+          <!-- populated by JS: one row of toggles per sensor -->
+        </fieldset>
+
+        <fieldset>
+          <legend>Time range</legend>
+          <div class="time-range">
+            <label>Dates <input id="date-range" type="text" placeholder="start — end"></label>
+            <label>Time (optional)
+              <span class="time-inputs">
+                <input id="time-start" type="text" placeholder="from">
+                <span>—</span>
+                <input id="time-end" type="text" placeholder="to">
+              </span>
+            </label>
+          </div>
+          <div class="quick-range">
+            <button class="toggle" data-range="hour">Last hour</button>
+            <button class="toggle" data-range="day">Last day</button>
+            <button class="toggle" data-range="week">Last week</button>
+            <button class="toggle" data-range="month">Last month</button>
+            <button class="toggle" data-range="all">All data</button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Export</legend>
+          <div class="export-controls">
+            <select id="export-format">
+              <option value="csv">CSV</option>
+              <option value="json">JSON</option>
+            </select>
+            <button id="btn-export-visible">Export visible</button>
+            <button id="btn-export-full">Export full range</button>
+          </div>
+        </fieldset>
+
+        <button id="btn-query" class="primary btn-query-full">↻ Refresh</button>
+      </div>
+
+      <div class="status-row">
+        <div id="history-status" class="status-line"></div>
+        <div id="view-mode-switch" class="view-mode-switch" hidden>
+          <span>Plot</span>
+          <label class="switch">
+            <input type="checkbox" id="view-mode-toggle">
+            <span class="slider"></span>
+          </label>
+          <span>Table</span>
+        </div>
+      </div>
+      <div id="history-results"></div>
+    </section>
+  </main>
+
+  <dialog id="modal">
+    <p id="modal-message"></p>
+    <form method="dialog">
+      <button class="primary">OK</button>
+    </form>
+  </dialog>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="vendor/chartjs-adapter-date-fns.js"></script>
+  <script src="vendor/flatpickr.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
