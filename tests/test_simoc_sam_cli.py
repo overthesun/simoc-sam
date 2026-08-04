@@ -48,18 +48,18 @@ def test_cmd_decorator(clean_commands):
 def test_parser_positional_args():
     """Test parsing with positional arguments only."""
     parser = simoc_sam_cli.create_parser()
-    args = parser.parse_args(['test-uid', 'wlan0', 'MyNetwork', 'password123'])
+    args = parser.parse_args(['setup-hotspot', 'wlan0', 'MyNetwork', 'password123'])
     
-    assert args.cmd == 'test-uid'
+    assert args.cmd == 'setup-hotspot'
     assert args._positional == ['wlan0', 'MyNetwork', 'password123']
 
 
 def test_parser_named_args():
     """Test parsing with named arguments only."""
     parser = simoc_sam_cli.create_parser()
-    args = parser.parse_args(['test-uid', '--interface=wlan0', '--ssid=MyNetwork'])
+    args = parser.parse_args(['setup-hotspot', '--interface=wlan0', '--ssid=MyNetwork'])
     
-    assert args.cmd == 'test-uid'
+    assert args.cmd == 'setup-hotspot'
     assert args._positional == []
     assert args.interface == 'wlan0'
     assert args.ssid == 'MyNetwork'
@@ -68,9 +68,9 @@ def test_parser_named_args():
 def test_parser_mixed_args():
     """Test parsing with mixed positional and named arguments."""
     parser = simoc_sam_cli.create_parser()
-    args = parser.parse_args(['test-uid', 'wlan0', '--password=secret'])
+    args = parser.parse_args(['setup-hotspot', 'wlan0', '--password=secret'])
     
-    assert args.cmd == 'test-uid'
+    assert args.cmd == 'setup-hotspot'
     assert args._positional == ['wlan0']
     assert args.password == 'secret'
 
@@ -78,8 +78,8 @@ def test_parser_mixed_args():
 def test_parser_spaces_in_args():
     """Test parsing with spaces in argument values."""
     parser = simoc_sam_cli.create_parser()
-    args = parser.parse_args(['test-uid', 'wlan 0', '--ssid=My Network'])
-    
+    args = parser.parse_args(['setup-hotspot', 'wlan 0', '--ssid=My Network'])
+
     assert args._positional == ['wlan 0']
     assert args.ssid == 'My Network'
 
