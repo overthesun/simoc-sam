@@ -836,22 +836,13 @@ def clean_config():
         print(f'Removed config directory: {config_dir}')
 
 
-def create_help(cmds):
-    lines = ['Available commands:']
-    for name, func in cmds.items():
-        doc = (func.__doc__ or '').strip().split('\n')[0]
-        lines.append(f'  {name.replace("_", "-"):<22} {doc}')
-    return '\n'.join(lines)
-
-
 def create_parser():
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         description="Setup and run SIMOC-SAM.",
         formatter_class=argparse.RawTextHelpFormatter,
-        epilog=create_help(COMMANDS),
     )
-    subparsers = parser.add_subparsers(dest='cmd', required=True)
+    subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
     # Create subparser for each command from its signature
     for cmd_name, func in COMMANDS.items():
         subparser = subparsers.add_parser(
