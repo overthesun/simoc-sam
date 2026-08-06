@@ -383,7 +383,7 @@ def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
     if enable:
         run(['systemctl', 'enable', unit_name])
     if start:
-        run(['systemctl', 'start', unit_name])
+        run(['systemctl', 'restart', unit_name])
 
 def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     """Optionally stop/disable the unit and then remove the symlink."""
@@ -467,6 +467,18 @@ def teardown_csvwriter():
     """Revert the changes made by the setup-csvwriter command."""
     teardown_systemd_unit('csvwriter')
 
+@cmd
+@needs_root
+def setup_sqlwriter():
+    """Setup a systemd service that runs the sqlwriter."""
+    setup_systemd_unit('sqlwriter')
+
+@cmd
+@needs_root
+def teardown_sqlwriter():
+    """Revert the changes made by the setup-sqlwriter command."""
+    teardown_systemd_unit('sqlwriter')
+
 
 @cmd
 @needs_root
@@ -483,8 +495,14 @@ def setup_nginx():
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
     dist_dir = config.simoc_web_dist_dir
-    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
-    (sites_enabled / 'simoc_live').symlink_to(simoc_live)
+    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir,
+                                    api_port=config.api_port,
+                                    sio_port=config.sio_port))
+
+    simoc_live_link = sites_enabled / 'simoc_live'
+    if simoc_live_link.exists() or simoc_live_link.is_symlink():
+        simoc_live_link.unlink()
+    simoc_live_link.symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start/reload nginx
     if not run(['systemctl', 'is-enabled', 'nginx']):
@@ -501,6 +519,44 @@ def teardown_nginx():
     run(['systemctl', 'stop', 'nginx'])
     run(['systemctl', 'disable', 'nginx'])
     pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
+
+
+@cmd
+@needs_root
+def setup_flask():
+    """Setup a systemd service that runs the Flask API."""
+    setup_systemd_unit('flaskapi')
+
+@cmd
+@needs_root
+def teardown_flask():
+    """Revert the changes made by the setup-flask command."""
+    teardown_systemd_unit('flaskapi')
+
+
+@cmd
+@needs_root
+def setup_frontend():
+    """Copy the frontend to the web dir and set up nginx, Flask API, and sqlwriter."""
+    frontend_dir = SIMOC_SAM_DIR / 'frontend'
+    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    print(f'Copying {frontend_dir} to {dist_dir}...')
+    shutil.copytree(frontend_dir, dist_dir, dirs_exist_ok=True)
+    setup_sqlwriter()
+    setup_nginx()
+    setup_flask()
+    print(f'\nFrontend available at: http://{HOSTNAME}.local/')
+
+@cmd
+@needs_root
+def teardown_frontend():
+    """Revert the changes made by the setup-frontend command."""
+    teardown_flask()
+    teardown_nginx()
+    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    if dist_dir.exists():
+        print(f'Removing {dist_dir}...')
+        shutil.rmtree(dist_dir)
 
 
 @cmd

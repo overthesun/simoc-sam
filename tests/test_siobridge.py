@@ -74,14 +74,14 @@ def mock_emit_to_subscribers():
 
 @pytest.fixture
 def sensor_reading():
-    return dict(n=8, timestamp='2022-03-04 03:58:02.771409', var=50)
+    return dict(n=8, timestamp='2022-03-04T03:58:02+00:00', var=50)
 
 @pytest.fixture
 def step_batch(sensor_id, sensor_reading):
     """Create a step-batch bundle using the sensor reading."""
     return [{
         'n': 0,
-        'timestamp': '2022-03-04 03:58:02',
+        'timestamp': '2022-03-04T03:58:02+00:00',
         'readings': {sensor_id: sensor_reading}
     }]
 
@@ -93,7 +93,7 @@ def mqtt_message():
     message.topic.value = get_sensor_id('mock', sep='/')
     message.payload = json.dumps({
         'n': 1,
-        'timestamp': '2022-03-04 03:58:02.771409',
+        'timestamp': '2022-03-04T03:58:02+00:00',
         'temperature': 25.5
     }).encode()
     return message
@@ -101,7 +101,7 @@ def mqtt_message():
 @pytest.fixture
 def mock_get_timestamp():
     """Patch get_timestamp to return a predictable value."""
-    with patch('simoc_sam.siobridge.get_timestamp', return_value='2022-03-04 03:58:02'):
+    with patch('simoc_sam.siobridge.get_timestamp', return_value='2022-03-04T03:58:02+00:00'):
         yield
 
 @pytest.fixture

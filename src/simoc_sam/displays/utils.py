@@ -10,6 +10,8 @@ from dataclasses import dataclass
 import tomli
 import aiomqtt
 
+from PIL import Image, ImageDraw, ImageFont
+
 from simoc_sam import utils
 from simoc_sam import config
 
@@ -71,6 +73,25 @@ def format_values(sensor_readings_dict, max_rows=None):
             print(f"Error formatting line {line!r}: {e}")
             continue  # skip lines with formatting errors
     return rows[:max_rows] if max_rows else rows
+
+
+FONT = ImageFont.load_default()
+
+def draw_image(width, height, rows):
+    """Draw sensor values on a PIL image and return it."""
+    if not rows:
+        return  # nothing to display
+    image = Image.new("1", (width, height), 0)  # black background
+    draw = ImageDraw.Draw(image)
+    spacing = max(8, height // len(rows))  # calc row height dynamically
+    y = 0
+    for row in rows:
+        if not row.strip():
+            y += 6  # extra spacing for blank lines
+        else:
+            draw.text((0, y), row, font=FONT, fill=255)  # white text
+            y += spacing
+    return image
 
 
 async def mqtt_monitor(sensor_readings_dict):

@@ -51,9 +51,31 @@ mqtt_topic_sub = '#'
 simoc_web_dist_dir = '/var/www/simoc'
 
 
+# Flask API configuration (lightweight frontend)
+api_host = 'localhost'
+api_port = 8082
+
+
 # Verbosity and logging
 verbose_sensor = False
 verbose_mqtt = False
 enable_jsonl_logging = True
 log_dir = '~/logs'
 data_dir = '~/data'
+db_path = '~/data/sensor_data.db'
+
+
+# BNO085 accelerometer/gyroscope/magnetometer configuration
+# See the keys of the simoc_sam.sensors.bno085.FEATURE_TO_ATTR dict
+# for a list of available features.
+bno085_default_err_value = 0
+bno085_enabled_features = [
+    'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
+    'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
+    # 'GRAVITY',
+    'LINEAR_ACCELERATION',
+    'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
+    # 'GEOMAGNETIC_ROTATION_VECTOR',
+    # 'STABILITY_CLASSIFIER', 'ACTIVITY_CLASSIFIER',
+    # 'STEP_COUNTER', 'SHAKE_DETECTOR'
+]
