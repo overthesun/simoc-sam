@@ -46,41 +46,43 @@ def test_cmd_decorator(clean_commands):
 
 
 def test_parser_positional_args():
-    """Test parsing with positional arguments only."""
+    """Test that positional args are parsed into named attributes."""
     parser = simoc_sam_cli.create_parser()
     args = parser.parse_args(['setup-hotspot', 'wlan0', 'MyNetwork', 'password123'])
 
     assert args.cmd == 'setup-hotspot'
-    assert args._positional == ['wlan0', 'MyNetwork', 'password123']
+    assert args.interface == 'wlan0'
+    assert args.ssid == 'MyNetwork'
+    assert args.password == 'password123'
 
 
 def test_parser_named_args():
-    """Test parsing with named arguments only."""
+    """Test that --flag= args for optional params are accepted natively."""
     parser = simoc_sam_cli.create_parser()
+    # --flag is registered as a hidden named arg sharing the same dest as positional
     args = parser.parse_args(['setup-hotspot', '--interface=wlan0', '--ssid=MyNetwork'])
 
     assert args.cmd == 'setup-hotspot'
-    assert args._positional == []
     assert args.interface == 'wlan0'
     assert args.ssid == 'MyNetwork'
 
 
 def test_parser_mixed_args():
-    """Test parsing with mixed positional and named arguments."""
+    """Test positional and --flag= args together."""
     parser = simoc_sam_cli.create_parser()
     args = parser.parse_args(['setup-hotspot', 'wlan0', '--password=secret'])
 
     assert args.cmd == 'setup-hotspot'
-    assert args._positional == ['wlan0']
+    assert args.interface == 'wlan0'
     assert args.password == 'secret'
 
 
 def test_parser_spaces_in_args():
-    """Test parsing with spaces in argument values."""
+    """Test that spaces in positional arg values are preserved."""
     parser = simoc_sam_cli.create_parser()
-    args = parser.parse_args(['setup-hotspot', 'wlan 0', '--ssid=My Network'])
+    args = parser.parse_args(['setup-hotspot', 'wlan 0', 'My Network'])
 
-    assert args._positional == ['wlan 0']
+    assert args.interface == 'wlan 0'
     assert args.ssid == 'My Network'
 
 
@@ -95,6 +97,48 @@ def test_parser_help_shows_commands(capsys):
     assert 'setup-hotspot' in out
     assert 'setup-sensors' in out
     assert 'services-info' in out
+
+
+def test_subcommand_help_shows_description(capsys):
+    """Test that a subcommand's --help shows docstring and positional args."""
+    parser = simoc_sam_cli.create_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(['setup-hotspot', '--help'])
+    out = capsys.readouterr().out
+    # Docstring should appear as description
+    assert 'Setup a hotspot' in out
+    # Positional args should appear as UPPERCASE metavars
+    assert 'INTERFACE' in out
+    assert 'SSID' in out
+    assert 'PASSWORD' in out
+    # Named --flags for these params should NOT appear (they're positional)
+    assert '--interface' not in out
+    assert '--ssid' not in out
+    assert '--password' not in out
+
+
+def test_main_keyword_only_not_positional(clean_commands):
+    """Test that KEYWORD_ONLY params (after *) are never assigned from positional args."""
+    mock_func = MagicMock(return_value=True)
+    mock_func.__name__ = 'test_cmd'
+    mock_func.__doc__ = 'Test command'
+    simoc_sam_cli.COMMANDS['test_cmd'] = mock_func
+
+    import inspect
+    sig = inspect.Signature([
+        inspect.Parameter('target', inspect.Parameter.POSITIONAL_OR_KEYWORD),
+        inspect.Parameter('exclude_venv', inspect.Parameter.KEYWORD_ONLY, default=True),
+        inspect.Parameter('exclude_git', inspect.Parameter.KEYWORD_ONLY, default=True),
+    ])
+
+    with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'pi@rpi.local']):
+        with patch.object(inspect, 'signature', return_value=sig):
+            with pytest.raises(SystemExit) as exc_info:
+                simoc_sam_cli.main()
+
+    assert exc_info.value.code == 0
+    # Only 'target' should be passed; keyword-only params use their defaults
+    mock_func.assert_called_once_with('pi@rpi.local')
 
 
 def test_main_positional_args_only(clean_commands):
@@ -119,12 +163,13 @@ def test_main_positional_args_only(clean_commands):
                 simoc_sam_cli.main()
 
     assert exc_info.value.code == 0
-    # Should only pass the arguments that were provided
-    mock_func.assert_called_once_with(interface='wlan0', ssid='MyNetwork')
+    # ssid and password also passed explicitly (with their defaults) since optional
+    # params are always set via the hidden --flag's default=param.default.
+    mock_func.assert_called_once_with(interface='wlan0', ssid='MyNetwork', password='default123')
 
 
 def test_main_named_args_only(clean_commands):
-    """Test main() with named arguments only."""
+    """Test main() with named arguments only (via hidden --flag)."""
     mock_func = MagicMock(return_value=True)
     mock_func.__name__ = 'test_cmd'
     mock_func.__doc__ = 'Test command'
@@ -165,12 +210,16 @@ def test_main_mixed_positional_and_named(clean_commands):
                 simoc_sam_cli.main()
 
     assert exc_info.value.code == 0
-    # interface is positional, password is named, ssid not provided (should use default)
-    mock_func.assert_called_once_with(interface='wlan0', password='mysecret')
+    # interface from positional, ssid uses default (None), password from --flag
+    mock_func.assert_called_once_with(interface='wlan0', ssid=None, password='mysecret')
 
 
-def test_main_defaults_not_passed(clean_commands):
-    """Test that default values are not passed when argument not provided."""
+def test_main_defaults_passed_explicitly(clean_commands):
+    """Test that optional params are always passed with their defaults (new behaviour).
+
+    The dual-registration trick means args.X is always set to param.default when not
+    provided, so the function always receives every optional kwarg explicitly.
+    """
     mock_func = MagicMock(return_value=True)
     mock_func.__name__ = 'test_cmd'
     mock_func.__doc__ = 'Test command'
@@ -188,8 +237,8 @@ def test_main_defaults_not_passed(clean_commands):
                 simoc_sam_cli.main()
 
     assert exc_info.value.code == 0
-    # No arguments should be passed - let Python handle defaults
-    mock_func.assert_called_once_with()
+    # All optional params passed explicitly with their defaults
+    mock_func.assert_called_once_with(interface='wlan0', password='default123')
 
 
 @patch('os.geteuid', return_value=1000)  # Not root

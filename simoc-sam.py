@@ -843,21 +843,57 @@ def create_parser():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
-    # Create subparser for each command from its signature
     for cmd_name, func in COMMANDS.items():
+        # Create a subparser for each command
+        sig = inspect.signature(func)
         subparser = subparsers.add_parser(
             cmd_name.replace('_', '-'),
-            help=func.__doc__
+            help=func.__doc__,
+            description=func.__doc__,
+            formatter_class=argparse.RawTextHelpFormatter,
         )
-        sig = inspect.signature(func)
-        subparser.add_argument('_positional', nargs='*')
-        # Add optional --flag for each parameter
+        # Add cmd arguments based on the function signature
         for param_name, param in sig.parameters.items():
-            if param.kind == inspect.Parameter.VAR_POSITIONAL:
-                continue  # handled by _positional above
-            flag_name = f'--{param_name.replace("_", "-")}'
-            subparser.add_argument(flag_name, dest=param_name, default=argparse.SUPPRESS)
+            if param.kind in (inspect.Parameter.VAR_POSITIONAL,
+                              inspect.Parameter.VAR_KEYWORD):
+                raise TypeError(f"Commands don't support *args or **kwargs")
+            param_upper = param_name.upper()
+            flag = f'--{param_name.replace("_", "-")}'
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                # Keyword-only params: add as named --args
+                subparser.add_argument(flag, dest=param_name,
+                                       default=argparse.SUPPRESS)
+            elif param.default is inspect.Parameter.empty:
+                # Required positional: add as positional-only args
+                subparser.add_argument(param_name, metavar=param_upper)
+            else:
+                # Other args: add as both positional and named --args
+                subparser.add_argument(param_name, metavar=param_upper,
+                                       nargs='?', default=argparse.SUPPRESS)
+                subparser.add_argument(flag, dest=param_name,
+                                       default=param.default, help=argparse.SUPPRESS)
     return parser
+
+
+def build_call_args(func, args):
+    """Convert a parsed args into (call_args, call_kwargs) for func."""
+    sig = inspect.signature(func)
+    call_args, call_kwargs = [], {}
+    for param_name, param in sig.parameters.items():
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            break  # no *args commands; safety fallback
+        if param.kind == inspect.Parameter.KEYWORD_ONLY:
+            if hasattr(args, param_name):
+                call_kwargs[param_name] = getattr(args, param_name)
+            continue
+        # Required params (no default) are called positionally: func(val, ...)
+        # Optional params (has default) are called by keyword: func(name=val, ...)
+        val = getattr(args, param_name)
+        if param.default is inspect.Parameter.empty:
+            call_args.append(val)
+        else:
+            call_kwargs[param_name] = val
+    return call_args, call_kwargs
 
 
 def main():
@@ -865,44 +901,9 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     func = COMMANDS[args.cmd.replace('-', '_')]
-    sig = inspect.signature(func)
-    params = list(sig.parameters.items())
-
-    # Distribute positional args and handle named args
-    call_args = []
-    call_kwargs = {}
-    positional = args._positional
-    pos_idx = 0
-
-    for param_name, param in params:
-        if param.kind == inspect.Parameter.VAR_POSITIONAL:
-            # Collect all remaining positional args
-            call_args.extend(positional[pos_idx:])
-            break
-
-        # Check if provided via --flag (using SUPPRESS, so check hasattr)
-        if hasattr(args, param_name):
-            # Provided via --flag
-            named_value = getattr(args, param_name)
-            if param.default is inspect.Parameter.empty:
-                call_args.append(named_value)
-            else:
-                call_kwargs[param_name] = named_value
-        elif pos_idx < len(positional):
-            # Provided positionally
-            if param.default is inspect.Parameter.empty:
-                call_args.append(positional[pos_idx])
-            else:
-                call_kwargs[param_name] = positional[pos_idx]
-            pos_idx += 1
-        elif param.default is inspect.Parameter.empty:
-            # Required parameter not provided
-            parser.error(f'the following arguments are required: {param_name}')
-        # Otherwise: parameter has a default and wasn't provided, so don't pass it
-
+    call_args, call_kwargs = build_call_args(func, args)
     result = func(*call_args, **call_kwargs)
-    # Treat None as success: informational commands (info, services-info, …) have
-    # no meaningful return value.  Only an explicit False signals failure.
+    # Only treat False as failure (informational commands might return None)
     sys.exit(0 if result is not False else 1)
 
 
