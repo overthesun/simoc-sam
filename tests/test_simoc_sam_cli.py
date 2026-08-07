@@ -99,6 +99,24 @@ def test_parser_help_shows_commands(capsys):
     assert 'services-info' in out
 
 
+def test_parser_bool_keyword_only_conversion():
+    """Test that boolean keyword-only flags are properly converted from strings.
+
+    Without type= on the argparse argument, '--exclude-venv=False' would store
+    the string 'False', which is truthy and silently ignored.
+    """
+    parser = simoc_sam_cli.create_parser()
+    args = parser.parse_args(['copy-repo', 'pi@host', '--exclude-venv=False'])
+    assert args.exclude_venv is False
+    assert isinstance(args.exclude_venv, bool)
+
+    args = parser.parse_args(['copy-repo', 'pi@host', '--exclude-venv=True'])
+    assert args.exclude_venv is True
+
+    args = parser.parse_args(['copy-repo', 'pi@host', '--exclude-git=0'])
+    assert args.exclude_git is False
+
+
 def test_subcommand_help_shows_description(capsys):
     """Test that a subcommand's --help shows docstring and positional args."""
     parser = simoc_sam_cli.create_parser()

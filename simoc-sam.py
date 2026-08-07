@@ -843,6 +843,14 @@ def create_parser():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
+
+    def param_type(default):
+        """Return a function that converts from str to type(default)."""
+        if default is None or isinstance(default, str):
+            return {}  # no type conversion needed
+        if isinstance(default, bool):
+            return {'type': lambda v: v.lower() not in ('false', '0', 'no', 'off')}
+        return {'type': type(default)}
     for cmd_name, func in COMMANDS.items():
         # Create a subparser for each command
         sig = inspect.signature(func)
@@ -862,16 +870,18 @@ def create_parser():
             if param.kind == inspect.Parameter.KEYWORD_ONLY:
                 # Keyword-only params: add as named --args
                 subparser.add_argument(flag, dest=param_name,
-                                       default=argparse.SUPPRESS)
+                                       default=argparse.SUPPRESS,
+                                       **param_type(param.default))
             elif param.default is inspect.Parameter.empty:
                 # Required positional: add as positional-only args
                 subparser.add_argument(param_name, metavar=param_upper)
             else:
                 # Other args: add as both positional and named --args
-                subparser.add_argument(param_name, metavar=param_upper,
-                                       nargs='?', default=argparse.SUPPRESS)
-                subparser.add_argument(flag, dest=param_name,
-                                       default=param.default, help=argparse.SUPPRESS)
+                type_kw = param_type(param.default)
+                subparser.add_argument(param_name, metavar=param_upper, nargs='?',
+                                       default=argparse.SUPPRESS, **type_kw)
+                subparser.add_argument(flag, dest=param_name, default=param.default,
+                                       help=argparse.SUPPRESS, **type_kw)
     return parser
 
 
