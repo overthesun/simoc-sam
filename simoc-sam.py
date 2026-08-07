@@ -843,7 +843,6 @@ def create_parser():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
-
     def param_type(default):
         """Return a function that converts from str to type(default)."""
         if default is None or isinstance(default, str):
@@ -862,48 +861,43 @@ def create_parser():
         )
         # Add cmd arguments based on the function signature
         for param_name, param in sig.parameters.items():
-            if param.kind in (inspect.Parameter.VAR_POSITIONAL,
-                              inspect.Parameter.VAR_KEYWORD):
-                raise TypeError(f"Commands don't support *args or **kwargs")
-            param_upper = param_name.upper()
             flag = f'--{param_name.replace("_", "-")}'
-            if param.kind == inspect.Parameter.KEYWORD_ONLY:
-                # Keyword-only params: add as named --args
+            if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                # regular params: add as positional and named --args
+                is_required = param.default is inspect.Parameter.empty
+                type_kw = param_type(None if is_required else param.default)
+                default_val = argparse.SUPPRESS if is_required else param.default
+                subparser.add_argument(param_name, metavar=param_name, nargs='?',
+                                       default=argparse.SUPPRESS, **type_kw)
+                subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
+                                       default=default_val, **type_kw)
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                # Keyword-only params: add as named --args only
                 subparser.add_argument(flag, dest=param_name,
                                        default=argparse.SUPPRESS,
                                        **param_type(param.default))
-            elif param.default is inspect.Parameter.empty:
-                # Required positional: add as positional-only args
-                subparser.add_argument(param_name, metavar=param_upper)
             else:
-                # Other args: add as both positional and named --args
-                type_kw = param_type(param.default)
-                subparser.add_argument(param_name, metavar=param_upper, nargs='?',
-                                       default=argparse.SUPPRESS, **type_kw)
-                subparser.add_argument(flag, dest=param_name, default=param.default,
-                                       help=argparse.SUPPRESS, **type_kw)
+                raise TypeError(f'Unsupported parameter kind for {cmd_name}: '
+                                f'{param.kind}')
     return parser
 
 
-def build_call_args(func, args):
-    """Convert a parsed args into (call_args, call_kwargs) for func."""
+def build_call_args(func, args, parser):
+    """Convert a parsed args namespace into call_kwargs for func."""
     sig = inspect.signature(func)
-    call_args, call_kwargs = [], {}
+    call_kwargs = {}
     for param_name, param in sig.parameters.items():
-        if param.kind == inspect.Parameter.VAR_POSITIONAL:
-            break  # no *args commands; safety fallback
-        if param.kind == inspect.Parameter.KEYWORD_ONLY:
+        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
             if hasattr(args, param_name):
                 call_kwargs[param_name] = getattr(args, param_name)
-            continue
-        # Required params (no default) are called positionally: func(val, ...)
-        # Optional params (has default) are called by keyword: func(name=val, ...)
-        val = getattr(args, param_name)
-        if param.default is inspect.Parameter.empty:
-            call_args.append(val)
+            else:
+                parser.error(f'{args.cmd}: the following arguments are required: {param_name}')
+        elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+            if hasattr(args, param_name):
+                call_kwargs[param_name] = getattr(args, param_name)
         else:
-            call_kwargs[param_name] = val
-    return call_args, call_kwargs
+            raise TypeError(f'Unsupported parameter kind: {param.kind}')
+    return call_kwargs
 
 
 def main():
@@ -911,8 +905,8 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     func = COMMANDS[args.cmd.replace('-', '_')]
-    call_args, call_kwargs = build_call_args(func, args)
-    result = func(*call_args, **call_kwargs)
+    call_kwargs = build_call_args(func, args, parser)
+    result = func(**call_kwargs)
     # Only treat False as failure (informational commands might return None)
     sys.exit(0 if result is not False else 1)
 
