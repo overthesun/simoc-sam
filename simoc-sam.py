@@ -79,22 +79,9 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            # Convert args and kwargs to command line arguments
-            cmd_name = func.__name__.replace('_', '-')
-            # Get function signature to map positional args to parameter names
-            sig = inspect.signature(func)
-            params = list(sig.parameters.keys())
-            # Convert positional args to kwargs
-            all_kwargs = {params[i]: arg for i, arg in enumerate(args) if i < len(params)}
-            # Merge with provided kwargs (kwargs take precedence)
-            all_kwargs.update(kwargs)
-            # Build command with --key=value format, skipping None values
-            cmd_kwargs = [f'--{k.replace("_", "-")}={v}'
-                          for k, v in all_kwargs.items() if v is not None]
-            cmd = ['sudo', '--preserve-env=HOME',
-                   sys.executable, __file__, cmd_name, *cmd_kwargs]
-            result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
-            return result.returncode == 0
+            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
+                               sys.executable, *sys.argv])
+            return
         else:
             return func(*args, **kwargs)
     return inner
