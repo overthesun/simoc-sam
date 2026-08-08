@@ -1,18 +1,13 @@
 """Tests for simoc-sam CLI argument parsing and decorators."""
 
-import sys
 import pathlib
+import importlib.util
 from unittest.mock import patch, MagicMock, call, create_autospec
 
 import pytest
 
-
-# Add parent directory to path to import simoc-sam.py as a module
-parent_dir = pathlib.Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir))
-
 # Import the module (this will be simoc-sam.py)
-import importlib.util
+parent_dir = pathlib.Path(__file__).parent.parent
 spec = importlib.util.spec_from_file_location("simoc_sam_cli", parent_dir / "simoc-sam.py")
 simoc_sam_cli = importlib.util.module_from_spec(spec)
 
