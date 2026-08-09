@@ -837,7 +837,7 @@ def create_parser():
         if default is None or isinstance(default, str):
             return {}  # no type conversion needed
         if isinstance(default, bool):
-            return {'type': lambda v: v.lower() not in ('false', '0', 'no', 'off')}
+            return {'type': lambda v: v.lower() in ('true', '1', 'yes', 'on')}
         return {'type': type(default)}
     for cmd_name, func in COMMANDS.items():
         # Create a subparser for each command
