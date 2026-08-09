@@ -52,6 +52,7 @@ COMMANDS = {}
 
 def cmd(func):
     """Decorator to add commands to the COMMANDS dict."""
+    func.params = inspect.signature(func).parameters
     COMMANDS[func.__name__] = func
     return func
 
@@ -561,10 +562,12 @@ def teardown_frontend():
 
 @cmd
 @needs_venv
-def test(*args):
-    """Run the tests."""
-    pytest = str(VENV_DIR / 'bin' / 'pytest')
-    return run([pytest, '-v', *args])
+def test(test_path=None):
+    """Run the tests (pass an optional path or test-id to filter)."""
+    cmd = [str(VENV_DIR / 'bin' / 'pytest'), '-v']
+    if test_path:
+        cmd.append(test_path)
+    return run(cmd)
 
 
 @cmd
@@ -829,26 +832,62 @@ def clean_config():
         print(f'Removed config directory: {config_dir}')
 
 
-def create_help(cmds):
-    help = ['Full list of available commands:']
-    for cmd, func in cmds.items():
-        help.append(f'{cmd.replace("_", "-"):18} {func.__doc__}')
-    return '\n'.join(help)
-
-if __name__ == '__main__':
+def create_parser():
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         description="Setup and run SIMOC-SAM.",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument('cmd', metavar='CMD', help=create_help(COMMANDS))
-    parser.add_argument('args', metavar='*ARGS', nargs='*',
-                        help='Additional optional args to be passed to CMD.')
-    args = parser.parse_args()
+    subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
+    def param_type(default):
+        """Return a function that converts from str to type(default)."""
+        if default is None or isinstance(default, str):
+            return {}  # no type conversion needed
+        if isinstance(default, bool):
+            return {'type': lambda v: v.lower() not in ('false', '0', 'no', 'off')}
+        return {'type': type(default)}
+    for cmd_name, func in COMMANDS.items():
+        # Create a subparser for each command
+        subparser = subparsers.add_parser(
+            cmd_name.replace('_', '-'),
+            help=func.__doc__,
+            description=func.__doc__,
+            formatter_class=argparse.RawTextHelpFormatter,
+        )
+        # Add cmd arguments based on the function signature
+        for param_name, param in func.params.items():
+            flag = f'--{param_name.replace("_", "-")}'
+            if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                if param.default is inspect.Parameter.empty:
+                    # Required positional params: add them as positional only
+                    subparser.add_argument(param_name, metavar=param_name)
+                else:
+                    # Optional params: add as positional and --args
+                    type_kw = param_type(param.default)
+                    subparser.add_argument(param_name, metavar=param_name, nargs='?',
+                                           default=argparse.SUPPRESS, **type_kw)
+                    subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
+                                           default=param.default, **type_kw)
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                # Keyword-only params: add as named --args only
+                subparser.add_argument(flag, dest=param_name,
+                                       default=argparse.SUPPRESS,
+                                       **param_type(param.default))
+            else:
+                raise TypeError(f'Unsupported parameter kind for {cmd_name}: '
+                                f'{param.kind}')
+    return parser
 
-    cmd = args.cmd.replace('-', '_')
-    if cmd in COMMANDS:
-        result = COMMANDS[cmd](*args.args)
-        parser.exit(not result)
-    else:
-        cmds = ', '.join(cmd.replace('_', '-') for cmd in COMMANDS.keys())
-        parser.error(f'Command not found.  Available commands: {cmds}')
+
+def main():
+    """Main entry point for the script."""
+    parser = create_parser()
+    args = parser.parse_args()
+    func = COMMANDS[args.cmd.replace('-', '_')]
+    result = func(**{k: v for k, v in vars(args).items() if k in func.params})
+    # Only treat False as failure (informational commands might return None)
+    sys.exit(0 if result is not False else 1)
+
+
+if __name__ == '__main__':
+    main()
