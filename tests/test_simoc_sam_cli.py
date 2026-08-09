@@ -135,7 +135,7 @@ def test_main_keyword_only_not_positional(clean_commands):
     def test_cmd(target, *, exclude_venv=True, exclude_git=True):
         """Test command."""
     mock_cmd = create_autospec(test_cmd, return_value=True)
-    simoc_sam_cli.COMMANDS['test_cmd'] = mock_cmd
+    simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'pi@rpi.local']):
         with pytest.raises(SystemExit) as exc_info:
@@ -171,7 +171,7 @@ def test_main_positional_args_only(clean_commands):
     def test_cmd(interface=None, ssid=None, password='default123'):
         """Test command."""
     mock_cmd = create_autospec(test_cmd, return_value=True)
-    simoc_sam_cli.COMMANDS['test_cmd'] = mock_cmd
+    simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'wlan0', 'MyNetwork']):
         with pytest.raises(SystemExit) as exc_info:
@@ -186,7 +186,7 @@ def test_main_named_args_only(clean_commands):
     def test_cmd(interface=None, password='default123'):
         """Test command."""
     mock_cmd = create_autospec(test_cmd, return_value=True)
-    simoc_sam_cli.COMMANDS['test_cmd'] = mock_cmd
+    simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', '--interface=wlan2', '--password=secret']):
         with pytest.raises(SystemExit) as exc_info:
@@ -201,7 +201,7 @@ def test_main_mixed_positional_and_named(clean_commands):
     def test_cmd(interface=None, ssid=None, password='default123'):
         """Test command."""
     mock_cmd = create_autospec(test_cmd, return_value=True)
-    simoc_sam_cli.COMMANDS['test_cmd'] = mock_cmd
+    simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'wlan0', '--password=mysecret']):
         with pytest.raises(SystemExit) as exc_info:
@@ -221,7 +221,7 @@ def test_main_defaults_passed_explicitly(clean_commands):
     def test_cmd(interface='wlan0', password='default123'):
         """Test command."""
     mock_cmd = create_autospec(test_cmd, return_value=True)
-    simoc_sam_cli.COMMANDS['test_cmd'] = mock_cmd
+    simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd']):
         with pytest.raises(SystemExit) as exc_info:

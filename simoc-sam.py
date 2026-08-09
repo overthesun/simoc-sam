@@ -52,6 +52,7 @@ COMMANDS = {}
 
 def cmd(func):
     """Decorator to add commands to the COMMANDS dict."""
+    func.params = inspect.signature(func).parameters
     COMMANDS[func.__name__] = func
     return func
 
@@ -839,7 +840,6 @@ def create_parser():
         return {'type': type(default)}
     for cmd_name, func in COMMANDS.items():
         # Create a subparser for each command
-        sig = inspect.signature(func)
         subparser = subparsers.add_parser(
             cmd_name.replace('_', '-'),
             help=func.__doc__,
@@ -847,7 +847,7 @@ def create_parser():
             formatter_class=argparse.RawTextHelpFormatter,
         )
         # Add cmd arguments based on the function signature
-        for param_name, param in sig.parameters.items():
+        for param_name, param in func.params.items():
             flag = f'--{param_name.replace("_", "-")}'
             if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
                 # regular params: add as positional and named --args
