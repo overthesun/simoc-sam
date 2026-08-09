@@ -146,26 +146,6 @@ def test_main_keyword_only_not_positional(clean_commands):
     mock_cmd.assert_called_once_with(target='pi@rpi.local')
 
 
-def test_parser_required_named_form():
-    """Test that required params (no default) can be passed as --flag=value."""
-    parser = simoc_sam_cli.create_parser()
-    # copy-repo has 'target' as a required param; --target= form must also work
-    args = parser.parse_args(['copy-repo', '--target=pi@host'])
-    assert args.target == 'pi@host'
-
-
-def test_build_call_args_missing_required():
-    """Test that build_call_args calls parser.error when a required param is absent."""
-    import argparse
-
-    def dummy(target): pass
-
-    ns = argparse.Namespace(cmd='dummy')  # target not in namespace
-    parser = simoc_sam_cli.create_parser()
-    with pytest.raises(SystemExit):
-        simoc_sam_cli.build_call_args(dummy, ns, parser)
-
-
 def test_main_positional_args_only(clean_commands):
     """Test that positional arguments are passed as keyword args to the function."""
     def test_cmd(interface=None, ssid=None, password='default123'):

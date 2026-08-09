@@ -850,14 +850,16 @@ def create_parser():
         for param_name, param in func.params.items():
             flag = f'--{param_name.replace("_", "-")}'
             if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
-                # regular params: add as positional and named --args
-                is_required = param.default is inspect.Parameter.empty
-                type_kw = param_type(None if is_required else param.default)
-                default_val = argparse.SUPPRESS if is_required else param.default
-                subparser.add_argument(param_name, metavar=param_name, nargs='?',
-                                       default=argparse.SUPPRESS, **type_kw)
-                subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
-                                       default=default_val, **type_kw)
+                if param.default is inspect.Parameter.empty:
+                    # Required positional params: add them as positional only
+                    subparser.add_argument(param_name, metavar=param_name)
+                else:
+                    # Optional params: add as positional and --args
+                    type_kw = param_type(param.default)
+                    subparser.add_argument(param_name, metavar=param_name, nargs='?',
+                                           default=argparse.SUPPRESS, **type_kw)
+                    subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
+                                           default=param.default, **type_kw)
             elif param.kind == inspect.Parameter.KEYWORD_ONLY:
                 # Keyword-only params: add as named --args only
                 subparser.add_argument(flag, dest=param_name,
@@ -869,31 +871,12 @@ def create_parser():
     return parser
 
 
-def build_call_args(func, args, parser):
-    """Convert a parsed args namespace into call_kwargs for func."""
-    sig = inspect.signature(func)
-    call_kwargs = {}
-    for param_name, param in sig.parameters.items():
-        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
-            if hasattr(args, param_name):
-                call_kwargs[param_name] = getattr(args, param_name)
-            else:
-                parser.error(f'{args.cmd}: the following arguments are required: {param_name}')
-        elif param.kind == inspect.Parameter.KEYWORD_ONLY:
-            if hasattr(args, param_name):
-                call_kwargs[param_name] = getattr(args, param_name)
-        else:
-            raise TypeError(f'Unsupported parameter kind: {param.kind}')
-    return call_kwargs
-
-
 def main():
     """Main entry point for the script."""
     parser = create_parser()
     args = parser.parse_args()
     func = COMMANDS[args.cmd.replace('-', '_')]
-    call_kwargs = build_call_args(func, args, parser)
-    result = func(**call_kwargs)
+    result = func(**{k: v for k, v in vars(args).items() if k in func.params})
     # Only treat False as failure (informational commands might return None)
     sys.exit(0 if result is not False else 1)
 
