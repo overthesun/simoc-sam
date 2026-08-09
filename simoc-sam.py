@@ -80,15 +80,12 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            # get func name and args (positional and named) in the right order
-            sig = inspect.signature(func)
-            bound = sig.bind(*args, **kwargs)
-            bound.apply_defaults()
-            # re-run with sudo in a subprocess
-            cmd_name = func.__name__
-            cmd_args = [str(arg) for arg in bound.arguments.values()]
+            cmd_name = func.__name__.replace('_', '-')
+            cmd_args = [str(a) for a in args]
+            cmd_kwargs = [f'--{k.replace("_", "-")}={v}'
+                          for k, v in kwargs.items() if v is not None]
             cmd = ['sudo', '--preserve-env=HOME',
-                   sys.executable, __file__, cmd_name, *cmd_args]
+                   sys.executable, __file__, cmd_name, *cmd_args, *cmd_kwargs]
             result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
             return result.returncode == 0
         else:
