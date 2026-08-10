@@ -79,13 +79,15 @@ def needs_root(func):
     """Ensure that the command is run as root before calling func."""
     @functools.wraps(func)
     def inner(*args, **kwargs):
+        print('innger', args, kwargs, os.geteuid())
         if os.geteuid() != 0:
             cmd_name = func.__name__.replace('_', '-')
             cmd_args = [str(a) for a in args]
             cmd_kwargs = [f'--{k.replace("_", "-")}={v}'
                           for k, v in kwargs.items() if v is not None]
-            cmd = ['sudo', '--preserve-env=HOME',
-                   sys.executable, __file__, cmd_name, *cmd_args, *cmd_kwargs]
+            cmd = ['sudo', '--preserve-env=HOME', sys.executable, __file__,
+                   cmd_name, *cmd_args, *cmd_kwargs]
+            print(f'Running as root: {cmd_name} {" ".join(cmd_args + cmd_kwargs)}')
             result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
             return result.returncode == 0
         else:
