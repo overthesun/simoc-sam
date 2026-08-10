@@ -80,9 +80,15 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
-                               sys.executable, *sys.argv])
-            return
+            cmd_name = func.__name__.replace('_', '-')
+            cmd_args = [str(a) for a in args]
+            cmd_kwargs = [f'--{k.replace("_", "-")}={v}'
+                          for k, v in kwargs.items() if v is not None]
+            cmd = ['sudo', '--preserve-env=HOME', sys.executable, __file__,
+                   cmd_name, *cmd_args, *cmd_kwargs]
+            print(f'Running as root: {cmd_name} {" ".join(cmd_args + cmd_kwargs)}')
+            result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+            return result.returncode == 0
         else:
             return func(*args, **kwargs)
     return inner
@@ -388,8 +394,6 @@ def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
 
 
-@cmd
-@needs_root
 def setup_or_teardown_sensors(function, sensors=None):
     """Setup systemd services that run the sensors."""
     if sensors:
@@ -411,8 +415,6 @@ def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
     setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
-@cmd
-@needs_root
 def setup_or_teardown_display(function, display=None):
     """Setup/teardown systemd service that runs the display."""
     if display is None:
@@ -833,10 +835,10 @@ def create_parser():
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
     def param_type(default):
         """Return a function that converts from str to type(default)."""
-        if default is None or isinstance(default, str):
+        if default is None or default is inspect.Parameter.empty:
             return {}  # no type conversion needed
         if isinstance(default, bool):
-            return {'type': lambda v: v.lower() not in ('false', '0', 'no', 'off')}
+            return {'type': lambda v: v.lower() in ('true', '1', 'yes', 'on')}
         return {'type': type(default)}
     for cmd_name, func in COMMANDS.items():
         # Create a subparser for each command
@@ -861,6 +863,9 @@ def create_parser():
                     subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
                                            default=param.default, **type_kw)
             elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                if param.default is inspect.Parameter.empty:
+                    raise TypeError(f'Command {cmd_name!r}: keyword-only parameter '
+                                    f'{param_name!r} must have a default value')
                 # Keyword-only params: add as named --args only
                 subparser.add_argument(flag, dest=param_name,
                                        default=argparse.SUPPRESS,
@@ -876,7 +881,10 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     func = COMMANDS[args.cmd.replace('-', '_')]
-    result = func(**{k: v for k, v in vars(args).items() if k in func.params})
+    call_kwargs = {k: v for k, v in vars(args).items() if k in func.params}
+    call_args = [call_kwargs.pop(name) for name, param in func.params.items()
+                 if param.default is inspect.Parameter.empty]
+    result = func(*call_args, **call_kwargs)
     # Only treat False as failure (informational commands might return None)
     sys.exit(0 if result is not False else 1)
 
