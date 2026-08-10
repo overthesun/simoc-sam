@@ -50,10 +50,32 @@ APT_REMOVE = ['chromium']
 
 COMMANDS = {}
 
+def add_reload_function(cmd):
+    """Add a reload-cmd function that performs teardown-cmd + setup-cmd."""
+    teardown_func = COMMANDS.get(f'teardown_{cmd}')
+    setup_func = COMMANDS.get(f'setup_{cmd}')
+    def reload_func(*args, **kwargs):
+        if inspect.signature(teardown_func).parameters:
+            teardown_func(*args, **kwargs)
+        else:
+            teardown_func()
+        return setup_func(*args, **kwargs)
+    reload_func_name = f'reload_{cmd}'
+    hyphen_cmd = cmd.replace('_', '-')
+    reload_func.__name__ = reload_func_name
+    reload_func.__doc__ = f"Same as teardown-{hyphen_cmd} + setup-{hyphen_cmd}."
+    COMMANDS[reload_func_name] = reload_func
+
 def cmd(func):
     """Decorator to add commands to the COMMANDS dict."""
     func.params = inspect.signature(func).parameters
-    COMMANDS[func.__name__] = func
+    func_name = func.__name__
+    COMMANDS[func_name] = func
+    if func_name.startswith('teardown_'):
+        suffix = func_name.removeprefix('teardown_')
+        if f'setup_{suffix}' in COMMANDS:
+            # if both setup-* and teardown-* exist, add reload-*
+            add_reload_function(suffix)
     return func
 
 def run(args, **kwargs):
