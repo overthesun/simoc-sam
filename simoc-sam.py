@@ -79,7 +79,6 @@ def needs_root(func):
     """Ensure that the command is run as root before calling func."""
     @functools.wraps(func)
     def inner(*args, **kwargs):
-        print('innger', args, kwargs, os.geteuid())
         if os.geteuid() != 0:
             cmd_name = func.__name__.replace('_', '-')
             cmd_args = [str(a) for a in args]
