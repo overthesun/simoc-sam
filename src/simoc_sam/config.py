@@ -38,7 +38,8 @@ load_user_config(user_config_path)
 # validate and update config vars
 
 # ensure path variables are Path objects
-_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir', 'log_dir', 'data_dir']
+_path_vars = ['mqtt_certs_dir', 'simoc_web_dist_dir',
+              'log_dir', 'data_dir', 'db_path']
 for var in _path_vars:
     if var not in globals():
         continue
@@ -53,6 +54,12 @@ if location is None:
     hostname = socket.gethostname()
     # Remove trailing digits from the hostname to get the location
     location = hostname.rstrip('0123456789')
+
+# ensure display_refresh is positive
+if display_refresh <= 0:
+    print(f"Warning: display_refresh must be > 0, got {display_refresh}. "
+          f"Using default value of 1.0.")
+    display_refresh = 1.0
 
 # remove leading/trailing whitespace from display_format
 display_format = display_format.strip()

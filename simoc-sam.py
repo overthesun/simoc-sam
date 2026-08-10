@@ -68,6 +68,7 @@ def add_reload_function(cmd):
 
 def cmd(func):
     """Decorator to add commands to the COMMANDS dict."""
+    func.params = inspect.signature(func).parameters
     func_name = func.__name__
     COMMANDS[func_name] = func
     if func_name.startswith('teardown_'):
@@ -101,9 +102,15 @@ def needs_root(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         if os.geteuid() != 0:
-            os.execvp('sudo', ['sudo', '--preserve-env=HOME',
-                               sys.executable, *sys.argv])
-            return
+            cmd_name = func.__name__.replace('_', '-')
+            cmd_args = [str(a) for a in args]
+            cmd_kwargs = [f'--{k.replace("_", "-")}={v}'
+                          for k, v in kwargs.items() if v is not None]
+            cmd = ['sudo', '--preserve-env=HOME', sys.executable, __file__,
+                   cmd_name, *cmd_args, *cmd_kwargs]
+            print(f'Running as root: {cmd_name} {" ".join(cmd_args + cmd_kwargs)}')
+            result = subprocess.run(cmd, cwd=SIMOC_SAM_DIR)
+            return result.returncode == 0
         else:
             return func(*args, **kwargs)
     return inner
@@ -397,7 +404,7 @@ def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
     if enable:
         run(['systemctl', 'enable', unit_name])
     if start:
-        run(['systemctl', 'start', unit_name])
+        run(['systemctl', 'restart', unit_name])
 
 def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     """Optionally stop/disable the unit and then remove the symlink."""
@@ -409,7 +416,6 @@ def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
 
 
-@needs_root
 def setup_or_teardown_sensors(function, sensors=None):
     """Setup systemd services that run the sensors."""
     if sensors:
@@ -431,7 +437,6 @@ def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
     setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
-@needs_root
 def setup_or_teardown_display(function, display=None):
     """Setup/teardown systemd service that runs the display."""
     if display is None:
@@ -479,6 +484,18 @@ def teardown_csvwriter():
     """Revert the changes made by the setup-csvwriter command."""
     teardown_systemd_unit('csvwriter')
 
+@cmd
+@needs_root
+def setup_sqlwriter():
+    """Setup a systemd service that runs the sqlwriter."""
+    setup_systemd_unit('sqlwriter')
+
+@cmd
+@needs_root
+def teardown_sqlwriter():
+    """Revert the changes made by the setup-sqlwriter command."""
+    teardown_systemd_unit('sqlwriter')
+
 
 @cmd
 @needs_root
@@ -495,8 +512,14 @@ def setup_nginx():
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
     dist_dir = config.simoc_web_dist_dir
-    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir))
-    (sites_enabled / 'simoc_live').symlink_to(simoc_live)
+    write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir,
+                                    api_port=config.api_port,
+                                    sio_port=config.sio_port))
+
+    simoc_live_link = sites_enabled / 'simoc_live'
+    if simoc_live_link.exists() or simoc_live_link.is_symlink():
+        simoc_live_link.unlink()
+    simoc_live_link.symlink_to(simoc_live)
     assert run(['nginx', '-t'])  # ensure that the config is valid
     # enable/start/reload nginx
     if not run(['systemctl', 'is-enabled', 'nginx']):
@@ -516,11 +539,51 @@ def teardown_nginx():
 
 
 @cmd
+@needs_root
+def setup_flask():
+    """Setup a systemd service that runs the Flask API."""
+    setup_systemd_unit('flaskapi')
+
+@cmd
+@needs_root
+def teardown_flask():
+    """Revert the changes made by the setup-flask command."""
+    teardown_systemd_unit('flaskapi')
+
+
+@cmd
+@needs_root
+def setup_frontend():
+    """Copy the frontend to the web dir and set up nginx, Flask API, and sqlwriter."""
+    frontend_dir = SIMOC_SAM_DIR / 'frontend'
+    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    print(f'Copying {frontend_dir} to {dist_dir}...')
+    shutil.copytree(frontend_dir, dist_dir, dirs_exist_ok=True)
+    setup_sqlwriter()
+    setup_nginx()
+    setup_flask()
+    print(f'\nFrontend available at: http://{HOSTNAME}.local/')
+
+@cmd
+@needs_root
+def teardown_frontend():
+    """Revert the changes made by the setup-frontend command."""
+    teardown_flask()
+    teardown_nginx()
+    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    if dist_dir.exists():
+        print(f'Removing {dist_dir}...')
+        shutil.rmtree(dist_dir)
+
+
+@cmd
 @needs_venv
-def test(*args):
-    """Run the tests."""
-    pytest = str(VENV_DIR / 'bin' / 'pytest')
-    return run([pytest, '-v', *args])
+def test(test_path=None):
+    """Run the tests (pass an optional path or test-id to filter)."""
+    cmd = [str(VENV_DIR / 'bin' / 'pytest'), '-v']
+    if test_path:
+        cmd.append(test_path)
+    return run(cmd)
 
 
 @cmd
@@ -785,26 +848,68 @@ def clean_config():
         print(f'Removed config directory: {config_dir}')
 
 
-def create_help(cmds):
-    help = ['Full list of available commands:']
-    for cmd, func in cmds.items():
-        help.append(f'{cmd.replace("_", "-"):18} {func.__doc__}')
-    return '\n'.join(help)
-
-if __name__ == '__main__':
+def create_parser():
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         description="Setup and run SIMOC-SAM.",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument('cmd', metavar='CMD', help=create_help(COMMANDS))
-    parser.add_argument('args', metavar='*ARGS', nargs='*',
-                        help='Additional optional args to be passed to CMD.')
-    args = parser.parse_args()
+    subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
+    def param_type(default):
+        """Return a function that converts from str to type(default)."""
+        if default is None or default is inspect.Parameter.empty:
+            return {}  # no type conversion needed
+        if isinstance(default, bool):
+            return {'type': lambda v: v.lower() in ('true', '1', 'yes', 'on')}
+        return {'type': type(default)}
+    for cmd_name, func in COMMANDS.items():
+        # Create a subparser for each command
+        subparser = subparsers.add_parser(
+            cmd_name.replace('_', '-'),
+            help=func.__doc__,
+            description=func.__doc__,
+            formatter_class=argparse.RawTextHelpFormatter,
+        )
+        # Add cmd arguments based on the function signature
+        for param_name, param in func.params.items():
+            flag = f'--{param_name.replace("_", "-")}'
+            if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                if param.default is inspect.Parameter.empty:
+                    # Required positional params: add them as positional only
+                    subparser.add_argument(param_name, metavar=param_name)
+                else:
+                    # Optional params: add as positional and --args
+                    type_kw = param_type(param.default)
+                    subparser.add_argument(param_name, metavar=param_name, nargs='?',
+                                           default=argparse.SUPPRESS, **type_kw)
+                    subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
+                                           default=param.default, **type_kw)
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                if param.default is inspect.Parameter.empty:
+                    raise TypeError(f'Command {cmd_name!r}: keyword-only parameter '
+                                    f'{param_name!r} must have a default value')
+                # Keyword-only params: add as named --args only
+                subparser.add_argument(flag, dest=param_name,
+                                       default=argparse.SUPPRESS,
+                                       **param_type(param.default))
+            else:
+                raise TypeError(f'Unsupported parameter kind for {cmd_name}: '
+                                f'{param.kind}')
+    return parser
 
-    cmd = args.cmd.replace('-', '_')
-    if cmd in COMMANDS:
-        result = COMMANDS[cmd](*args.args)
-        parser.exit(not result)
-    else:
-        cmds = ', '.join(cmd.replace('_', '-') for cmd in COMMANDS.keys())
-        parser.error(f'Command not found.  Available commands: {cmds}')
+
+def main():
+    """Main entry point for the script."""
+    parser = create_parser()
+    args = parser.parse_args()
+    func = COMMANDS[args.cmd.replace('-', '_')]
+    call_kwargs = {k: v for k, v in vars(args).items() if k in func.params}
+    call_args = [call_kwargs.pop(name) for name, param in func.params.items()
+                 if param.default is inspect.Parameter.empty]
+    result = func(*call_args, **call_kwargs)
+    # Only treat False as failure (informational commands might return None)
+    sys.exit(0 if result is not False else 1)
+
+
+if __name__ == '__main__':
+    main()

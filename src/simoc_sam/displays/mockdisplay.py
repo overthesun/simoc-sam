@@ -2,6 +2,9 @@
 
 import asyncio
 
+from rich.live import Live
+from rich.text import Text
+
 from simoc_sam import config
 from simoc_sam.displays import utils as display_utils
 
@@ -9,25 +12,21 @@ from simoc_sam.displays import utils as display_utils
 SENSOR_READINGS = {}
 
 # total rows to display (including header)
-MAX_ROWS = 9
-
-def display_values(rows):
-    """Print display rows to console."""
-    print("-" * 40)
-    for row in rows:
-        print(row)
-    print("-" * 40)
+MAX_ROWS = 50
 
 async def update_display():
     """Continuously update the console display with latest sensor values."""
-    try:
-        while True:
-            rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
-            display_values(rows)
-            await asyncio.sleep(config.display_refresh)
-    except asyncio.CancelledError:
-        print("\nMockDisplay stopped.")
-        raise
+    delimiter = "-" * 40
+    with Live(refresh_per_second=1 / config.display_refresh) as live:
+        try:
+            while True:
+                rows = display_utils.format_values(SENSOR_READINGS, max_rows=MAX_ROWS)
+                output = Text("\n".join([delimiter, *rows, delimiter]))
+                live.update(output)
+                await asyncio.sleep(config.display_refresh)
+        except asyncio.CancelledError:
+            print("\nMockDisplay stopped.")
+            raise
 
 async def main():
     """Main loop: monitor MQTT and display sensor values."""

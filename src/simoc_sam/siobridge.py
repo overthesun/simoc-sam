@@ -6,7 +6,7 @@ import ipaddress
 import traceback
 
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict, deque
 
 import aiomqtt
@@ -116,8 +116,8 @@ async def register_client(sid):
     SUBSCRIBERS.add(sid)
 
 def get_timestamp():
-    """Return the current timestamp as a string."""
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    """Return the current timestamp as a UTC ISO 8601 string."""
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 async def emit_to_subscribers(*args, **kwargs):
     # TODO: replace with a namespace
