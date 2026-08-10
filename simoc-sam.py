@@ -834,7 +834,7 @@ def create_parser():
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
     def param_type(default):
         """Return a function that converts from str to type(default)."""
-        if default is None or isinstance(default, str):
+        if default is None or default is inspect.Parameter.empty:
             return {}  # no type conversion needed
         if isinstance(default, bool):
             return {'type': lambda v: v.lower() in ('true', '1', 'yes', 'on')}
@@ -862,6 +862,9 @@ def create_parser():
                     subparser.add_argument(flag, dest=param_name, help=argparse.SUPPRESS,
                                            default=param.default, **type_kw)
             elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                if param.default is inspect.Parameter.empty:
+                    raise TypeError(f'Command {cmd_name!r}: keyword-only parameter '
+                                    f'{param_name!r} must have a default value')
                 # Keyword-only params: add as named --args only
                 subparser.add_argument(flag, dest=param_name,
                                        default=argparse.SUPPRESS,
@@ -877,7 +880,10 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     func = COMMANDS[args.cmd.replace('-', '_')]
-    result = func(**{k: v for k, v in vars(args).items() if k in func.params})
+    call_kwargs = {k: v for k, v in vars(args).items() if k in func.params}
+    call_args = [call_kwargs.pop(name) for name, param in func.params.items()
+                 if param.default is inspect.Parameter.empty]
+    result = func(*call_args, **call_kwargs)
     # Only treat False as failure (informational commands might return None)
     sys.exit(0 if result is not False else 1)
 

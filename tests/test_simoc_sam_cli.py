@@ -142,8 +142,23 @@ def test_main_keyword_only_not_positional(clean_commands):
             simoc_sam_cli.main()
 
     assert exc_info.value.code == 0
-    # target gets the positional value; keyword-only params absent from argv use their defaults
-    mock_cmd.assert_called_once_with(target='pi@rpi.local')
+    # target is a required positional — passed positionally, not as a keyword
+    mock_cmd.assert_called_once_with('pi@rpi.local')
+
+
+def test_main_required_positional_not_keyword_only(clean_commands):
+    """Test that required KEYWORD_ONLY params (no default) are rejected.
+
+    Guards the call_args simplification: param.default is empty iff the param
+    is a required positional (KEYWORD_ONLY with empty default raises TypeError).
+    """
+    def test_cmd(pos_arg, *, kw_arg):
+        """Test command."""
+    mock_cmd = create_autospec(test_cmd, return_value=True)
+    simoc_sam_cli.cmd(mock_cmd)
+
+    with pytest.raises(TypeError, match='keyword-only'):
+        simoc_sam_cli.create_parser()
 
 
 def test_main_positional_args_only(clean_commands):
