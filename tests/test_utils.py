@@ -64,6 +64,12 @@ def test_get_i2c_names_known_sensor(mock_i2c):
     result = utils.get_i2c_names()
     assert result == ['tsl2591', 'sgp30', 'scd30']
 
+def test_get_i2c_names_known_display(mock_i2c):
+    """Test that known display addresses are correctly identified."""
+    mock_i2c.scan.return_value = [0x3D]  # ssd1306 / ssd1327
+    result = utils.get_i2c_names()
+    assert result[0] == 'ssd1306/ssd1327'
+
 def test_get_i2c_names_unknown_address(mock_i2c):
     """Test that unknown addresses return '<unknown>'."""
     unknown_addr = 0x99  # Not in sensors.toml
@@ -83,19 +89,24 @@ def test_i2c_to_device_name_known_sensor(mock_i2c):
     result = utils.i2c_to_device_name(0x61)  # scd30
     assert result == 'scd30'
 
+def test_i2c_to_device_name_known_display(mock_i2c):
+    """Test that a known display address is correctly identified."""
+    result = utils.i2c_to_device_name(0x3D)  # ssd1306 or ssd1327
+    assert result == 'ssd1306/ssd1327'
+
 def test_i2c_to_device_name_unknown_address(mock_i2c):
     """Test that unknown address returns '<unknown>'."""
     result = utils.i2c_to_device_name(0x99)  # Not in sensors.toml
     assert result == '<unknown>'
 
-@pytest.mark.parametrize("chip_id_register,chip_id,expected_name,should_warn", [
-    (0xD0, 0x61, 'bme688', False),  # BME688 register with BME688 chip ID
-    (0x00, 0x50, 'bmp388', False),  # BMP388 register with BMP388 chip ID
-    (0xD0, 0x50, 'bme688', True),   # Wrong chip ID - warns and falls back
-    (0x00, 0x61, 'bme688', True),   # Wrong chip ID - warns and falls back
+@pytest.mark.parametrize("chip_id_register,chip_id,expected_name", [
+    (0xD0, 0x61, 'bme688'),           # BME688 chip ID matches
+    (0x00, 0x50, 'bmp388'),           # BMP388 chip ID matches
+    (0xD0, 0x50, 'bme688/bmp388'),    # Probing fails, returns all candidates
+    (0x00, 0x61, 'bme688/bmp388'),    # Probing fails, returns all candidates
 ])
 def test_i2c_to_device_name_multiple_candidates(
-    mock_i2c, chip_id_register, chip_id, expected_name, should_warn):
+    mock_i2c, chip_id_register, chip_id, expected_name):
     """Test chip ID disambiguation for sensors sharing address 0x77."""
     addr = 0x77  # Shared by BME688 and BMP388
     # Simulate device responding with the specified chip ID
@@ -103,11 +114,7 @@ def test_i2c_to_device_name_multiple_candidates(
         if address == addr and reg_bytes == bytes([chip_id_register]):
             result[0] = chip_id
     mock_i2c.writeto_then_readfrom.side_effect = mock_read
-    if should_warn:
-        with pytest.warns(RuntimeWarning, match="Failed to disambiguate sensor"):
-            result = utils.i2c_to_device_name(addr)
-    else:
-        result = utils.i2c_to_device_name(addr)
+    result = utils.i2c_to_device_name(addr)
     assert result == expected_name
 
 

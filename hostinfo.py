@@ -55,25 +55,26 @@ def print_batman():
     subprocess.run(['sudo', 'batctl', 'o'])
 
 
-# Sensors info
+# Devices info
 
 def print_MCP2221_info():
-    """Print True if the MCP2221 is connected, False otherwise."""
+    """Print a message if the MCP2221 is detected, nothing otherwise."""
     from simoc_sam.sensors import utils
-    print(f'MCP2221 connected: {utils.has_mcp2221()}')
+    if utils.has_mcp2221():
+        print('MCP2221 detected')
 
-def print_sensors():
-    """Print a list of connected sensors and their I2C addresses."""
+def print_devices():
+    """Print a list of connected I2C devices and their addresses."""
     from simoc_sam import utils
     try:
         addresses = utils.get_i2c_addresses()
     except RuntimeError as err:
-        print(f'Sensor scanning failed: {err}')
+        print(f'Device scanning failed: {err}')
         return
     if not addresses:
-        print('No sensors found.')
+        print('No I2C devices found.')
         return
-    print(f'Found {len(addresses)} sensors:')
+    print(f'Found {len(addresses)} I2C device(s):')
     for addr in addresses:
         name = utils.i2c_to_device_name(addr)
         print(f'* {name} (I2C addr: {addr:x})')
@@ -195,15 +196,15 @@ def print_network_info():
     else:
         print("Can't import the netifaces module.")
 
-def print_sensors_info():
+def print_devices_info():
     print_MCP2221_info()
-    print_sensors()
+    print_devices()
 
 def print_info():
     print('===== Network info =====')
     print_network_info()
-    print('\n===== Sensors info =====')
-    print_sensors_info()
+    print('\n===== Devices info =====')
+    print_devices_info()
     print('\n===== Services info =====')
     print_services()
 

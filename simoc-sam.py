@@ -578,7 +578,7 @@ def run_tmux(file='mqtt'):
 @cmd
 @needs_venv
 def info():
-    """Print host info about the network and sensors."""
+    """Print host info about the network and devices."""
     import hostinfo
     hostinfo.print_info()
 
@@ -591,10 +591,10 @@ def network_info():
 
 @cmd
 @needs_venv
-def sensors_info():
-    """Print info about the connected sensors."""
+def devices_info():
+    """Print info about the connected I2C devices."""
     import hostinfo
-    hostinfo.print_sensors_info()
+    hostinfo.print_devices_info()
 
 @cmd
 def services_info():

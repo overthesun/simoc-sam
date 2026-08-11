@@ -2,7 +2,6 @@
 name = "Mock"
 description = "A mock sensor used for testing."
 module = "simoc_sam.sensors.mocksensor"
-i2c_address = 0x00
 
     [mock.data.co2]
     unit = "ppm"

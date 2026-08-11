@@ -2,6 +2,14 @@ from simoc_sam.sensors import utils
 from simoc_sam import config
 
 
+def test_sensor_data_i2c_mapping():
+    """Test that I2C_TO_SENSOR_NAMES is correctly populated."""
+    assert 0x61 in utils.I2C_TO_SENSOR_NAMES  # scd30
+    assert 'scd30' in utils.I2C_TO_SENSOR_NAMES[0x61]
+    # mock sensor has no i2c_address and must not appear in any lookup list
+    assert all('mock' not in names for names in utils.I2C_TO_SENSOR_NAMES.values())
+
+
 def test_delay():
     # Test that config default is used when no args provided
     args = utils.parse_args([])
