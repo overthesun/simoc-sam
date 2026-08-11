@@ -23,7 +23,7 @@ class DisplayData:
     module: str
     width: int
     height: int
-    i2c_address: int
+    i2c_address: int = None
     reset_pin: str = None
 
 
@@ -42,7 +42,7 @@ def load_display_data(file_path=DISPLAYS_TOML):
             module=display_info['module'],
             width=display_info['width'],
             height=display_info['height'],
-            i2c_address=display_info['i2c_address'],
+            i2c_address=display_info.get('i2c_address'),
             reset_pin=display_info.get('reset_pin'),
         )
     return display_data
@@ -51,7 +51,8 @@ def load_display_data(file_path=DISPLAYS_TOML):
 DISPLAY_DATA = load_display_data()
 I2C_TO_DISPLAY_NAMES = defaultdict(list)
 for name, info in DISPLAY_DATA.items():
-    I2C_TO_DISPLAY_NAMES[info.i2c_address].append(name)
+    if info.i2c_address is not None:
+        I2C_TO_DISPLAY_NAMES[info.i2c_address].append(name)
 
 
 def format_values(sensor_readings_dict, max_rows=None):

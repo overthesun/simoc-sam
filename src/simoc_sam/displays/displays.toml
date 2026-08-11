@@ -6,7 +6,6 @@ description = "A mock display that prints to console."
 module = "simoc_sam.displays.mockdisplay"
 width = 128
 height = 64
-i2c_address = 0x00
 
 [ssd1306]
 name = "SSD1306"
