@@ -79,18 +79,19 @@ def i2c_to_device_name(addr):
         return '<unknown>'
     if len(names) == 1:
         return names[0]
-    # multiple devices with the same address -- probe chip ID to disambiguate
-    # (chip ID disambiguation only applies to sensors)
-    i2c = get_i2c()
-    for name in sensor_names:
-        info = sensor_utils.SENSOR_DATA[name]
-        if info.chip_id_register is not None and info.chip_id is not None:
-            try:
-                result = bytearray(1)
-                i2c.writeto_then_readfrom(addr, bytes([info.chip_id_register]), result)
-                if result[0] == info.chip_id:
-                    return name
-            except (OSError, RuntimeError):
-                continue
+    # multiple devices with the same address
+    if sensor_names:
+        # for sensors, probe chip ID to disambiguate
+        i2c = get_i2c()
+        for name in sensor_names:
+            info = sensor_utils.SENSOR_DATA[name]
+            if info.chip_id_register is not None and info.chip_id is not None:
+                try:
+                    result = bytearray(1)
+                    i2c.writeto_then_readfrom(addr, bytes([info.chip_id_register]), result)
+                    if result[0] == info.chip_id:
+                        return name
+                except (OSError, RuntimeError):
+                    continue
     # Could not disambiguate -- return all candidates
     return '/'.join(names)
