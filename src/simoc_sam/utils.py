@@ -3,7 +3,6 @@
 import json
 import time
 import asyncio
-import warnings
 
 _i2c_cache = {}
 
@@ -93,10 +92,5 @@ def i2c_to_device_name(addr):
                     return name
             except (OSError, RuntimeError):
                 continue
-    # Could not disambiguate - warn and return first candidate's key
-    warnings.warn(
-        f"Failed to disambiguate device at address {addr:#02x}. "
-        f"Candidates: {names}. Defaulting to '{names[0]}'.",
-        RuntimeWarning
-    )
-    return names[0]
+    # Could not disambiguate -- return all candidates
+    return '/'.join(names)
