@@ -58,7 +58,7 @@ def print_batman():
 # Devices info
 
 def print_MCP2221_info():
-    """Print True if the MCP2221 is connected, False otherwise."""
+    """Print a message if the MCP2221 is detected, nothing otherwise."""
     from simoc_sam.sensors import utils
     if utils.has_mcp2221():
         print('MCP2221 detected')
