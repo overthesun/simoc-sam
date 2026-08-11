@@ -122,8 +122,8 @@ def test_display_data_i2c_mapping():
     """Test that I2C_TO_DISPLAY_NAMES is correctly populated."""
     assert 0x3D in utils.I2C_TO_DISPLAY_NAMES
     assert 'ssd1306' in utils.I2C_TO_DISPLAY_NAMES[0x3D]
-    # mockdisplay has no i2c_address and must not appear in the lookup dict
-    assert 'mockdisplay' not in utils.I2C_TO_DISPLAY_NAMES.values()
+    # mockdisplay has no i2c_address and must not appear in any lookup list
+    assert all('mockdisplay' not in names for names in utils.I2C_TO_DISPLAY_NAMES.values())
 
 
 def test_format_values_basic():
