@@ -60,7 +60,8 @@ def print_batman():
 def print_MCP2221_info():
     """Print True if the MCP2221 is connected, False otherwise."""
     from simoc_sam.sensors import utils
-    print(f'MCP2221 connected: {utils.has_mcp2221()}')
+    if utils.has_mcp2221():
+        print('MCP2221 detected')
 
 def print_devices():
     """Print a list of connected I2C devices and their addresses."""
