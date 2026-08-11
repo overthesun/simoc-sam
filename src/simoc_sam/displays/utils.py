@@ -7,7 +7,7 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
 
-import tomli
+import tomllib
 import aiomqtt
 
 from PIL import Image, ImageDraw, ImageFont
@@ -33,7 +33,7 @@ DISPLAYS_TOML = pathlib.Path(__file__).with_name('displays.toml')
 def load_display_data(file_path=DISPLAYS_TOML):
     """Load display configuration from displays.toml."""
     with open(file_path, 'rb') as f:
-        displays = tomli.load(f)
+        displays = tomllib.load(f)
     display_data = {}
     for display_key, display_info in displays.items():
         display_data[display_key] = DisplayData(

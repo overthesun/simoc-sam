@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from .basesensor import MQTTWrapper
 from .. import config
 
-import tomli
+import tomllib
 
 
 def format_reading(reading, *, time_fmt='%H:%M:%S', sensor_info=None):
@@ -69,7 +69,7 @@ SENSORS_TOML = pathlib.Path(__file__).with_name('sensors.toml')
 
 def load_sensor_data(file_path=SENSORS_TOML):
     with open(file_path, 'rb') as f:
-        sensors = tomli.load(f)
+        sensors = tomllib.load(f)
     sensor_data = {}
     for sensor_name, sensor_info in sensors.items():
         sensor_data[sensor_name] = SensorData(
