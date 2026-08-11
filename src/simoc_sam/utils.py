@@ -5,8 +5,6 @@ import time
 import asyncio
 import warnings
 
-from .sensors import utils as sensor_utils
-
 _i2c_cache = {}
 
 
@@ -50,6 +48,7 @@ async def read_jsonl_file(file_path):
 
 def get_i2c():
     """Get or create a cached I2C bus instance."""
+    from simoc_sam.sensors import utils as sensor_utils
     if 'i2c' not in _i2c_cache:
         board = sensor_utils.import_board()
         busio = sensor_utils.import_busio()
@@ -72,14 +71,19 @@ def get_i2c_names():
 
 def i2c_to_device_name(addr):
     """Resolve an I2C address to a device name."""
-    names = sensor_utils.I2C_TO_SENSOR_NAMES.get(addr, [])
+    from simoc_sam.sensors import utils as sensor_utils
+    from simoc_sam.displays import utils as display_utils
+    sensor_names = sensor_utils.I2C_TO_SENSOR_NAMES.get(addr, [])
+    display_names = display_utils.I2C_TO_DISPLAY_NAMES.get(addr, [])
+    names = sensor_names + display_names
     if not names:
         return '<unknown>'
     if len(names) == 1:
         return names[0]
     # multiple devices with the same address -- probe chip ID to disambiguate
+    # (chip ID disambiguation only applies to sensors)
     i2c = get_i2c()
-    for name in names:
+    for name in sensor_names:
         info = sensor_utils.SENSOR_DATA[name]
         if info.chip_id_register is not None and info.chip_id is not None:
             try:
@@ -91,7 +95,7 @@ def i2c_to_device_name(addr):
                 continue
     # Could not disambiguate - warn and return first candidate's key
     warnings.warn(
-        f"Failed to disambiguate sensor at address {addr:#02x}. "
+        f"Failed to disambiguate device at address {addr:#02x}. "
         f"Candidates: {names}. Defaulting to '{names[0]}'.",
         RuntimeWarning
     )

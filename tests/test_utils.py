@@ -104,7 +104,7 @@ def test_i2c_to_device_name_multiple_candidates(
             result[0] = chip_id
     mock_i2c.writeto_then_readfrom.side_effect = mock_read
     if should_warn:
-        with pytest.warns(RuntimeWarning, match="Failed to disambiguate sensor"):
+        with pytest.warns(RuntimeWarning, match="Failed to disambiguate device"):
             result = utils.i2c_to_device_name(addr)
     else:
         result = utils.i2c_to_device_name(addr)
