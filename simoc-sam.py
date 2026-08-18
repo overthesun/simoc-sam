@@ -838,7 +838,7 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
         config_path = simoc_config.config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
         if not config_path.exists():
-            config_path.write_text('# SIMOC-SAM user configuration\n')
+            config_path.write_text(simoc_config.generate_config_template())
         editor = os.environ.get('EDITOR', 'nano')
         os.execvp(editor, [editor, str(config_path)])
         return
