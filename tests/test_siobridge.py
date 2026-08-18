@@ -48,7 +48,7 @@ def client_id():
 
 @pytest.fixture
 def sensor_id():
-    return get_sensor_id('mock')
+    return get_sensor_id('mocksensor')
 
 @pytest.fixture
 def sensor_info(sensor_id):
@@ -90,7 +90,7 @@ def mqtt_message():
     """Create a mock MQTT message."""
     message = MagicMock()
     # Topic format is location/hostname/sensor_name
-    message.topic.value = get_sensor_id('mock', sep='/')
+    message.topic.value = get_sensor_id('mocksensor', sep='/')
     message.payload = json.dumps({
         'n': 1,
         'timestamp': '2022-03-04T03:58:02+00:00',
