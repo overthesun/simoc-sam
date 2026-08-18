@@ -360,17 +360,18 @@ def generate_config_template() -> str:
             current_group = info['group']
             lines.append(f'# -- {current_group} --')
         if info['type'] == 'multiline_str':
-            lines.append(f'# {name} = """  # edit with: sam config --edit')
+            toml_block = f'{name} = """\n{info["default"].strip()}\n"""'
+            lines.append('\n'.join(f'# {line}' for line in toml_block.splitlines()))
             continue
-        default = info['default']
-        toml_line = (
-            f'{name} = ""' if default is None
-            else tomli_w.dumps({name: default}).rstrip()
-        )
         opts = info['options']
-        suffix = (f'  # {", ".join(str(o) for o in opts)}'
-                  if opts and len(opts) <= 5 else '')
-        lines.append(f'# {toml_line}{suffix}')
+        default = info['default'] if info['default'] is not None else ''
+        # list all valid options for list fields, append for other types
+        value = list(opts) if info['type'] == 'list' and opts else default
+        toml_line = tomli_w.dumps({name: value}).rstrip()
+        commented = '\n'.join(f'# {line}' for line in toml_line.splitlines())
+        lines.append(commented)
+        if opts and info['type'] != 'list':
+            lines.append(f'# # valid options: {", ".join(map(str, opts))}')
     return '\n'.join(lines) + '\n'
 
 

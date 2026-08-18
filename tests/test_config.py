@@ -15,6 +15,7 @@ from simoc_sam.config import (
     SimocConfig, get_field_type,
     get_schema, get_config, load_user_config, save_user_config,
     parse_value, format_value, print_all, print_one, print_defaults,
+    generate_config_template,
 )
 
 
@@ -280,6 +281,20 @@ def test_get_schema_groups():
 
 def test_get_schema_is_cached():
     assert get_schema() is get_schema()
+
+
+def test_generate_config_template_is_valid_toml():
+    import tomllib
+    result = tomllib.loads(generate_config_template())
+    assert result == {}  # all lines are commented out
+
+
+def test_generate_config_template_contains_all_fields():
+    template = generate_config_template()
+    for name in get_schema():
+        assert name in template, f'{name!r} missing from config template'
+
+
 def test_load_user_config_missing(user_config):
     assert load_user_config() == {}
 
