@@ -796,7 +796,7 @@ def create_config():
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(simoc_config.generate_config_template())
     print(f'Created: {config_path}')
-    print('All settings are commented out — uncomment and edit to change them.')
+    print('All settings are commented out -- uncomment and edit to change them.')
     print(f'Or use: sam config KEY VALUE')
 
 
@@ -821,19 +821,17 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
     sam config KEY VALUE        set KEY to VALUE
     sam config KEY --reset      reset KEY to its default
     sam config --defaults       show all default values
-    sam config --path           print the path to the config file
     sam config --edit           open config file in $EDITOR
+    sam config --path           print the path to the config file
 
-    List values are comma-separated: sam config sensors scd30,bme688
-    Key names accept hyphens or underscores: mqtt-port / mqtt_port
+    List values are comma-separated, e.g.: sam config sensors scd30,bme688
+    Key names accept hyphens or underscores, e.g.: mqtt-port / mqtt_port
     """
-    schema         = simoc_config.get_schema()
+    schema = simoc_config.get_schema()
     user_overrides = simoc_config.load_user_config()
-
     if path:
         print(simoc_config.config_path())
         return
-
     if edit:
         config_path = simoc_config.config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -842,52 +840,45 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
         editor = os.environ.get('EDITOR', 'nano')
         os.execvp(editor, [editor, str(config_path)])
         return
-
     if defaults:
         simoc_config.print_defaults(schema)
         return
-
     if key is None:
         simoc_config.print_all(schema, user_overrides)
         return
-
-    key = key.replace('-', '_')   # accept both mqtt-port and mqtt_port
-
+    key = key.replace('-', '_')   # accept both var-name and var_name
     if key not in schema:
         print(f'Error: unknown config key: {key!r}')
         print('Run `sam config` to see all available keys.')
         return False
-
     if reset:
         if key in user_overrides:
             del user_overrides[key]
             simoc_config.save_user_config(user_overrides)
-            print(f'Reset {key} to default: {simoc_config.format_value(schema[key]["default"])}')
+            default = simoc_config.format_value(schema[key]['default'])
+            print(f'Reset {key} to default: {default}')
         else:
             print(f'{key} is already at its default value.')
         return
-
     if value is None:
         simoc_config.print_one(key, schema, user_overrides)
         return
-
     try:
         parsed = simoc_config.parse_value(value, schema[key])
     except (ValueError, TypeError) as exc:
         print(f'Error: {exc}')
         return False
-
     user_overrides[key] = parsed
     simoc_config.save_user_config(user_overrides)
     print(f'{key} = {simoc_config.format_value(parsed)}')
     if related := simoc_config.RELATED_COMMANDS.get(key):
-        print(f'  \u2192 To apply: sam {related}')
+        print(f'  To apply: sam {related}')
 
 
 def create_parser():
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
-        description="Setup and run SIMOC-SAM.",
+        description="Setup and run SIMOC Live.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
