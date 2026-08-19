@@ -1,7 +1,6 @@
 import os
 import pathlib
 import argparse
-import subprocess
 
 from typing import Dict, Any
 from datetime import datetime, timezone
@@ -90,7 +89,9 @@ for name, info in SENSOR_DATA.items():
         I2C_TO_SENSOR_NAMES[info.i2c_address].append(name)
 
 def has_mcp2221():
-    return b'MCP2221' in subprocess.check_output("lsusb")
+    import hid
+    return any(d['vendor_id'] == 0x04D8 and d['product_id'] == 0x00DD
+               for d in hid.enumerate())
 
 def import_board():
     """Import the board module while checking for MCP2221s."""
