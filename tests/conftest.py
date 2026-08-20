@@ -7,6 +7,12 @@ import pytest
 from simoc_sam.db import init_db, close_db
 
 
+@pytest.fixture(autouse=True, scope='session')
+def mock_has_mcp2221():
+    with patch('simoc_sam.sensors.utils.has_mcp2221', return_value=False):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def patch_gethostname():
     with patch('socket.gethostname', return_value='testhost1'):
