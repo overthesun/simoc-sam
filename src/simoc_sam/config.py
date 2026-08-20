@@ -196,6 +196,41 @@ def get_schema() -> dict[str, dict]:
     return schema
 
 
+def generate_config(overrides: dict = {}) -> str:
+    """Return a TOML config template; overrides appear as live values."""
+    schema = get_schema()
+    lines = [
+        '# SIMOC Live configuration',
+        '# Uncomment and change a line to override its default.',
+        '# CLI: sam config               -- list all values',
+        '#      sam config KEY           -- show field details and options',
+        '#      sam config KEY VALUE     -- set a value',
+        '#      sam config --edit        -- open this file in $EDITOR',
+        '',
+    ]
+    current_group = None
+    for name, info in schema.items():
+        if info['group'] != current_group:
+            if current_group is not None:
+                lines.append('')
+            current_group = info['group']
+            lines.append(f'# -- {current_group} --')
+        if name in overrides:
+            lines.append(tomli_w.dumps({name: overrides[name]}).rstrip())
+        elif info['type'] == 'multiline_str':
+            toml_block = f'{name} = """\n{info["default"].strip()}\n"""'
+            lines.append('\n'.join(f'# {line}' for line in toml_block.splitlines()))
+        else:
+            opts = info['options']
+            default = info['default'] if info['default'] is not None else ''
+            value = list(opts) if info['type'] == 'list' and opts else default
+            toml_line = tomli_w.dumps({name: value}).rstrip()
+            commented = '\n'.join(f'# {line}' for line in toml_line.splitlines())
+            lines.append(commented)
+            if opts and info['type'] != 'list':
+                lines.append(f'# # valid options: {", ".join(map(str, opts))}')
+    return '\n'.join(lines) + '\n'
+
 
 def config_path() -> pathlib.Path:
     """Return the config file path (re-evaluated each call so test monkeypatching works)."""
@@ -212,13 +247,10 @@ def load_user_config() -> dict:
 
 
 def save_user_config(overrides: dict) -> None:
-    """Write user overrides to ``~/.config/simoc-sam/config.toml``."""
+    """Write the config template with overrides applied as live TOML values."""
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    header = ('# SIMOC-SAM user configuration\n'
-              '# Managed by: sam config -- '
-              'edit manually or run: sam config KEY VALUE\n\n')
-    path.write_text(header + tomli_w.dumps(overrides))
+    path.write_text(generate_config(overrides))
 
 
 def get_config() -> SimocConfig:
@@ -338,41 +370,6 @@ RELATED_COMMANDS: dict[str, str] = {
     'api_port': 'setup-flask',
     'simoc_web_dist_dir': 'setup-nginx',
 }
-
-
-def generate_config_template() -> str:
-    """Return a fully-commented TOML string with every setting and its default."""
-    schema = get_schema()
-    lines = [
-        '# SIMOC Live configuration',
-        '# Uncomment and change a line to override its default.',
-        '# CLI: sam config               -- list all values',
-        '#      sam config KEY           -- show field details and options',
-        '#      sam config KEY VALUE     -- set a value',
-        '#      sam config --edit        -- open this file in $EDITOR',
-        '',
-    ]
-    current_group = None
-    for name, info in schema.items():
-        if info['group'] != current_group:
-            if current_group is not None:
-                lines.append('')
-            current_group = info['group']
-            lines.append(f'# -- {current_group} --')
-        if info['type'] == 'multiline_str':
-            toml_block = f'{name} = """\n{info["default"].strip()}\n"""'
-            lines.append('\n'.join(f'# {line}' for line in toml_block.splitlines()))
-            continue
-        opts = info['options']
-        default = info['default'] if info['default'] is not None else ''
-        # list all valid options for list fields, append for other types
-        value = list(opts) if info['type'] == 'list' and opts else default
-        toml_line = tomli_w.dumps({name: value}).rstrip()
-        commented = '\n'.join(f'# {line}' for line in toml_line.splitlines())
-        lines.append(commented)
-        if opts and info['type'] != 'list':
-            lines.append(f'# # valid options: {", ".join(map(str, opts))}')
-    return '\n'.join(lines) + '\n'
 
 
 # Expose SimocConfig fields as a module-level attributes

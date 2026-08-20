@@ -15,7 +15,7 @@ from simoc_sam.config import (
     SimocConfig, get_field_type,
     get_schema, get_config, load_user_config, save_user_config,
     parse_value, format_value, print_all, print_one, print_defaults,
-    generate_config_template,
+    generate_config,
 )
 
 
@@ -285,12 +285,12 @@ def test_get_schema_is_cached():
 
 def test_generate_config_template_is_valid_toml():
     import tomllib
-    result = tomllib.loads(generate_config_template())
+    result = tomllib.loads(generate_config())
     assert result == {}  # all lines are commented out
 
 
 def test_generate_config_template_contains_all_fields():
-    template = generate_config_template()
+    template = generate_config()
     for name in get_schema():
         assert name in template, f'{name!r} missing from config template'
 
@@ -315,11 +315,13 @@ def test_save_user_config_creates_directory(tmp_path):
     assert (tmp_path / '.config' / 'simoc-sam' / 'config.toml').exists()
 
 
-def test_save_user_config_only_writes_overrides(user_config):
+def test_save_user_config_writes_full_template(user_config):
     save_user_config({'mqtt_port': 9999})
     content = user_config.read_text()
-    assert 'mqtt_port' in content
-    assert 'sensors'   not in content
+    assert 'mqtt_port = 9999' in content   # override is live (not commented)
+    assert '# sensors' in content          # other fields remain as commented template
+    import tomllib
+    assert tomllib.loads(content) == {'mqtt_port': 9999}
 
 
 def test_save_user_config_has_comment_header(user_config):
