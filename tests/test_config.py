@@ -299,6 +299,13 @@ def test_load_user_config_missing(user_config):
     assert load_user_config() == {}
 
 
+def test_load_user_config_invalid_toml(user_config):
+    user_config.write_text('this is not [valid toml')
+    with pytest.raises(ValueError, match='Invalid TOML'):
+        load_user_config()
+    user_config.unlink()
+
+
 def test_save_and_load_roundtrip(user_config):
     overrides = {'mqtt_host': 'remote.host', 'mqtt_port': 1884,
                  'sensors': ['scd30', 'bme688'], 'mqtt_secure': False}

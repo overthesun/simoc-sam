@@ -242,8 +242,11 @@ def load_user_config() -> dict:
     path = config_path()
     if not path.exists():
         return {}
-    with open(path, 'rb') as f:
-        return tomllib.load(f)
+    try:
+        with open(path, 'rb') as f:
+            return tomllib.load(f)
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f'Invalid TOML syntax in {path!r}: {exc}') from exc
 
 
 def save_user_config(overrides: dict) -> None:
