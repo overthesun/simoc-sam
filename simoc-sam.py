@@ -827,8 +827,6 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
     List values are comma-separated, e.g.: sam config sensors scd30,bme688
     Key names accept hyphens or underscores, e.g.: mqtt-port / mqtt_port
     """
-    schema = simoc_config.get_schema()
-    user_overrides = simoc_config.load_user_config()
     if path:
         print(simoc_config.config_path())
         return
@@ -840,6 +838,8 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
         editor = os.environ.get('EDITOR', 'nano')
         os.execvp(editor, [editor, str(config_path)])
         return
+    schema = simoc_config.get_schema()
+    user_overrides = simoc_config.load_user_config()
     if defaults:
         simoc_config.print_defaults(schema)
         return
