@@ -4,6 +4,7 @@ and module-level var exposure."""
 import dataclasses
 import importlib
 import pathlib
+import socket
 from pathlib import Path
 from typing import Literal
 
@@ -344,10 +345,64 @@ def test_save_user_config_has_comment_header(user_config):
     assert user_config.read_text().startswith('#')
 
 
+def test_save_user_config_with_none_override_does_not_crash(user_config):
+    save_user_config({'location': None, 'mqtt_port': 9999})
+    assert load_user_config() == {'mqtt_port': 9999}
+
+
 
 def test_get_config_returns_simoc_config(user_config):
     # type name check — robust against importlib.reload() redefining the class
     assert type(get_config()).__name__ == 'SimocConfig'
+
+
+def test_get_config_wrong_type_falls_back(user_config, capsys):
+    user_config.write_text('mqtt_port = "not_a_number"\n')
+    cfg = get_config()
+    assert cfg.mqtt_port == 1883   # default, not the wrong-type string
+    assert 'Warning' in capsys.readouterr().err
+
+
+def test_post_init_wrong_type_bool(capsys):
+    cfg = SimocConfig(mqtt_secure='yes')   # str instead of bool
+    assert cfg.mqtt_secure is False   # dataclass default
+    assert 'Warning' in capsys.readouterr().err
+
+
+def test_post_init_wrong_type_int_from_bool(capsys):
+    cfg = SimocConfig(humans=True)   # bool must be rejected for an int field
+    assert cfg.humans == 0
+    assert 'Warning' in capsys.readouterr().err
+
+
+def test_post_init_wrong_type_float_accepts_int():
+    cfg = SimocConfig(sensor_read_delay=5)   # int is acceptable for a float field
+    assert cfg.sensor_read_delay == 5
+
+
+def test_post_init_wrong_type_list(capsys):
+    cfg = SimocConfig(sensors='bme688')   # str instead of list
+    assert cfg.sensors == ['bme688', 'scd30', 'sgp30']   # dataclass default
+    assert 'Warning' in capsys.readouterr().err
+
+
+def test_post_init_wrong_type_nullable_str(capsys):
+    cfg = SimocConfig(location=123)   # int instead of str|None
+    assert cfg.location == socket.gethostname().rstrip('0123456789')
+    assert 'Warning' in capsys.readouterr().err
+
+
+def test_post_init_path_field_accepts_str_and_path():
+    cfg = SimocConfig(log_dir='/custom/logs')
+    assert cfg.log_dir == pathlib.Path('/custom/logs')
+    cfg2 = SimocConfig(log_dir=pathlib.Path('/custom/logs2'))
+    assert cfg2.log_dir == pathlib.Path('/custom/logs2')
+
+
+def test_post_init_wrong_type_path_field(capsys):
+    cfg = SimocConfig(log_dir=123)   # int instead of str|Path
+    assert cfg.log_dir == pathlib.Path('~/logs').expanduser().absolute()
+    assert 'Warning' in capsys.readouterr().err
 
 
 def test_get_config_applies_overrides(user_config):

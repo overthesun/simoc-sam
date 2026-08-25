@@ -111,6 +111,35 @@ class SimocConfig:
     ])
 
     def __post_init__(self) -> None:
+        # Reset any field whose value doesn't match its schema type to the dataclass default.
+        hints = typing.get_type_hints(SimocConfig)
+        for f in dataclasses.fields(self):
+            if f.name.startswith('_'):
+                continue
+            value = getattr(self, f.name)
+            field_type, _ = get_field_type(hints[f.name], value)
+            if field_type == 'bool':
+                ok = isinstance(value, bool)
+            elif field_type == 'int':
+                ok = isinstance(value, int) and not isinstance(value, bool)
+            elif field_type == 'float':
+                ok = isinstance(value, (int, float)) and not isinstance(value, bool)
+            elif field_type == 'nullable_str':
+                ok = value is None or isinstance(value, str)
+            elif field_type == 'list':
+                ok = isinstance(value, list)
+            elif field_type == 'literal':
+                ok = True  # e.g. data_source -- checked separately below
+            elif f.name in self._PATH_FIELDS:
+                ok = isinstance(value, (str, pathlib.Path))
+            else:
+                ok = isinstance(value, str)  # str, multiline_str
+            if not ok:
+                default = f.default_factory() if f.default is dataclasses.MISSING else f.default
+                print(f'Warning: {f.name!r} has wrong type '
+                      f'(got {type(value).__name__!r}), using default.', file=sys.stderr)
+                setattr(self, f.name, default)
+
         # Expand ~ and absolutize all path fields (accepts both str and Path input)
         for fname in self._PATH_FIELDS:
             p = pathlib.Path(getattr(self, fname)).expanduser().absolute()
