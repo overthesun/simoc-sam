@@ -295,6 +295,14 @@ def test_generate_config_template_contains_all_fields():
         assert name in template, f'{name!r} missing from config template'
 
 
+def test_generate_config_skips_none_override():
+    # None means "unset" -- TOML has no null, so it must not be serialized
+    result = generate_config({'location': None})
+    import tomllib
+    assert tomllib.loads(result) == {}
+    assert '# location' in result   # falls back to the commented default line
+
+
 def test_load_user_config_missing(user_config):
     assert load_user_config() == {}
 

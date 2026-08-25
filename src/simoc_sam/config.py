@@ -215,7 +215,8 @@ def generate_config(overrides: dict = {}) -> str:
                 lines.append('')
             current_group = info['group']
             lines.append(f'# -- {current_group} --')
-        if name in overrides:
+        # None means "unset" (TOML has no null) -- fall back to the commented default
+        if name in overrides and overrides[name] is not None:
             lines.append(tomli_w.dumps({name: overrides[name]}).rstrip())
         elif info['type'] == 'multiline_str':
             toml_block = f'{name} = """\n{info["default"].strip()}\n"""'
