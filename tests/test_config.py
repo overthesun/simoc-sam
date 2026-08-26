@@ -200,37 +200,37 @@ def test_simoc_config_constructor_override():
 
 
 
-def test_hint_to_ftype_primitives():
+def test_get_field_type_primitives():
     assert get_field_type(bool, False)[0] == 'bool'
     assert get_field_type(int, 0)[0] == 'int'
     assert get_field_type(float, 0.0)[0] == 'float'
     assert get_field_type(str, 'x')[0] == 'str'
 
 
-def test_hint_to_ftype_multiline_str():
+def test_get_field_type_multiline_str():
     ftype, _ = get_field_type(str, 'line1\nline2')
     assert ftype == 'multiline_str'
 
 
-def test_hint_to_ftype_nullable():
+def test_get_field_type_nullable():
     ftype, opts = get_field_type(str | None, None)
     assert ftype == 'nullable_str'
     assert opts == ()
 
 
-def test_hint_to_ftype_literal():
+def test_get_field_type_literal():
     ftype, opts = get_field_type(Literal['a', 'b', 'c'], 'a')
     assert ftype == 'literal'
     assert set(opts) == {'a', 'b', 'c'}
 
 
-def test_hint_to_ftype_plain_list():
+def test_get_field_type_plain_list():
     ftype, opts = get_field_type(list[str], [])
     assert ftype == 'list'
     assert opts == ()
 
 
-def test_hint_to_ftype_path():
+def test_get_field_type_path():
     ftype, _ = get_field_type(pathlib.Path, pathlib.Path('~/foo'))
     assert ftype == 'str'
 
