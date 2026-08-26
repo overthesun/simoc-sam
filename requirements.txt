@@ -9,7 +9,7 @@ gunicorn==26.1.0
 
 # sensor-related deps
 hidapi==0.15.0
-Adafruit-Blinka==9.1.0
+Adafruit-Blinka==9.2.0
 adafruit-circuitpython-scd30==2.3.0
 adafruit-circuitpython-scd4x==1.4.13
 adafruit-circuitpython-sgp30==3.0.16
