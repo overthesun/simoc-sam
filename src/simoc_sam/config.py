@@ -111,7 +111,7 @@ class SimocConfig:
     ])
 
     def __post_init__(self) -> None:
-        # Reset any field whose value doesn't match its schema type to the dataclass default.
+        # Validate field type or fall back to default
         hints = typing.get_type_hints(SimocConfig)
         for f in dataclasses.fields(self):
             if f.name.startswith('_'):
@@ -135,10 +135,9 @@ class SimocConfig:
             else:
                 ok = isinstance(value, str)  # str, multiline_str
             if not ok:
-                default = f.default_factory() if f.default is dataclasses.MISSING else f.default
                 print(f'Warning: {f.name!r} has wrong type '
                       f'(got {type(value).__name__!r}), using default.', file=sys.stderr)
-                setattr(self, f.name, default)
+                setattr(self, f.name, get_field_default(f))
 
         # Expand ~ and absolutize all path fields (accepts both str and Path input)
         for fname in self._PATH_FIELDS:
@@ -177,6 +176,10 @@ _TYPES: dict = {
     pathlib.Path: 'str', types.UnionType: 'nullable_str',
 }
 
+def get_field_default(f: dataclasses.Field):
+    """Return a dataclass field's default value, calling default_factory if needed."""
+    return f.default_factory() if f.default is dataclasses.MISSING else f.default
+
 
 def get_field_type(hint, default) -> tuple[str, tuple]:
     """Return ``(type, options)`` from a resolved type hint.
@@ -204,7 +207,7 @@ def get_schema() -> dict[str, dict]:
     for f in dataclasses.fields(SimocConfig):
         if f.name.startswith('_'):
             continue
-        default = f.default_factory() if f.default is dataclasses.MISSING else f.default
+        default = get_field_default(f)
         field_type, options = get_field_type(hints[f.name], default)
         if isinstance(default, pathlib.Path):
             default = str(default)

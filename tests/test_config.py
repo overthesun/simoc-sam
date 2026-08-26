@@ -13,7 +13,7 @@ import pytest
 from simoc_sam import config
 from simoc_sam import defaults
 from simoc_sam.config import (
-    SimocConfig, get_field_type,
+    SimocConfig, get_field_type, get_field_default,
     get_schema, get_config, load_user_config, save_user_config,
     parse_value, format_value, print_all, print_one, print_defaults,
     generate_config,
@@ -233,6 +233,25 @@ def test_hint_to_ftype_path():
     ftype, _ = get_field_type(pathlib.Path, pathlib.Path('~/foo'))
     assert ftype == 'str'
 
+
+def _field(name):
+    return next(f for f in dataclasses.fields(SimocConfig) if f.name == name)
+
+
+def test_get_field_default_plain_value():
+    assert get_field_default(_field('mqtt_port')) == 1883
+
+
+def test_get_field_default_calls_factory():
+    assert get_field_default(_field('sensors')) == ['bme688', 'scd30', 'sgp30']
+
+
+def test_get_field_default_factory_called_fresh_each_time():
+    # default_factory must be invoked each call, not shared/mutated across instances
+    a = get_field_default(_field('sensors'))
+    b = get_field_default(_field('sensors'))
+    assert a == b
+    assert a is not b
 
 
 def test_get_schema_covers_all_fields():
