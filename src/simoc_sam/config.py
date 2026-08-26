@@ -336,7 +336,6 @@ def parse_value(raw: str, schema_entry: dict):
     return raw  # str, multiline_str (kept as string for round-trip)
 
 
-
 def format_value(value) -> str:
     """Format a value for one-line CLI display."""
     if isinstance(value, list):

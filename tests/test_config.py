@@ -63,7 +63,7 @@ def test_default_vars():
     for var in dir(defaults):
         if var.startswith('_'):
             continue
-        assert var in all_vars,     f'Untested config var: {var}'
+        assert var in all_vars, f'Untested config var: {var}'
         assert hasattr(config, var), f'config missing: {var}'
         assert hasattr(defaults, var)
 
@@ -71,8 +71,8 @@ def test_default_vars():
             assert getattr(config, var) == getattr(defaults, var)
         elif var in path_vars:
             default_path = getattr(defaults, var)
-            config_path  = getattr(config, var)
-            expected     = Path(default_path).expanduser().absolute()
+            config_path = getattr(config, var)
+            expected = Path(default_path).expanduser().absolute()
             assert isinstance(default_path, str)
             assert isinstance(config_path, Path)
             assert config_path.is_absolute()
@@ -148,9 +148,9 @@ def test_simoc_config_path_fields_are_expanded():
     cfg = SimocConfig()
     for fname in SimocConfig._PATH_FIELDS:
         val = getattr(cfg, fname)
-        assert isinstance(val, Path),     f'{fname} should be a Path'
-        assert val.is_absolute(),          f'{fname} should be absolute'
-        assert '~' not in str(val),        f'{fname} should be expanded'
+        assert isinstance(val, Path), f'{fname} should be a Path'
+        assert val.is_absolute(), f'{fname} should be absolute'
+        assert '~' not in str(val), f'{fname} should be expanded'
 
 
 def test_simoc_config_path_from_string():
@@ -161,7 +161,7 @@ def test_simoc_config_path_from_string():
 
 
 def test_simoc_config_location_auto_set():
-    cfg = SimocConfig()    # conftest patches gethostname → 'testhost1'
+    cfg = SimocConfig()  # conftest patches gethostname → 'testhost1'
     assert cfg.location == 'testhost'
 
 
@@ -293,10 +293,10 @@ def test_get_schema_path_defaults_are_strings():
 
 def test_get_schema_groups():
     schema = get_schema()
-    assert schema['sensors']['group']   == 'Sensors'
-    assert schema['display']['group']   == 'Display'
+    assert schema['sensors']['group'] == 'Sensors'
+    assert schema['display']['group'] == 'Display'
     assert schema['mqtt_host']['group'] == 'MQTT'
-    assert schema['log_dir']['group']   == 'Verbosity and logging'
+    assert schema['log_dir']['group'] == 'Verbosity and logging'
 
 
 def test_get_schema_is_cached():
@@ -320,7 +320,7 @@ def test_generate_config_skips_none_override():
     result = generate_config({'location': None})
     import tomllib
     assert tomllib.loads(result) == {}
-    assert '# location' in result   # falls back to the commented default line
+    assert '# location' in result  # falls back to the commented default line
 
 
 def test_load_user_config_missing(user_config):
@@ -339,9 +339,9 @@ def test_save_and_load_roundtrip(user_config):
                  'sensors': ['scd30', 'bme688'], 'mqtt_secure': False}
     save_user_config(overrides)
     loaded = load_user_config()
-    assert loaded['mqtt_host']   == 'remote.host'
-    assert loaded['mqtt_port']   == 1884
-    assert loaded['sensors']     == ['scd30', 'bme688']
+    assert loaded['mqtt_host'] == 'remote.host'
+    assert loaded['mqtt_port'] == 1884
+    assert loaded['sensors'] == ['scd30', 'bme688']
     assert loaded['mqtt_secure'] is False
 
 
@@ -353,9 +353,8 @@ def test_save_user_config_creates_directory(tmp_path):
 def test_save_user_config_writes_full_template(user_config):
     save_user_config({'mqtt_port': 9999})
     content = user_config.read_text()
-    assert 'mqtt_port = 9999' in content   # override is live (not commented)
-    assert '# sensors' in content          # other fields remain as commented template
-    import tomllib
+    assert 'mqtt_port = 9999' in content  # override is live (not commented)
+    assert '# sensors' in content  # other fields remain as commented template
     assert tomllib.loads(content) == {'mqtt_port': 9999}
 
 
@@ -371,42 +370,42 @@ def test_save_user_config_with_none_override_does_not_crash(user_config):
 
 
 def test_get_config_returns_simoc_config(user_config):
-    # type name check — robust against importlib.reload() redefining the class
+    # type name check -- robust against importlib.reload() redefining the class
     assert type(get_config()).__name__ == 'SimocConfig'
 
 
 def test_get_config_wrong_type_falls_back(user_config, capsys):
     user_config.write_text('mqtt_port = "not_a_number"\n')
     cfg = get_config()
-    assert cfg.mqtt_port == 1883   # default, not the wrong-type string
+    assert cfg.mqtt_port == 1883  # default, not the wrong-type string
     assert 'Warning' in capsys.readouterr().err
 
 
 def test_post_init_wrong_type_bool(capsys):
-    cfg = SimocConfig(mqtt_secure='yes')   # str instead of bool
-    assert cfg.mqtt_secure is False   # dataclass default
+    cfg = SimocConfig(mqtt_secure='yes')  # str instead of bool
+    assert cfg.mqtt_secure is False  # dataclass default
     assert 'Warning' in capsys.readouterr().err
 
 
 def test_post_init_wrong_type_int_from_bool(capsys):
-    cfg = SimocConfig(humans=True)   # bool must be rejected for an int field
+    cfg = SimocConfig(humans=True)  # bool must be rejected for an int field
     assert cfg.humans == 0
     assert 'Warning' in capsys.readouterr().err
 
 
 def test_post_init_wrong_type_float_accepts_int():
-    cfg = SimocConfig(sensor_read_delay=5)   # int is acceptable for a float field
+    cfg = SimocConfig(sensor_read_delay=5)  # int is acceptable for a float field
     assert cfg.sensor_read_delay == 5
 
 
 def test_post_init_wrong_type_list(capsys):
-    cfg = SimocConfig(sensors='bme688')   # str instead of list
-    assert cfg.sensors == ['bme688', 'scd30', 'sgp30']   # dataclass default
+    cfg = SimocConfig(sensors='bme688')  # str instead of list
+    assert cfg.sensors == ['bme688', 'scd30', 'sgp30']  # dataclass default
     assert 'Warning' in capsys.readouterr().err
 
 
 def test_post_init_wrong_type_nullable_str(capsys):
-    cfg = SimocConfig(location=123)   # int instead of str|None
+    cfg = SimocConfig(location=123)  # int instead of str|None
     assert cfg.location == socket.gethostname().rstrip('0123456789')
     assert 'Warning' in capsys.readouterr().err
 
@@ -419,7 +418,7 @@ def test_post_init_path_field_accepts_str_and_path():
 
 
 def test_post_init_wrong_type_path_field(capsys):
-    cfg = SimocConfig(log_dir=123)   # int instead of str|Path
+    cfg = SimocConfig(log_dir=123)  # int instead of str|Path
     assert cfg.log_dir == pathlib.Path('~/logs').expanduser().absolute()
     assert 'Warning' in capsys.readouterr().err
 
@@ -503,14 +502,22 @@ def test_parse_value_str():
 
 
 
-def test_fmt_list():         assert format_value(['a', 'b', 'c']) == 'a, b, c'
-def test_fmt_empty_list():   assert format_value([]) == '(empty list)'
-def test_fmt_multiline():    assert 'multiline' in format_value('line1\nline2')
-def test_fmt_none():         assert format_value(None) == '(none)'
+def test_fmt_list():
+    assert format_value(['a', 'b', 'c']) == 'a, b, c'
+
+def test_fmt_empty_list():
+    assert format_value([]) == '(empty list)'
+
+def test_fmt_multiline():
+    assert 'multiline' in format_value('line1\nline2')
+
+def test_fmt_none():
+    assert format_value(None) == '(none)'
+
 def test_fmt_scalars():
     assert format_value('hello') == 'hello'
-    assert format_value(42)      == '42'
-    assert format_value(3.14)    == '3.14'
+    assert format_value(42) == '42'
+    assert format_value(3.14) == '3.14'
 
 
 
