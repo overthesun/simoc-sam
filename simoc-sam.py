@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import uuid
+import shlex
 import shutil
 import socket
 import pathlib
@@ -794,7 +795,7 @@ def create_config():
         print('Use `sam config` to list all values, or `sam config --edit` to open it.')
         return
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(simoc_config.generate_config_template())
+    config_path.write_text(simoc_config.generate_config())
     print(f'Created: {config_path}')
     print('All settings are commented out -- uncomment and edit to change them.')
     print(f'Or use: sam config KEY VALUE')
@@ -834,9 +835,9 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
         config_path = simoc_config.config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
         if not config_path.exists():
-            config_path.write_text(simoc_config.generate_config_template())
-        editor = os.environ.get('EDITOR', 'nano')
-        os.execvp(editor, [editor, str(config_path)])
+            config_path.write_text(simoc_config.generate_config())
+        editor = shlex.split(os.environ.get('EDITOR', 'nano'))
+        subprocess.run([*editor, str(config_path)])
         return
     schema = simoc_config.get_schema()
     user_overrides = simoc_config.load_user_config()
