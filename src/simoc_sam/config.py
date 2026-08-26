@@ -293,12 +293,7 @@ def get_config() -> SimocConfig:
     """Return a :class:`SimocConfig` merging defaults with user overrides."""
     overrides = load_user_config()
     valid = {f.name for f in dataclasses.fields(SimocConfig) if not f.name.startswith('_')}
-    try:
-        return SimocConfig(**{k: v for k, v in overrides.items() if k in valid})
-    except TypeError as exc:
-        print(f'Warning: bad config values, using defaults: {exc}', file=sys.stderr)
-        return SimocConfig()
-
+    return SimocConfig(**{k: v for k, v in overrides.items() if k in valid})
 
 
 def parse_value(raw: str, schema_entry: dict):
