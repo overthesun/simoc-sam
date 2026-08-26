@@ -1,10 +1,11 @@
 """Tests for the config module: schema, I/O, parsing, display helpers,
 and module-level var exposure."""
 
-import dataclasses
-import importlib
-import pathlib
 import socket
+import pathlib
+import tomllib
+import importlib
+import dataclasses
 from pathlib import Path
 from typing import Literal
 
@@ -304,7 +305,6 @@ def test_get_schema_is_cached():
 
 
 def test_generate_config_template_is_valid_toml():
-    import tomllib
     result = tomllib.loads(generate_config())
     assert result == {}  # all lines are commented out
 
@@ -318,7 +318,6 @@ def test_generate_config_template_contains_all_fields():
 def test_generate_config_skips_none_override():
     # None means "unset" -- TOML has no null, so it must not be serialized
     result = generate_config({'location': None})
-    import tomllib
     assert tomllib.loads(result) == {}
     assert '# location' in result  # falls back to the commented default line
 
