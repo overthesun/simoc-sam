@@ -26,6 +26,10 @@ try:
 except ModuleNotFoundError:
     # keep running if simoc_sam is not installed yet
     simoc_config = None
+except ValueError as exc:
+    # print a warning and keep running if the user config has invalid syntax
+    print(f'Warning: {exc}')
+    simoc_config = None
 
 
 HOME = pathlib.Path.home()
@@ -837,7 +841,15 @@ def config(key=None, value=None, *, reset=False, defaults=False, edit=False, pat
         if not config_path.exists():
             config_path.write_text(simoc_config.generate_config())
         editor = shlex.split(os.environ.get('EDITOR', 'nano'))
-        subprocess.run([*editor, str(config_path)])
+        while True:
+            subprocess.run([*editor, str(config_path)])
+            try:
+                simoc_config.load_user_config()
+            except ValueError as exc:
+                print(f'Error: {exc}')
+                input('Press Enter to fix it in the editor (Ctrl-C to abort)...')
+            else:
+                break
         return
     schema = simoc_config.get_schema()
     user_overrides = simoc_config.load_user_config()
