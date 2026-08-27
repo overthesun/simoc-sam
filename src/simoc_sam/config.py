@@ -402,12 +402,11 @@ RELATED_COMMANDS: dict[str, str] = {
 }
 
 
-# Expose SimocConfig fields as a module-level attributes
+# Expose SimocConfig fields as module-level attributes
 _cfg = get_config()
-_module = sys.modules[__name__]
 for _f in dataclasses.fields(_cfg):
     if not _f.name.startswith('_'):
-        setattr(_module, _f.name, getattr(_cfg, _f.name))
+        setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))
 
 # Convenience alias (used by tests and the admin interface)
 user_config_path = config_path()
