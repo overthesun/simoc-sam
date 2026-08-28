@@ -361,13 +361,14 @@ def format_value(value) -> str:
 
 def print_all(schema: dict, user_overrides: dict) -> None:
     """Print all config values grouped by section; mark customised values."""
+    cfg = SimocConfig(**user_overrides)
     current_group = None
     has_overrides = False
     for name, info in schema.items():
         if info['group'] != current_group:
             current_group = info['group']
             print(f'\n{current_group}:')
-        current = user_overrides.get(name, info['default'])
+        current = getattr(cfg, name)
         marker = '*' if name in user_overrides else ' '
         if name in user_overrides:
             has_overrides = True
@@ -379,16 +380,16 @@ def print_all(schema: dict, user_overrides: dict) -> None:
 
 
 def print_one(name: str, schema: dict, user_overrides: dict) -> None:
-    """Print the current value and metadata for a single config key."""
+    """Print the value and metadata for a single config key."""
     info = schema[name]
+    current = getattr(SimocConfig(**user_overrides), name)
     if name in user_overrides:
-        current = user_overrides[name]
         print(f'{name} =\n{current}' if info['type'] == 'multiline_str'
               else f'{name} = {format_value(current)}')
         print(f'  default: {format_value(info["default"])}')
     else:
-        print(f'{name} = (default)\n{info["default"]}' if info['type'] == 'multiline_str'
-              else f'{name} = {format_value(info["default"])}  (default)')
+        print(f'{name} = (default)\n{current}' if info['type'] == 'multiline_str'
+              else f'{name} = {format_value(current)}  (default)')
     if opts := info['options']:
         print(f'  options: {", ".join(opts)}')
 

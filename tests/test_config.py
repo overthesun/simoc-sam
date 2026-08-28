@@ -566,6 +566,15 @@ def test_print_all_no_marker_when_clean(capsys):
     assert '*' not in capsys.readouterr().out
 
 
+def test_print_all_shows_resolved_values(capsys):
+    # location has no static default (None means "derive from hostname") --
+    # print_all must show the resolved value, not the raw "(none)" default
+    print_all(get_schema(), {})
+    out = capsys.readouterr().out
+    assert SimocConfig().location in out
+    assert '(none)' not in out
+
+
 def test_print_one_shows_override_and_default(user_config, capsys):
     save_user_config({'mqtt_port': 9999})
     print_one('mqtt_port', get_schema(), load_user_config())
@@ -586,6 +595,15 @@ def test_print_one_shows_options_for_literal(capsys):
     out = capsys.readouterr().out
     assert 'ssd1306' in out
     assert 'options' in out
+
+
+def test_print_one_shows_resolved_path(capsys):
+    # log_dir defaults to '~/logs' -- print_one must show the expanded
+    # absolute path, not the raw unexpanded default
+    print_one('log_dir', get_schema(), {})
+    out = capsys.readouterr().out
+    assert str(SimocConfig().log_dir) in out
+    assert '~/logs' not in out
 
 
 def test_print_defaults_covers_all_fields(capsys):
