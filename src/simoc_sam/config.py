@@ -274,14 +274,12 @@ def generate_config(overrides: dict = {}) -> str:
             toml_block = f'{name} = """\n{info["default"].strip()}\n"""'
             lines.append('\n'.join(f'# {line}' for line in toml_block.splitlines()))
         else:
-            opts = info['options']
             default = info['default'] if info['default'] is not None else ''
-            value = list(opts) if info['type'] == 'list' and opts else default
-            toml_line = tomli_w.dumps({name: value}).rstrip()
+            toml_line = tomli_w.dumps({name: default}).rstrip()
             commented = '\n'.join(f'# {line}' for line in toml_line.splitlines())
             lines.append(commented)
-            if opts and info['type'] != 'list':
-                lines.append(f'# # valid options: {", ".join(map(str, opts))}')
+        if opts := info['options']:
+            lines.append(f'### valid options: {", ".join(map(str, opts))}')
     return '\n'.join(lines) + '\n'
 
 
