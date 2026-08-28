@@ -786,56 +786,52 @@ def teardown_rtc():
     return True
 
 
-@cmd
-def create_config():
-    """Create the user config file at ~/.config/simoc-sam/config.toml."""
-    config_path = simoc_config.config_path()
-    if config_path.exists():
-        print(f'Config file already exists: {config_path}')
-        print('Use `sam config` to list all values, or `sam config --edit` to open it.')
-        return
+def write_default_config(config_path):
+    """Write a fresh config template (all settings commented out) to config_path."""
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(simoc_config.generate_config())
-    print(f'Created: {config_path}')
-    print('All settings are commented out -- uncomment and edit to change them.')
-    print(f'Or use: sam config KEY VALUE')
 
 
 @cmd
-def clean_config():
-    """Remove the user config file at ~/.config/simoc-sam/config.toml."""
-    config_path = simoc_config.config_path()
-    if config_path.exists():
-        config_path.unlink()
-        print(f'Removed: {config_path}')
-        config_path.parent.rmdir() if not any(config_path.parent.iterdir()) else None
-    else:
-        print('No user config file found.')
-
-
-@cmd
-def config(key=None, value=None, *, reset=False, defaults=False, edit=False, path=False):
+def config(key=None, value=None, *, path=False, create=False, clean=False,
+           edit=False, defaults=False, reset=False):
     """Get or set a SIMOC Live configuration value.
 
+    sam config --path           print the path to the config file
+    sam config --create         create the user config file (all defaults commented out)
+    sam config --clean          remove the user config file
+    sam config --edit           open config file in $EDITOR
+    sam config --defaults       show all default values
     sam config                  list all current values
     sam config KEY              show current value of KEY
     sam config KEY VALUE        set KEY to VALUE
     sam config KEY --reset      reset KEY to its default
-    sam config --defaults       show all default values
-    sam config --edit           open config file in $EDITOR
-    sam config --path           print the path to the config file
 
     List values are comma-separated, e.g.: sam config sensors scd30,bme688
     Key names accept hyphens or underscores, e.g.: mqtt-port / mqtt_port
     """
+    config_path = simoc_config.config_path()
     if path:
-        print(simoc_config.config_path())
+        print(config_path)
+        return
+    if create:
+        if config_path.exists():
+            print(f'Config file already exists: {config_path}')
+            return
+        write_default_config(config_path)
+        print(f'Created: {config_path}')
+        return
+    if clean:
+        if config_path.exists():
+            config_path.unlink()
+            print(f'Removed: {config_path}')
+            config_path.parent.rmdir() if not any(config_path.parent.iterdir()) else None
+        else:
+            print('No user config file found.')
         return
     if edit:
-        config_path = simoc_config.config_path()
-        config_path.parent.mkdir(parents=True, exist_ok=True)
         if not config_path.exists():
-            config_path.write_text(simoc_config.generate_config())
+            write_default_config(config_path)
         editor = shlex.split(os.environ.get('EDITOR', 'nano'))
         while True:
             subprocess.run([*editor, str(config_path)])
