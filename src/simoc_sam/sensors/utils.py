@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from .basesensor import MQTTWrapper
 from .. import config
 
 import tomllib
@@ -151,6 +150,7 @@ def parse_args(arguments=None):
 
 
 def start_sensor(sensor_cls, *pargs, **kwargs):
+    from .basesensor import MQTTWrapper
     args = parse_args()
     # TODO: add cmd line options for name/desc
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:

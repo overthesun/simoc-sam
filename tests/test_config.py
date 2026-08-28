@@ -1,10 +1,13 @@
 """Tests for the config module: schema, I/O, parsing, display helpers,
 and module-level var exposure."""
 
+import os
+import sys
 import socket
 import pathlib
 import tomllib
 import importlib
+import subprocess
 import dataclasses
 from pathlib import Path
 from typing import Literal
@@ -127,6 +130,28 @@ def test_config_warning_logs_without_jsonl(user_config, capsys):
     user_config.write_text('enable_jsonl_logging = false\ndata_source = "logs"\n')
     importlib.reload(config)
     assert 'Warning: JSONL logging is disabled' in capsys.readouterr().err
+
+
+def test_module_import_survives_invalid_config_but_omits_attrs(user_config):
+    # a bad user config must not crash `import simoc_sam.config` (so `sam
+    # config --edit`/`--clean` can still fix it), but attributes that would
+    # otherwise be populated from it must be left unset -- so any other
+    # command that reads them (e.g. `sam setup-sensors` reading `.sensors`)
+    # fails loudly instead of silently running with the wrong defaults.
+    # A real subprocess is used to check a true fresh-process import, since
+    # importlib.reload() leaves stale attributes from a prior successful import.
+    user_config.write_text('sensors = "not_a_list"\n')
+    result = subprocess.run(
+        [sys.executable, '-c',
+         'from simoc_sam import config\n'
+         'assert not hasattr(config, "sensors")\n'
+         'assert not hasattr(config, "mqtt_host")\n'  # unrelated fields are also withheld
+         'print("OK")'],
+        env={**os.environ, 'HOME': str(user_config.parent.parent.parent)},
+        capture_output=True, text=True,
+    )
+    assert 'OK' in result.stdout, result.stderr
+    assert 'Warning' in result.stderr
 
 
 

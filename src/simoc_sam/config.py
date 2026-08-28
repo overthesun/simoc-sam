@@ -420,17 +420,19 @@ RELATED_COMMANDS: dict[str, str] = {
 
 
 # Expose SimocConfig fields as module-level attributes.
-# If the user config is invalid (bad TOML syntax or a wrong-typed value),
-# fall back to defaults instead of raising -- this keeps `import simoc_sam.config`
-# safe to run so commands like `sam config --edit` can still fix the file.
+# If the user config is invalid (bad TOML syntax or a wrong-typed value), the
+# attributes below are left unset -- `import simoc_sam.config` still succeeds
+# (so `sam config --edit`/`--clean`/`--path` keep working to fix the file),
+# but any command that reads e.g. `simoc_config.sensors` fails loudly with an
+# AttributeError instead of silently running with the wrong defaults.
 try:
     _cfg = get_config()
 except ValueError as exc:
-    print(f'Warning: {exc}\nUsing default configuration.', file=sys.stderr)
-    _cfg = SimocConfig()
-for _f in dataclasses.fields(_cfg):
-    if not _f.name.startswith('_'):
-        setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))
+    print(f'Warning: {exc}', file=sys.stderr)
+else:
+    for _f in dataclasses.fields(_cfg):
+        if not _f.name.startswith('_'):
+            setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))
 
 # Convenience alias (used by tests and the admin interface)
 user_config_path = config_path()
