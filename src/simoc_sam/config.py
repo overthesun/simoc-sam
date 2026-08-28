@@ -111,33 +111,13 @@ class SimocConfig:
     ])
 
     def __post_init__(self) -> None:
-        # Validate field type or fall back to default
-        hints = typing.get_type_hints(SimocConfig)
-        for f in dataclasses.fields(self):
-            if f.name.startswith('_'):
-                continue
-            value = getattr(self, f.name)
-            field_type, _ = get_field_type(hints[f.name], value)
-            if field_type == 'bool':
-                ok = isinstance(value, bool)
-            elif field_type == 'int':
-                ok = isinstance(value, int) and not isinstance(value, bool)
-            elif field_type == 'float':
-                ok = isinstance(value, (int, float)) and not isinstance(value, bool)
-            elif field_type == 'nullable_str':
-                ok = value is None or isinstance(value, str)
-            elif field_type == 'list':
-                ok = isinstance(value, list)
-            elif field_type == 'literal':
-                ok = True  # e.g. data_source -- checked separately below
-            elif f.name in self._PATH_FIELDS:
-                ok = isinstance(value, (str, pathlib.Path))
-            else:
-                ok = isinstance(value, str)  # str, multiline_str
-            if not ok:
-                print(f'Warning: {f.name!r} has wrong type '
-                      f'(got {type(value).__name__!r}), using default.', file=sys.stderr)
-                setattr(self, f.name, get_field_default(f))
+        # Reset any field whose value doesn't match its schema type to the dataclass default.
+        fields_by_name = {f.name: f for f in dataclasses.fields(self)
+                          if not f.name.startswith('_')}
+        current = {name: getattr(self, name) for name in fields_by_name}
+        for name, error in validate_fields(current).items():
+            print(f'Warning: {error} -- using default.', file=sys.stderr)
+            setattr(self, name, get_field_default(fields_by_name[name]))
 
         # Expand ~ and absolutize all path fields (accepts both str and Path input)
         for fname in self._PATH_FIELDS:
@@ -192,6 +172,46 @@ def get_field_type(hint, default) -> tuple[str, tuple]:
     if isinstance(default, str) and '\n' in default:
         return 'multiline_str', ()
     return _TYPES.get(origin, _TYPES.get(hint, 'str')), ()
+
+
+def validate_field(name, value, field_type) -> bool:
+    """Check a Python value against a schema field type (mirrors :func:`parse_value`)."""
+    if field_type == 'bool':
+        return isinstance(value, bool)
+    if field_type == 'int':
+        return isinstance(value, int) and not isinstance(value, bool)
+    if field_type == 'float':
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if field_type == 'nullable_str':
+        return value is None or isinstance(value, str)
+    if field_type == 'list':
+        return isinstance(value, list)
+    if field_type == 'literal':
+        return True  # e.g. data_source -- checked separately in __post_init__
+    if name in SimocConfig._PATH_FIELDS:
+        return isinstance(value, (str, pathlib.Path))
+    return isinstance(value, str)  # str, multiline_str
+
+
+def validate_fields(values: dict) -> dict[str, str]:
+    """Return {field_name: error_message} for every unknown or wrong-typed value."""
+    hints = typing.get_type_hints(SimocConfig)
+    errors = {}
+    for name, value in values.items():
+        if name not in hints:
+            errors[name] = f'{name!r} is not a known config field'
+            continue
+        field_type, _ = get_field_type(hints[name], value)
+        if not validate_field(name, value, field_type):
+            errors[name] = (f'{name!r} should be {field_type!r}, '
+                            f'got {type(value).__name__!r}: {value!r}')
+    return errors
+
+
+def ensure_valid_fields(values: dict) -> None:
+    """Raise ValueError listing every field in *values* with the wrong type."""
+    if errors := validate_fields(values):
+        raise ValueError('Invalid config values:\n' + '\n'.join(f'  {e}' for e in errors.values()))
 
 
 @functools.cache
@@ -271,19 +291,22 @@ def config_path() -> pathlib.Path:
 
 
 def load_user_config() -> dict:
-    """Load user overrides from ``~/.config/simoc-sam/config.toml``."""
+    """Load and validate user overrides from ``~/.config/simoc-sam/config.toml``."""
     path = config_path()
     if not path.exists():
         return {}
     try:
         with open(path, 'rb') as f:
-            return tomllib.load(f)
+            overrides = tomllib.load(f)
     except tomllib.TOMLDecodeError as exc:
-        raise ValueError(f'Invalid TOML syntax in {path!r}: {exc}') from exc
+        raise ValueError(f'Invalid TOML syntax in <{path}>: {exc}') from exc
+    ensure_valid_fields(overrides)
+    return overrides
 
 
 def save_user_config(overrides: dict) -> None:
-    """Write the config template with overrides applied as live TOML values."""
+    """Validate, then write the config template with overrides as live TOML values."""
+    ensure_valid_fields(overrides)
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(generate_config(overrides))
@@ -291,9 +314,7 @@ def save_user_config(overrides: dict) -> None:
 
 def get_config() -> SimocConfig:
     """Return a :class:`SimocConfig` merging defaults with user overrides."""
-    overrides = load_user_config()
-    valid = {f.name for f in dataclasses.fields(SimocConfig) if not f.name.startswith('_')}
-    return SimocConfig(**{k: v for k, v in overrides.items() if k in valid})
+    return SimocConfig(**load_user_config())
 
 
 def parse_value(raw: str, schema_entry: dict):
@@ -402,8 +423,15 @@ RELATED_COMMANDS: dict[str, str] = {
 }
 
 
-# Expose SimocConfig fields as module-level attributes
-_cfg = get_config()
+# Expose SimocConfig fields as module-level attributes.
+# If the user config is invalid (bad TOML syntax or a wrong-typed value),
+# fall back to defaults instead of raising -- this keeps `import simoc_sam.config`
+# safe to run so commands like `sam config --edit` can still fix the file.
+try:
+    _cfg = get_config()
+except ValueError as exc:
+    print(f'Warning: {exc}\nUsing default configuration.', file=sys.stderr)
+    _cfg = SimocConfig()
 for _f in dataclasses.fields(_cfg):
     if not _f.name.startswith('_'):
         setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))

@@ -367,17 +367,23 @@ def test_save_user_config_with_none_override_does_not_crash(user_config):
     assert load_user_config() == {'mqtt_port': 9999}
 
 
+def test_save_user_config_wrong_type_raises_and_does_not_write(user_config):
+    with pytest.raises(ValueError, match='mqtt_port'):
+        save_user_config({'mqtt_port': 'not_a_number'})
+    assert not user_config.exists()  # rejected before writing
+
+
 
 def test_get_config_returns_simoc_config(user_config):
     # type name check -- robust against importlib.reload() redefining the class
     assert type(get_config()).__name__ == 'SimocConfig'
 
 
-def test_get_config_wrong_type_falls_back(user_config, capsys):
+def test_get_config_wrong_type_raises(user_config):
     user_config.write_text('mqtt_port = "not_a_number"\n')
-    cfg = get_config()
-    assert cfg.mqtt_port == 1883  # default, not the wrong-type string
-    assert 'Warning' in capsys.readouterr().err
+    with pytest.raises(ValueError, match='mqtt_port'):
+        get_config()
+    user_config.unlink()
 
 
 def test_post_init_wrong_type_bool(capsys):
@@ -429,15 +435,41 @@ def test_get_config_applies_overrides(user_config):
     assert cfg.mqtt_port == 5555
 
 
-def test_get_config_ignores_unknown_keys(user_config):
-    user_config.write_text('mqtt_host = "ok"\nunknown_key = "ignored"\n')
-    cfg = get_config()
-    assert cfg.mqtt_host == 'ok'
+def test_get_config_unknown_key_raises(user_config):
+    user_config.write_text('mqtt_host = "ok"\nunknown_key = "bad"\n')
+    with pytest.raises(ValueError, match='unknown_key'):
+        get_config()
+    user_config.unlink()
 
 
 def test_get_config_empty_file_uses_defaults(user_config):
     user_config.write_text('')
     assert get_config().mqtt_host == 'localhost'
+
+
+def test_load_user_config_wrong_type_raises(user_config):
+    # the exact scenario reported: a bool field set to a string in the TOML file
+    user_config.write_text('mqtt_secure = "false"\n')
+    with pytest.raises(ValueError, match='mqtt_secure'):
+        load_user_config()
+    user_config.unlink()
+
+
+def test_load_user_config_unknown_key_raises(user_config):
+    # catches typos, e.g. `mqqt_secure` instead of `mqtt_secure`
+    user_config.write_text('not_a_real_key = 123\n')
+    with pytest.raises(ValueError, match='not_a_real_key'):
+        load_user_config()
+    user_config.unlink()
+
+
+def test_load_user_config_reports_multiple_type_errors(user_config):
+    user_config.write_text('mqtt_secure = "false"\nhumans = "two"\n')
+    with pytest.raises(ValueError) as exc_info:
+        load_user_config()
+    assert 'mqtt_secure' in str(exc_info.value)
+    assert 'humans' in str(exc_info.value)
+    user_config.unlink()
 
 
 

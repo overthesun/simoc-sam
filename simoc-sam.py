@@ -26,10 +26,6 @@ try:
 except ModuleNotFoundError:
     # keep running if simoc_sam is not installed yet
     simoc_config = None
-except ValueError as exc:
-    # print a warning and keep running if the user config has invalid syntax
-    print(f'Warning: {exc}')
-    simoc_config = None
 
 
 HOME = pathlib.Path.home()
