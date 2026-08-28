@@ -580,14 +580,15 @@ def test_print_one_shows_override_and_default(user_config, capsys):
     print_one('mqtt_port', get_schema(), load_user_config())
     out = capsys.readouterr().out
     assert '9999' in out
-    assert 'default' in out
+    assert 'default: 1883 (overridden)' in out
 
 
 def test_print_one_default_state(capsys):
     print_one('mqtt_port', get_schema(), {})
     out = capsys.readouterr().out
     assert '1883' in out
-    assert 'default' in out
+    assert 'default: 1883' in out
+    assert '(overridden)' not in out
 
 
 def test_print_one_shows_options_for_literal(capsys):
@@ -598,12 +599,13 @@ def test_print_one_shows_options_for_literal(capsys):
 
 
 def test_print_one_shows_resolved_path(capsys):
-    # log_dir defaults to '~/logs' -- print_one must show the expanded
-    # absolute path, not the raw unexpanded default
+    # log_dir defaults to '~/logs' -- the current-value line must show the
+    # expanded absolute path, not the raw unexpanded default
     print_one('log_dir', get_schema(), {})
     out = capsys.readouterr().out
-    assert str(SimocConfig().log_dir) in out
-    assert '~/logs' not in out
+    first_line = out.splitlines()[0]
+    assert str(SimocConfig().log_dir) in first_line
+    assert '~/logs' not in first_line
 
 
 def test_print_defaults_covers_all_fields(capsys):
