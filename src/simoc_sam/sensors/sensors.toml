@@ -1,29 +1,29 @@
-[mock]
-name = "Mock"
+[mocksensor]
+name = "Mock Sensor"
 description = "A mock sensor used for testing."
 module = "simoc_sam.sensors.mocksensor"
 
-    [mock.data.co2]
+    [mocksensor.data.co2]
     unit = "ppm"
     label = "CO2"
     description = "CO2 Concentration"
 
-    [mock.data.temperature]
+    [mocksensor.data.temperature]
     unit = "°C"
     label = "Temperature"
     description = "Temperature"
 
-    [mock.data.humidity]
+    [mocksensor.data.humidity]
     unit = "%"
     label = "Humidity"
     description = "Relative Humidity"
 
-    [mock.data.altitude]
+    [mocksensor.data.altitude]
     unit = "m"
     label = "Altitude"
     description = "Altitude"
 
-    [mock.data.pressure]
+    [mocksensor.data.pressure]
     unit = "hPa"
     label = "Pressure"
     description = "Barometric Pressure"

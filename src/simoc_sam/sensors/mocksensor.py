@@ -4,7 +4,7 @@ from . import utils
 from .basesensor import BaseSensor
 
 
-class Mock(BaseSensor):
+class MockSensor(BaseSensor):
     """A mock sensor that generates random CO2/temperature/humidity data."""
 
     def __init__(self, *, base_co2=1000, base_temp=20, base_hum=50,
@@ -37,4 +37,4 @@ class Mock(BaseSensor):
 
 
 if __name__ == '__main__':
-    utils.start_sensor(Mock)
+    utils.start_sensor(MockSensor)
