@@ -99,21 +99,23 @@ def test_name_type():
         assert sensor.type == 'TestSensor'
         assert sensor.description == 'HAL 9000'
 
-def test_board_busio_not_imported_until_accessed(sensor):
+def test_board_busio_imported_during_init():
     with patch.object(sensor_utils, 'import_board') as mock_board, \
          patch.object(sensor_utils, 'import_busio') as mock_busio:
-        MySensor()  # instantiation alone must not trigger hardware imports
-        mock_board.assert_not_called()
-        mock_busio.assert_not_called()
-
-def test_board_busio_imported_lazily_and_cached(sensor):
-    with patch.object(sensor_utils, 'import_board') as mock_board, \
-         patch.object(sensor_utils, 'import_busio') as mock_busio:
-        assert sensor.board is mock_board.return_value
-        assert sensor.busio is mock_busio.return_value
-        sensor.board  # accessing again shouldn't re-import
+        s = MySensor()
+        assert s.board is mock_board.return_value
+        assert s.busio is mock_busio.return_value
         mock_board.assert_called_once()
         mock_busio.assert_called_once()
+
+def test_board_imported_before_busio():
+    call_order = []
+    with patch.object(sensor_utils, 'import_board',
+                      side_effect=lambda: call_order.append('board')), \
+         patch.object(sensor_utils, 'import_busio',
+                      side_effect=lambda: call_order.append('busio')):
+        MySensor()
+        assert call_order == ['board', 'busio']
 
 def test_log_path(sensor):
     assert str(sensor.log_path).endswith('/testhost_testhost1_mysensor.jsonl')

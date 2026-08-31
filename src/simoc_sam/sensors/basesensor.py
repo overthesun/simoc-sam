@@ -50,24 +50,12 @@ class BaseSensor(ABC):
         # the total number of values read through iter_readings
         self.reading_num = 0
         self.log_path = get_log_path(self.name)
-        self._board = None
-        self._busio = None
+        from . import utils
+        # import order matters: board must be imported before busio
+        self.board = utils.import_board()
+        self.busio = utils.import_busio()
         if config.enable_jsonl_logging:
             config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
-
-    @property
-    def board(self):
-        if self._board is None:
-            from . import utils
-            self._board = utils.import_board()
-        return self._board
-
-    @property
-    def busio(self):
-        if self._busio is None:
-            from . import utils
-            self._busio = utils.import_busio()
-        return self._busio
 
     def __enter__(self):
         # use this to initialize the sensor and return self
