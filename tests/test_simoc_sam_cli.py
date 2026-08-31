@@ -29,6 +29,15 @@ def clean_commands():
     simoc_sam_cli.COMMANDS = original_commands
 
 
+@pytest.fixture
+def mock_config(user_config):
+    """Patch `simoc_config` with a fresh mock, isolated per test, with
+    config_path() wired to a real (initially empty) config.toml path."""
+    with patch.object(simoc_sam_cli, 'simoc_config') as mock:
+        mock.config_path.return_value = user_config
+        yield mock
+
+
 def test_cmd_decorator(clean_commands):
     """Test that @cmd decorator adds function to COMMANDS dict."""
     @simoc_sam_cli.cmd
@@ -365,3 +374,146 @@ def test_needs_root_failure(mock_run, mock_geteuid):
     result = test_func('value')
 
     assert result is False
+
+
+# -- `sam config` dispatch/control-flow tests --
+# These test simoc-sam.py's own `config()` routing logic (which flag calls
+# which simoc_config function, in what order, with what args) using a mocked
+# simoc_config -- the underlying config.py behavior itself (parse_value,
+# print_all, load_user_config, ...) is already covered in test_config.py.
+
+def test_config_path_prints_path_only(mock_config, user_config, capsys):
+    simoc_sam_cli.config(path=True)
+    assert capsys.readouterr().out == f'{user_config}\n'
+    mock_config.load_user_config.assert_not_called()
+    mock_config.get_schema.assert_not_called()
+
+
+def test_config_create_new_file(mock_config, user_config, capsys):
+    mock_config.generate_config.return_value = '# template\n'
+    simoc_sam_cli.config(create=True)
+    assert user_config.read_text() == '# template\n'
+    assert f'Created: {user_config}' in capsys.readouterr().out
+
+
+def test_config_create_existing_file_is_untouched(mock_config, user_config, capsys):
+    user_config.write_text('# already here\n')
+    simoc_sam_cli.config(create=True)
+    assert user_config.read_text() == '# already here\n'  # not overwritten
+    assert 'already exists' in capsys.readouterr().out
+
+
+def test_config_clean_removes_existing_file(mock_config, user_config, capsys):
+    user_config.write_text('# bye\n')
+    simoc_sam_cli.config(clean=True)
+    assert not user_config.exists()
+    assert not user_config.parent.exists()  # emptied parent dir also removed
+    assert f'Removed: {user_config}' in capsys.readouterr().out
+
+
+def test_config_clean_missing_file(mock_config, capsys):
+    simoc_sam_cli.config(clean=True)  # config.toml was never created
+    assert 'No user config file found.' in capsys.readouterr().out
+
+
+def test_config_edit_creates_missing_file_before_opening_editor(mock_config, user_config):
+    mock_config.generate_config.return_value = '# template\n'
+    mock_config.load_user_config.return_value = {}  # valid on first try
+    with patch('subprocess.run') as mock_run:
+        simoc_sam_cli.config(edit=True)
+    assert user_config.read_text() == '# template\n'
+    mock_run.assert_called_once()
+    assert str(user_config) in mock_run.call_args[0][0]
+
+
+def test_config_edit_retries_until_valid(mock_config, user_config):
+    user_config.write_text('# existing\n')
+    mock_config.load_user_config.side_effect = [ValueError('bad toml'), {}]
+    with patch('subprocess.run') as mock_run, patch('builtins.input') as mock_input:
+        simoc_sam_cli.config(edit=True)
+    assert mock_run.call_count == 2  # editor re-opened after the failed attempt
+    mock_input.assert_called_once()
+    assert mock_config.load_user_config.call_count == 2
+
+
+def test_config_bare_list_calls_print_all(mock_config):
+    mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
+    mock_config.load_user_config.return_value = {'mqtt_port': 9999}
+    simoc_sam_cli.config()
+    mock_config.print_all.assert_called_once_with(
+        {'mqtt_port': {'default': 1883}}, {'mqtt_port': 9999})
+
+
+def test_config_defaults_flag_calls_print_defaults(mock_config):
+    schema = {'mqtt_port': {'default': 1883}}
+    mock_config.get_schema.return_value = schema
+    simoc_sam_cli.config(defaults=True)
+    mock_config.print_defaults.assert_called_once_with(schema)
+    mock_config.print_all.assert_not_called()
+
+
+def test_config_unknown_key_returns_false(mock_config, capsys):
+    mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
+    mock_config.load_user_config.return_value = {}
+    result = simoc_sam_cli.config(key='not_a_real_key')
+    assert result is False
+    assert 'unknown config key' in capsys.readouterr().out
+
+
+def test_config_key_without_value_calls_print_one(mock_config):
+    schema = {'mqtt_port': {'default': 1883}}
+    overrides = {}
+    mock_config.get_schema.return_value = schema
+    mock_config.load_user_config.return_value = overrides
+    simoc_sam_cli.config(key='mqtt_port')
+    mock_config.print_one.assert_called_once_with('mqtt_port', schema, overrides)
+
+
+def test_config_key_accepts_hyphens(mock_config):
+    """Test that hyphenated keys (e.g. from --flag style input) are normalized."""
+    schema = {'mqtt_port': {'default': 1883}}
+    mock_config.get_schema.return_value = schema
+    mock_config.load_user_config.return_value = {}
+    simoc_sam_cli.config(key='mqtt-port')
+    mock_config.print_one.assert_called_once_with('mqtt_port', schema, {})
+
+
+def test_config_reset_when_overridden(mock_config, capsys):
+    schema = {'mqtt_port': {'default': 1883}}
+    mock_config.get_schema.return_value = schema
+    mock_config.load_user_config.return_value = {'mqtt_port': 9999}
+    mock_config.format_value.return_value = '1883'
+    simoc_sam_cli.config(key='mqtt_port', reset=True)
+    mock_config.save_user_config.assert_called_once_with({})  # key removed
+    assert 'Reset mqtt_port to default: 1883' in capsys.readouterr().out
+
+
+def test_config_reset_when_not_overridden(mock_config, capsys):
+    mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
+    mock_config.load_user_config.return_value = {}
+    simoc_sam_cli.config(key='mqtt_port', reset=True)
+    mock_config.save_user_config.assert_not_called()
+    assert 'already at its default value' in capsys.readouterr().out
+
+
+def test_config_set_value_success(mock_config, capsys):
+    mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
+    mock_config.load_user_config.return_value = {}
+    mock_config.parse_value.return_value = 9999
+    mock_config.format_value.return_value = '9999'
+    mock_config.RELATED_COMMANDS = {'mqtt_port': 'setup-mosquitto'}
+    simoc_sam_cli.config(key='mqtt_port', value='9999')
+    mock_config.save_user_config.assert_called_once_with({'mqtt_port': 9999})
+    out = capsys.readouterr().out
+    assert 'mqtt_port = 9999' in out
+    assert 'sam setup-mosquitto' in out
+
+
+def test_config_set_value_parse_error_returns_false(mock_config, capsys):
+    mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
+    mock_config.load_user_config.return_value = {}
+    mock_config.parse_value.side_effect = ValueError('not an int')
+    result = simoc_sam_cli.config(key='mqtt_port', value='not_a_number')
+    assert result is False
+    mock_config.save_user_config.assert_not_called()
+    assert 'Error: not an int' in capsys.readouterr().out

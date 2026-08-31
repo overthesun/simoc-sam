@@ -35,6 +35,14 @@ def temp_log_dir(tmp_path):
     return log_dir
 
 
+@pytest.fixture
+def user_config(tmp_path):
+    """Return the ~/.config/simoc-sam/config.toml path under tmp_path."""
+    config_dir = tmp_path / '.config' / 'simoc-sam'
+    config_dir.mkdir(parents=True)
+    return config_dir / 'config.toml'  # don't create the file itself
+
+
 async def wait_until(condition, timeout=5.0, interval=0.1):
     """Wait until condition() returns True or timeout occurs."""
     max_attempts = int(timeout / interval)

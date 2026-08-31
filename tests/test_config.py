@@ -37,17 +37,6 @@ def reload_config(tmp_path, monkeypatch):
     importlib.reload(config)
 
 
-@pytest.fixture
-def user_config(tmp_path):
-    """Create the config directory and return the config.toml path.
-
-    HOME is already patched to tmp_path by the autouse reload_config fixture.
-    """
-    config_dir = tmp_path / '.config' / 'simoc-sam'
-    config_dir.mkdir(parents=True)
-    return config_dir / 'config.toml'
-
-
 
 def test_default_vars():
     # All config vars must appear in exactly one of the lists below.
