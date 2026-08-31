@@ -382,6 +382,41 @@ def test_needs_root_failure(mock_run, mock_geteuid):
 # simoc_config -- the underlying config.py behavior itself (parse_value,
 # print_all, load_user_config, ...) is already covered in test_config.py.
 
+def test_config_two_standalone_flags_rejected(mock_config):
+    with pytest.raises(SystemExit) as exc_info:
+        simoc_sam_cli.config(path=True, clean=True)
+    assert 'cannot be used together' in str(exc_info.value)
+    mock_config.load_user_config.assert_not_called()
+
+
+def test_config_standalone_flag_with_reset_rejected(mock_config):
+    with pytest.raises(SystemExit) as exc_info:
+        simoc_sam_cli.config(path=True, reset=True)
+    assert '--path and --reset cannot be used together' in str(exc_info.value)
+    mock_config.load_user_config.assert_not_called()
+
+
+def test_config_standalone_flag_with_key_rejected(mock_config):
+    with pytest.raises(SystemExit) as exc_info:
+        simoc_sam_cli.config('mqtt_port', '9999', clean=True)
+    assert 'cannot be combined' in str(exc_info.value)
+    mock_config.load_user_config.assert_not_called()
+
+
+def test_config_reset_without_key_rejected(mock_config):
+    with pytest.raises(SystemExit) as exc_info:
+        simoc_sam_cli.config(reset=True)
+    assert '--reset requires a key' in str(exc_info.value)
+    mock_config.load_user_config.assert_not_called()
+
+
+def test_config_reset_with_value_rejected(mock_config):
+    with pytest.raises(SystemExit) as exc_info:
+        simoc_sam_cli.config('mqtt_port', '9999', reset=True)
+    assert '--reset requires a key and no value' in str(exc_info.value)
+    mock_config.load_user_config.assert_not_called()
+
+
 def test_config_path_prints_path_only(mock_config, user_config, capsys):
     simoc_sam_cli.config(path=True)
     assert capsys.readouterr().out == f'{user_config}\n'

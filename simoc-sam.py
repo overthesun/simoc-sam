@@ -810,6 +810,16 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
     List values are comma-separated, e.g.: sam config sensors scd30,bme688
     Key names accept hyphens or underscores, e.g.: mqtt-port / mqtt_port
     """
+    flags = {'path': path, 'create': create, 'clean': clean,
+              'edit': edit, 'defaults': defaults, 'reset': reset}
+    active = [f'--{name}' for name, on in flags.items() if on]
+    if len(active) > 1:
+        sys.exit(f'Error: {" and ".join(active)} cannot be used together.')
+    if reset:
+        if key is None or value is not None:
+            sys.exit('Error: --reset requires a key and no value.')
+    elif active and key is not None:
+        sys.exit(f'Error: {active[0]} cannot be combined with a key or value.')
     config_path = simoc_config.config_path()
     if path:
         print(config_path)
