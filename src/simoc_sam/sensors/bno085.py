@@ -25,7 +25,8 @@ from adafruit_bno08x.i2c import BNO08X_I2C
 
 ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
 
-# map available feature names to the corresponding BNO085 attributes
+# map available feature names to the corresponding BNO085 attributes;
+# see also sensors.toml for the list of available features
 FEATURE_TO_ATTR = {
     'RAW_ACCELEROMETER': 'raw_acceleration',
     'RAW_GYROSCOPE': 'raw_gyro',

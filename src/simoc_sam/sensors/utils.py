@@ -7,8 +7,6 @@ from datetime import datetime, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from .. import config
-
 import tomllib
 
 
@@ -62,6 +60,7 @@ class SensorData:
     data: Dict[str, Any] = field(default_factory=dict)
     chip_id_register: int = None
     chip_id: int = None
+    features: list = field(default_factory=list)
 
 SENSORS_TOML = pathlib.Path(__file__).with_name('sensors.toml')
 
@@ -78,6 +77,7 @@ def load_sensor_data(file_path=SENSORS_TOML):
             data=sensor_info['data'],
             chip_id_register=sensor_info.get('chip_id_register'),
             chip_id=sensor_info.get('chip_id'),
+            features=sensor_info.get('features', []),
         )
     return sensor_data
 
@@ -120,6 +120,7 @@ def get_addr_argparser():
 
 
 def parse_args(arguments=None):
+    from simoc_sam import config
     parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=config.sensor_read_delay,
                         dest='delay', metavar='DELAY', type=float,
@@ -150,7 +151,8 @@ def parse_args(arguments=None):
 
 
 def start_sensor(sensor_cls, *pargs, **kwargs):
-    from .basesensor import MQTTWrapper
+    from simoc_sam import config
+    from simoc_sam.sensors.basesensor import MQTTWrapper
     args = parse_args()
     # TODO: add cmd line options for name/desc
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:

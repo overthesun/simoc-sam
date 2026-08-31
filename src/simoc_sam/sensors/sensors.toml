@@ -234,6 +234,13 @@ name = "BNO085"
 description = "Adafruit BNO085 9-DOF Orientation IMU Sensor"
 module = "simoc_sam.sensors.bno085"
 i2c_address = 0x4A
+features = [
+    "RAW_ACCELEROMETER", "RAW_GYROSCOPE", "RAW_MAGNETOMETER",
+    "ACCELEROMETER", "GYROSCOPE", "MAGNETOMETER", "GRAVITY",
+    "LINEAR_ACCELERATION", "ROTATION_VECTOR", "GAME_ROTATION_VECTOR",
+    "GEOMAGNETIC_ROTATION_VECTOR", "STABILITY_CLASSIFIER",
+    "ACTIVITY_CLASSIFIER", "STEP_COUNTER", "SHAKE_DETECTOR",
+]
 
     [bno085.data.raw_accel_x]
     unit = ""

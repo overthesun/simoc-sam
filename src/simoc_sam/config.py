@@ -132,11 +132,6 @@ class SimocConfig:
             self.display_refresh = 1.0
         # Strip whitespace from the display format template
         self.display_format = self.display_format.strip()
-        # Validate data_source
-        if self.data_source not in {'mqtt', 'logs'}:
-            print(f'Warning: invalid data_source {self.data_source!r}; using "logs".',
-                  file=sys.stderr)
-            self.data_source = 'logs'
         if not self.enable_jsonl_logging and self.data_source == 'logs':
             print('Warning: JSONL logging is disabled but data_source is "logs".',
                   file=sys.stderr)
@@ -174,8 +169,8 @@ def get_field_type(hint, default) -> tuple[str, tuple]:
     return _TYPES.get(origin, _TYPES.get(hint, 'str')), ()
 
 
-def validate_field(name, value, field_type) -> bool:
-    """Check a Python value against a schema field type (mirrors :func:`parse_value`)."""
+def validate_field(name, value, field_type, options=()) -> bool:
+    """Check a Python value against a schema field type and options."""
     if field_type == 'bool':
         return isinstance(value, bool)
     if field_type == 'int':
@@ -185,31 +180,31 @@ def validate_field(name, value, field_type) -> bool:
     if field_type == 'nullable_str':
         return value is None or isinstance(value, str)
     if field_type == 'list':
-        return isinstance(value, list)
+        return isinstance(value, list) and (not options or all(v in options for v in value))
     if field_type == 'literal':
-        return True  # e.g. data_source -- checked separately in __post_init__
+        return not options or value in options
     if name in SimocConfig._PATH_FIELDS:
         return isinstance(value, (str, pathlib.Path))
     return isinstance(value, str)  # str, multiline_str
 
 
 def validate_fields(values: dict) -> dict[str, str]:
-    """Return {field_name: error_message} for every unknown or wrong-typed value."""
-    hints = typing.get_type_hints(SimocConfig)
+    """Return {field_name: error_message} for every invalid or unknown field."""
+    schema = get_schema()
     errors = {}
     for name, value in values.items():
-        if name not in hints:
+        if name not in schema:
             errors[name] = f'{name!r} is not a known config field'
             continue
-        field_type, _ = get_field_type(hints[name], value)
-        if not validate_field(name, value, field_type):
-            errors[name] = (f'{name!r} should be {field_type!r}, '
-                            f'got {type(value).__name__!r}: {value!r}')
+        info = schema[name]
+        if not validate_field(name, value, info['type'], info['options']):
+            hint = f' (valid: {", ".join(map(str, info["options"]))})' if info['options'] else ''
+            errors[name] = f'{name!r} should be {info["type"]!r}{hint}, got {value!r}'
     return errors
 
 
 def ensure_valid_fields(values: dict) -> None:
-    """Raise ValueError listing every field in *values* with the wrong type."""
+    """Raise ValueError listing every field in *values* with an invalid value."""
     if errors := validate_fields(values):
         raise ValueError('Invalid config values:\n' + '\n'.join(f'  {e}' for e in errors.values()))
 
@@ -243,8 +238,7 @@ def get_schema() -> dict[str, dict]:
     from simoc_sam.displays.utils import DISPLAY_DATA
     schema['display']['options'] = tuple(sorted(DISPLAY_DATA))
     schema['display']['type'] = 'literal'  # str annotation, but constrained by registry
-    from simoc_sam.sensors.bno085 import FEATURE_TO_ATTR
-    schema['bno085_enabled_features']['options'] = tuple(FEATURE_TO_ATTR.keys())
+    schema['bno085_enabled_features']['options'] = tuple(SENSOR_DATA['bno085'].features)
     return schema
 
 

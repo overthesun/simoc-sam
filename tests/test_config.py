@@ -198,7 +198,7 @@ def test_simoc_config_display_refresh_validation(capsys):
 
 def test_simoc_config_data_source_validation(capsys):
     cfg = SimocConfig(data_source='invalid')
-    assert cfg.data_source == 'logs'
+    assert cfg.data_source == 'mqtt'  # reset to the field default
     assert 'Warning' in capsys.readouterr().err
 
 
@@ -385,6 +385,20 @@ def test_save_user_config_wrong_type_raises_and_does_not_write(user_config):
     with pytest.raises(ValueError, match='mqtt_port'):
         save_user_config({'mqtt_port': 'not_a_number'})
     assert not user_config.exists()  # rejected before writing
+
+
+def test_save_user_config_invalid_list_content_raises_and_does_not_write(user_config):
+    # right shape (a list) but an unknown sensor name -- validate_fields()
+    # now checks content against schema options, not just type/shape
+    with pytest.raises(ValueError, match='not_a_sensor'):
+        save_user_config({'sensors': ['scd30', 'not_a_sensor']})
+    assert not user_config.exists()  # rejected before writing
+
+
+def test_save_user_config_invalid_literal_content_raises(user_config):
+    with pytest.raises(ValueError, match='display'):
+        save_user_config({'display': 'not_a_display'})
+    assert not user_config.exists()
 
 
 

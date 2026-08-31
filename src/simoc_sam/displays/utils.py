@@ -13,7 +13,6 @@ import aiomqtt
 from PIL import Image, ImageDraw, ImageFont
 
 from simoc_sam import utils
-from simoc_sam import config
 
 
 @dataclass
@@ -57,6 +56,7 @@ for name, info in DISPLAY_DATA.items():
 
 def format_values(sensor_readings_dict, max_rows=None):
     """Format sensor values for display using configured format string."""
+    from simoc_sam import config
     # flatten sensor readings: {'scd30': {'co2': 450}} -> {'scd30_co2': 450}
     flattened = {'uptime': utils.uptime()}  # add uptime
     for sensor, data in sensor_readings_dict.items():
@@ -97,6 +97,7 @@ def draw_image(width, height, rows):
 
 async def mqtt_monitor(sensor_readings_dict):
     """Add sensor data received from MQTT to the given dictionary (in place)."""
+    from simoc_sam import config
     mqtt_host, mqtt_port = config.mqtt_host, config.mqtt_port
     mqtt_addr = f"{mqtt_host}:{mqtt_port}"
     mqtt_topic_sub = config.mqtt_topic_sub
