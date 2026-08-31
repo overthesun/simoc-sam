@@ -336,6 +336,13 @@ def test_generate_config_skips_none_override():
     assert '# location' in result  # falls back to the commented default line
 
 
+def test_generate_config_path_override():
+    # validate_field() accepts Path objects for path fields (as well as str),
+    # so overrides[name] can be a Path -- tomli_w can't serialize it directly
+    result = generate_config({'log_dir': Path('/tmp/somelogs')})
+    assert tomllib.loads(result) == {'log_dir': '/tmp/somelogs'}
+
+
 def test_load_user_config_missing(user_config):
     assert load_user_config() == {}
 

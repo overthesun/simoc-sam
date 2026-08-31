@@ -263,7 +263,10 @@ def generate_config(overrides: dict = {}) -> str:
             lines.append(f'# -- {current_group} --')
         # None means "unset" (TOML has no null) -- fall back to the commented default
         if name in overrides and overrides[name] is not None:
-            lines.append(tomli_w.dumps({name: overrides[name]}).rstrip())
+            value = overrides[name]
+            if isinstance(value, pathlib.Path):
+                value = str(value)  # tomli_w can't serialize Path objects
+            lines.append(tomli_w.dumps({name: value}).rstrip())
         elif info['type'] == 'multiline_str':
             toml_block = f'{name} = """\n{info["default"].strip()}\n"""'
             lines.append('\n'.join(f'# {line}' for line in toml_block.splitlines()))
