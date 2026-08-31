@@ -2,21 +2,18 @@
 from . import utils
 from .basesensor import BaseSensor
 
-board = utils.import_board()
-
-import adafruit_veml7700
-
 
 class VEML7700(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        i2c = board.I2C()
-        self.tsl = adafruit_veml7700.VEML7700(i2c)
+        from adafruit_veml7700 import VEML7700
+        i2c = self.board.I2C()
+        self.veml = VEML7700(i2c)
 
     def read_sensor_data(self):
         """Return sensor data (light) as a dict."""
         reading = dict(
-            light=self.tsl.light,  # lux
+            light=self.veml.light,  # lux
         )
         self.print_reading(reading)
         return reading

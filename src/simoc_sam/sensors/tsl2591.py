@@ -2,16 +2,13 @@
 from . import utils
 from .basesensor import BaseSensor
 
-board = utils.import_board()
-
-import adafruit_tsl2591
-
 
 class TSL2591(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        i2c = board.I2C()
-        self.tsl = adafruit_tsl2591.TSL2591(i2c)
+        from adafruit_tsl2591 import TSL2591
+        i2c = self.board.I2C()
+        self.tsl = TSL2591(i2c)
 
     def read_sensor_data(self):
         """Return sensor data (lux, visible, infrared) as a dict."""

@@ -2,16 +2,13 @@
 from . import utils
 from .basesensor import BaseSensor
 
-board = utils.import_board()
-busio = utils.import_busio()
-import adafruit_scd30
-
 
 class SCD30(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=50000)
-        self.scd = adafruit_scd30.SCD30(i2c)
+        from adafruit_scd30 import SCD30
+        i2c = self.busio.I2C(self.board.SCL, self.board.SDA, frequency=50000)
+        self.scd = SCD30(i2c)
 
     def read_sensor_data(self):
         """Return sensor data (CO2, temperature, humidity) as a dict."""

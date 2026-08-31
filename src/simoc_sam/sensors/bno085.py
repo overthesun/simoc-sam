@@ -5,11 +5,6 @@ from . import utils
 from .. import config
 from .basesensor import BaseSensor
 
-board = utils.import_board()
-busio = utils.import_busio()
-import adafruit_bno08x
-from adafruit_bno08x.i2c import BNO08X_I2C
-
 
 # Note: this sensor seems to have several issues and often receives
 # invalid packets and/or gets stuck.
@@ -47,7 +42,8 @@ FEATURE_TO_ATTR = {
 class BNO085(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.i2c = busio.I2C(board.SCL, board.SDA, frequency=800000)
+        from adafruit_bno08x.i2c import BNO08X_I2C
+        self.i2c = self.busio.I2C(self.board.SCL, self.board.SDA, frequency=800000)
         self.bno = BNO08X_I2C(self.i2c)
         self.enable_features()
 
@@ -69,6 +65,7 @@ class BNO085(BaseSensor):
 
     def enable_feature(self, feature_name):
         """Enable a single feature (retrying in case of failure)."""
+        import adafruit_bno08x
         feature = getattr(adafruit_bno08x, f'BNO_REPORT_{feature_name}')
         print(f'  Enabling {feature_name}...', end=' ')
         for attempt in range(10):

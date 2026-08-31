@@ -2,15 +2,13 @@
 from . import utils
 from .basesensor import BaseSensor
 
-board = utils.import_board()
-import adafruit_bme680
-
 
 class BME688(BaseSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        i2c = board.I2C()
-        self.sensor = adafruit_bme680.Adafruit_BME680_I2C(i2c, debug=False)
+        from adafruit_bme680 import Adafruit_BME680_I2C
+        i2c = self.board.I2C()
+        self.sensor = Adafruit_BME680_I2C(i2c, debug=False)
 
     def read_sensor_data(self):
         """Return sensor data as a dict."""

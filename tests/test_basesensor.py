@@ -8,6 +8,7 @@ import pytest
 
 from simoc_sam import config
 from simoc_sam.sensors import basesensor
+from simoc_sam.sensors import utils as sensor_utils
 
 READING = dict(co2=100, rel_hum=50, temp=25)
 INFO = {
@@ -97,6 +98,22 @@ def test_name_type():
     with MySensor(description='HAL 9000') as sensor:
         assert sensor.type == 'TestSensor'
         assert sensor.description == 'HAL 9000'
+
+def test_board_busio_not_imported_until_accessed(sensor):
+    with patch.object(sensor_utils, 'import_board') as mock_board, \
+         patch.object(sensor_utils, 'import_busio') as mock_busio:
+        MySensor()  # instantiation alone must not trigger hardware imports
+        mock_board.assert_not_called()
+        mock_busio.assert_not_called()
+
+def test_board_busio_imported_lazily_and_cached(sensor):
+    with patch.object(sensor_utils, 'import_board') as mock_board, \
+         patch.object(sensor_utils, 'import_busio') as mock_busio:
+        assert sensor.board is mock_board.return_value
+        assert sensor.busio is mock_busio.return_value
+        sensor.board  # accessing again shouldn't re-import
+        mock_board.assert_called_once()
+        mock_busio.assert_called_once()
 
 def test_log_path(sensor):
     assert str(sensor.log_path).endswith('/testhost_testhost1_mysensor.jsonl')
