@@ -2,7 +2,7 @@
 import math
 
 from . import utils
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
 # These equations are provided by the Sensirion datasheet for the SGP-30.
@@ -19,7 +19,7 @@ def tick_conversion_H2(signal_output):
     return 0.5 * (math.e**((signal_reference-signal_output)/512))
 
 
-class SGP30(BaseSensor):
+class SGP30(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_sgp30 import Adafruit_SGP30

@@ -23,6 +23,13 @@ class MySensor(basesensor.BaseSensor):
         self.print_reading(READING)
         return dict(READING)
 
+class MyAdafruitSensor(basesensor.AdafruitSensor):
+    type = 'TestSensor'
+    reading_info = INFO
+    def read_sensor_data(self):
+        self.print_reading(READING)
+        return dict(READING)
+
 @pytest.fixture
 def sensor():
     yield MySensor()
@@ -99,10 +106,18 @@ def test_name_type():
         assert sensor.type == 'TestSensor'
         assert sensor.description == 'HAL 9000'
 
+def test_board_busio_not_imported_for_plain_sensors():
+    # MockSensor/VernierX sensors don't need board/busio -- only AdafruitSensor does
+    with patch.object(sensor_utils, 'import_board') as mock_board, \
+         patch.object(sensor_utils, 'import_busio') as mock_busio:
+        MySensor()
+        mock_board.assert_not_called()
+        mock_busio.assert_not_called()
+
 def test_board_busio_imported_during_init():
     with patch.object(sensor_utils, 'import_board') as mock_board, \
          patch.object(sensor_utils, 'import_busio') as mock_busio:
-        s = MySensor()
+        s = MyAdafruitSensor()
         assert s.board is mock_board.return_value
         assert s.busio is mock_busio.return_value
         mock_board.assert_called_once()
@@ -114,7 +129,7 @@ def test_board_imported_before_busio():
                       side_effect=lambda: call_order.append('board')), \
          patch.object(sensor_utils, 'import_busio',
                       side_effect=lambda: call_order.append('busio')):
-        MySensor()
+        MyAdafruitSensor()
         assert call_order == ['board', 'busio']
 
 def test_log_path(sensor):

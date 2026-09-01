@@ -1,9 +1,9 @@
 """Driver for the VEML7700 light sensor."""
 from . import utils
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
-class VEML7700(BaseSensor):
+class VEML7700(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_veml7700 import VEML7700

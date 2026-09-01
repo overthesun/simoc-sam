@@ -1,9 +1,9 @@
 """Driver for the BMP388 Temperature, Barometric Pressure, and Altitude sensor."""
 from . import utils
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
-class BMP388(BaseSensor):
+class BMP388(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_bmp3xx import BMP3XX_I2C

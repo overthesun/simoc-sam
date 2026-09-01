@@ -1,9 +1,9 @@
 """Driver for the TSL2591 light sensor."""
 from . import utils
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
-class TSL2591(BaseSensor):
+class TSL2591(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_tsl2591 import TSL2591

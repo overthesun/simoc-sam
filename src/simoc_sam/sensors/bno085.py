@@ -3,7 +3,7 @@ import time
 
 from . import utils
 from .. import config
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
 # Note: this sensor seems to have several issues and often receives
@@ -39,7 +39,7 @@ FEATURE_TO_ATTR = {
     'SHAKE_DETECTOR': 'shake',
 }
 
-class BNO085(BaseSensor):
+class BNO085(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_bno08x.i2c import BNO08X_I2C

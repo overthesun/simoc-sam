@@ -1,9 +1,9 @@
 """Driver for the SCD-30 CO2/temperature/humidity sensor."""
 from . import utils
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
-class SCD30(BaseSensor):
+class SCD30(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_scd30 import SCD30

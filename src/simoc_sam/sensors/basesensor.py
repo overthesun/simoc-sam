@@ -26,6 +26,8 @@ class BaseSensor(ABC):
         """Set sensor name, type, and reading info."""
         from . import utils  # import here to avoid circular import
         super().__init_subclass__(**kwargs)
+        if cls.read_sensor_data is BaseSensor.read_sensor_data:
+            return  # non-abstract subclasses should implement read_sensor_data
         # subclasses can specify a custom sensor name
         if not hasattr(cls, 'name'):
             cls.name = cls.__name__.lower()
@@ -50,10 +52,6 @@ class BaseSensor(ABC):
         # the total number of values read through iter_readings
         self.reading_num = 0
         self.log_path = get_log_path(self.name)
-        from . import utils
-        # import order matters: board must be imported before busio
-        self.board = utils.import_board()
-        self.busio = utils.import_busio()
         if config.enable_jsonl_logging:
             config.log_dir.mkdir(exist_ok=True)  # ensure the log dir exists
 
@@ -140,6 +138,17 @@ class BaseSensor(ABC):
                 if n == 0:
                     break
             time.sleep(delay)
+
+
+class AdafruitSensor(BaseSensor):
+    """Base class for sensors that use the `board`/`busio` Blinka modules."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        from . import utils
+        # import order matters: board must be imported before busio
+        self.board = utils.import_board()
+        self.busio = utils.import_busio()
 
 
 class MQTTWrapper:

@@ -1,9 +1,9 @@
 """Driver for the BME688 Temp/Humidity/Pressure/Gas Resistance sensor."""
 from . import utils
-from .basesensor import BaseSensor
+from .basesensor import AdafruitSensor
 
 
-class BME688(BaseSensor):
+class BME688(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from adafruit_bme680 import Adafruit_BME680_I2C
