@@ -846,11 +846,13 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
         while True:
             subprocess.run([*editor, str(config_path)])
             try:
+                print('Validating config...')
                 simoc_config.load_user_config()
             except ValueError as exc:
-                print(f'Error: {exc}')
+                print(f'Warning: {exc}')
                 input('Press Enter to fix it in the editor (Ctrl-C to abort)...')
             else:
+                print('Config is valid.')
                 break
         return
     schema = simoc_config.get_schema()

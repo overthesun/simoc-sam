@@ -451,7 +451,7 @@ def test_config_clean_missing_file(mock_config, capsys):
     assert 'No user config file found.' in capsys.readouterr().out
 
 
-def test_config_edit_creates_missing_file_before_opening_editor(mock_config, user_config):
+def test_config_edit_creates_missing_file_before_opening_editor(mock_config, user_config, capsys):
     mock_config.generate_config.return_value = '# template\n'
     mock_config.load_user_config.return_value = {}  # valid on first try
     with patch('subprocess.run') as mock_run:
@@ -459,9 +459,10 @@ def test_config_edit_creates_missing_file_before_opening_editor(mock_config, use
     assert user_config.read_text() == '# template\n'
     mock_run.assert_called_once()
     assert str(user_config) in mock_run.call_args[0][0]
+    assert 'Config is valid.' in capsys.readouterr().out
 
 
-def test_config_edit_retries_until_valid(mock_config, user_config):
+def test_config_edit_retries_until_valid(mock_config, user_config, capsys):
     user_config.write_text('# existing\n')
     mock_config.load_user_config.side_effect = [ValueError('bad toml'), {}]
     with patch('subprocess.run') as mock_run, patch('builtins.input') as mock_input:
@@ -469,6 +470,9 @@ def test_config_edit_retries_until_valid(mock_config, user_config):
     assert mock_run.call_count == 2  # editor re-opened after the failed attempt
     mock_input.assert_called_once()
     assert mock_config.load_user_config.call_count == 2
+    out = capsys.readouterr().out
+    assert 'Warning: bad toml' in out  # shown for the failed attempt
+    assert 'Config is valid.' in out  # shown once the retry succeeds
 
 
 def test_config_bare_list_calls_print_all(mock_config):
