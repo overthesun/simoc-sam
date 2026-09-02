@@ -1,16 +1,14 @@
 """Driver for the BMP388 Temperature, Barometric Pressure, and Altitude sensor."""
 from . import utils
-from .basesensor import BaseSensor
-
-board = utils.import_board()
-import adafruit_bmp3xx
+from .basesensor import AdafruitSensor
 
 
-class BMP388(BaseSensor):
+class BMP388(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        i2c = board.I2C()
-        self.sensor = adafruit_bmp3xx.BMP3XX_I2C(i2c)
+        from adafruit_bmp3xx import BMP3XX_I2C
+        i2c = self.board.I2C()
+        self.sensor = BMP3XX_I2C(i2c)
         # Set oversampling for better accuracy
         self.sensor.pressure_oversampling = 8
         self.sensor.temperature_oversampling = 2
