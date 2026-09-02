@@ -2,11 +2,7 @@
 import math
 
 from . import utils
-from .basesensor import BaseSensor
-
-board = utils.import_board()
-busio = utils.import_busio()
-import adafruit_sgp30
+from .basesensor import AdafruitSensor
 
 
 # These equations are provided by the Sensirion datasheet for the SGP-30.
@@ -23,11 +19,12 @@ def tick_conversion_H2(signal_output):
     return 0.5 * (math.e**((signal_reference-signal_output)/512))
 
 
-class SGP30(BaseSensor):
+class SGP30(AdafruitSensor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
-        self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
+        from adafruit_sgp30 import Adafruit_SGP30
+        i2c = self.busio.I2C(self.board.SCL, self.board.SDA, frequency=100000)
+        self.sensor = Adafruit_SGP30(i2c)
         self.sensor.iaq_init()
         self.sensor.set_iaq_baseline(0x8973, 0x8AEE)  # Numbers from adafruit example
 

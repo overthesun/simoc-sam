@@ -8,6 +8,7 @@ import pytest
 
 from simoc_sam import config
 from simoc_sam.sensors import basesensor
+from simoc_sam.sensors import utils as sensor_utils
 
 READING = dict(co2=100, rel_hum=50, temp=25)
 INFO = {
@@ -16,6 +17,13 @@ INFO = {
     'rel_hum': dict(label='Relative Humidity', unit='%'),
 }
 class MySensor(basesensor.BaseSensor):
+    type = 'TestSensor'
+    reading_info = INFO
+    def read_sensor_data(self):
+        self.print_reading(READING)
+        return dict(READING)
+
+class MyAdafruitSensor(basesensor.AdafruitSensor):
     type = 'TestSensor'
     reading_info = INFO
     def read_sensor_data(self):
@@ -97,6 +105,32 @@ def test_name_type():
     with MySensor(description='HAL 9000') as sensor:
         assert sensor.type == 'TestSensor'
         assert sensor.description == 'HAL 9000'
+
+def test_board_busio_not_imported_for_plain_sensors():
+    # MockSensor/VernierX sensors don't need board/busio -- only AdafruitSensor does
+    with patch.object(sensor_utils, 'import_board') as mock_board, \
+         patch.object(sensor_utils, 'import_busio') as mock_busio:
+        MySensor()
+        mock_board.assert_not_called()
+        mock_busio.assert_not_called()
+
+def test_board_busio_imported_during_init():
+    with patch.object(sensor_utils, 'import_board') as mock_board, \
+         patch.object(sensor_utils, 'import_busio') as mock_busio:
+        s = MyAdafruitSensor()
+        assert s.board is mock_board.return_value
+        assert s.busio is mock_busio.return_value
+        mock_board.assert_called_once()
+        mock_busio.assert_called_once()
+
+def test_board_imported_before_busio():
+    call_order = []
+    with patch.object(sensor_utils, 'import_board',
+                      side_effect=lambda: call_order.append('board')), \
+         patch.object(sensor_utils, 'import_busio',
+                      side_effect=lambda: call_order.append('busio')):
+        MyAdafruitSensor()
+        assert call_order == ['board', 'busio']
 
 def test_log_path(sensor):
     assert str(sensor.log_path).endswith('/testhost_testhost1_mysensor.jsonl')
