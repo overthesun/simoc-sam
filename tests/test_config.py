@@ -17,7 +17,7 @@ from simoc_sam import config
 from simoc_sam import defaults
 from simoc_sam.config import (
     SimocConfig, get_field_type, get_field_default,
-    get_schema, get_config, load_user_config, save_user_config,
+    get_schema, get_config, read_user_overrides, save_user_config,
     parse_value, format_value, print_all, print_one, print_defaults,
     generate_config,
 )
@@ -360,14 +360,26 @@ def test_generate_config_path_override():
     assert tomllib.loads(result) == {'log_dir': '/tmp/somelogs'}
 
 
-def test_load_user_config_missing(user_config):
-    assert load_user_config() == {}
+def test_generate_config_unknown_key_raises():
+    # the schema-driven loop below would otherwise silently drop unknown
+    # keys instead of erroring -- generate_config validates first to catch it
+    with pytest.raises(config.InvalidConfig, match='not_a_real_key'):
+        generate_config({'not_a_real_key': 123})
 
 
-def test_load_user_config_invalid_toml(user_config):
+def test_generate_config_invalid_value_raises():
+    with pytest.raises(config.InvalidConfig, match='mqtt_port'):
+        generate_config({'mqtt_port': 'not_a_number'})
+
+
+def test_read_user_overrides_missing(user_config):
+    assert read_user_overrides() == {}
+
+
+def test_read_user_overrides_invalid_toml(user_config):
     user_config.write_text('this is not [valid toml')
     with pytest.raises(config.InvalidConfig, match='Invalid TOML'):
-        load_user_config()
+        read_user_overrides()
     user_config.unlink()
 
 
@@ -375,7 +387,7 @@ def test_save_and_load_roundtrip(user_config):
     overrides = {'mqtt_host': 'remote.host', 'mqtt_port': 1884,
                  'sensors': ['scd30', 'bme688'], 'mqtt_secure': False}
     save_user_config(overrides)
-    loaded = load_user_config()
+    loaded = read_user_overrides()
     assert loaded['mqtt_host'] == 'remote.host'
     assert loaded['mqtt_port'] == 1884
     assert loaded['sensors'] == ['scd30', 'bme688']
@@ -402,7 +414,7 @@ def test_save_user_config_has_comment_header(user_config):
 
 def test_save_user_config_with_none_override_does_not_crash(user_config):
     save_user_config({'location': None, 'mqtt_port': 9999})
-    assert load_user_config() == {'mqtt_port': 9999}
+    assert read_user_overrides() == {'mqtt_port': 9999}
 
 
 def test_save_user_config_wrong_type_raises_and_does_not_write(user_config):
@@ -500,26 +512,18 @@ def test_get_config_empty_file_uses_defaults(user_config):
     assert get_config().mqtt_host == 'localhost'
 
 
-def test_load_user_config_wrong_type_raises(user_config):
+def test_get_config_bool_wrong_type_raises(user_config):
     # the exact scenario reported: a bool field set to a string in the TOML file
     user_config.write_text('mqtt_secure = "false"\n')
     with pytest.raises(config.InvalidConfig, match='mqtt_secure'):
-        load_user_config()
+        get_config()
     user_config.unlink()
 
 
-def test_load_user_config_unknown_key_raises(user_config):
-    # catches typos, e.g. `mqqt_secure` instead of `mqtt_secure`
-    user_config.write_text('not_a_real_key = 123\n')
-    with pytest.raises(config.InvalidConfig, match='not_a_real_key'):
-        load_user_config()
-    user_config.unlink()
-
-
-def test_load_user_config_reports_multiple_type_errors(user_config):
+def test_get_config_reports_multiple_type_errors(user_config):
     user_config.write_text('mqtt_secure = "false"\nhumans = "two"\n')
     with pytest.raises(config.InvalidConfig) as exc_info:
-        load_user_config()
+        get_config()
     assert 'mqtt_secure' in str(exc_info.value)
     assert 'humans' in str(exc_info.value)
     user_config.unlink()
@@ -607,7 +611,7 @@ def test_fmt_scalars():
 
 def test_print_all_shows_customised_marker(user_config, capsys):
     save_user_config({'mqtt_port': 9999})
-    print_all(get_schema(), load_user_config())
+    print_all(get_schema(), read_user_overrides())
     out = capsys.readouterr().out
     assert 'mqtt_port' in out
     assert '9999' in out
@@ -630,7 +634,7 @@ def test_print_all_shows_resolved_values(capsys):
 
 def test_print_one_shows_override_and_default(user_config, capsys):
     save_user_config({'mqtt_port': 9999})
-    print_one('mqtt_port', get_schema(), load_user_config())
+    print_one('mqtt_port', get_schema(), read_user_overrides())
     out = capsys.readouterr().out
     assert '9999' in out
     assert 'default: 1883 (overridden)' in out

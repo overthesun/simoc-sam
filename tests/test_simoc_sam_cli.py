@@ -383,47 +383,47 @@ def test_needs_root_failure(mock_run, mock_geteuid):
 # These test simoc-sam.py's own `config()` routing logic (which flag calls
 # which simoc_config function, in what order, with what args) using a mocked
 # simoc_config -- the underlying config.py behavior itself (parse_value,
-# print_all, load_user_config, ...) is already covered in test_config.py.
+# print_all, read_user_overrides, ...) is already covered in test_config.py.
 
 def test_config_two_standalone_flags_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config(path=True, clean=True)
     assert 'cannot be used together' in str(exc_info.value)
-    mock_config.load_user_config.assert_not_called()
+    mock_config.read_user_overrides.assert_not_called()
 
 
 def test_config_standalone_flag_with_reset_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config(path=True, reset=True)
     assert '--path and --reset cannot be used together' in str(exc_info.value)
-    mock_config.load_user_config.assert_not_called()
+    mock_config.read_user_overrides.assert_not_called()
 
 
 def test_config_standalone_flag_with_key_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config('mqtt_port', '9999', clean=True)
     assert 'cannot be combined' in str(exc_info.value)
-    mock_config.load_user_config.assert_not_called()
+    mock_config.read_user_overrides.assert_not_called()
 
 
 def test_config_reset_without_key_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config(reset=True)
     assert '--reset requires a key' in str(exc_info.value)
-    mock_config.load_user_config.assert_not_called()
+    mock_config.read_user_overrides.assert_not_called()
 
 
 def test_config_reset_with_value_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config('mqtt_port', '9999', reset=True)
     assert '--reset requires a key and no value' in str(exc_info.value)
-    mock_config.load_user_config.assert_not_called()
+    mock_config.read_user_overrides.assert_not_called()
 
 
 def test_config_path_prints_path_only(mock_config, user_config, capsys):
     simoc_sam_cli.config(path=True)
     assert capsys.readouterr().out == f'{user_config}\n'
-    mock_config.load_user_config.assert_not_called()
+    mock_config.read_user_overrides.assert_not_called()
     mock_config.get_schema.assert_not_called()
 
 
@@ -456,7 +456,6 @@ def test_config_clean_missing_file(mock_config, capsys):
 
 def test_config_edit_creates_missing_file_before_opening_editor(mock_config, user_config, capsys):
     mock_config.generate_config.return_value = '# template\n'
-    mock_config.load_user_config.return_value = {}  # valid on first try
     with patch('subprocess.run') as mock_run:
         simoc_sam_cli.config(edit=True)
     assert user_config.read_text() == '# template\n'
@@ -467,12 +466,12 @@ def test_config_edit_creates_missing_file_before_opening_editor(mock_config, use
 
 def test_config_edit_retries_until_valid(mock_config, user_config, capsys):
     user_config.write_text('# existing\n')
-    mock_config.load_user_config.side_effect = [InvalidConfig('bad toml'), {}]
+    mock_config.get_config.side_effect = [InvalidConfig('bad toml'), None]
     with patch('subprocess.run') as mock_run, patch('builtins.input') as mock_input:
         simoc_sam_cli.config(edit=True)
     assert mock_run.call_count == 2  # editor re-opened after the failed attempt
     mock_input.assert_called_once()
-    assert mock_config.load_user_config.call_count == 2
+    assert mock_config.get_config.call_count == 2
     out = capsys.readouterr().out
     assert 'Warning: bad toml' in out  # shown for the failed attempt
     assert 'Config is valid.' in out  # shown once the retry succeeds
@@ -480,7 +479,7 @@ def test_config_edit_retries_until_valid(mock_config, user_config, capsys):
 
 def test_config_bare_list_calls_print_all(mock_config):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
-    mock_config.load_user_config.return_value = {'mqtt_port': 9999}
+    mock_config.read_user_overrides.return_value = {'mqtt_port': 9999}
     simoc_sam_cli.config()
     mock_config.print_all.assert_called_once_with(
         {'mqtt_port': {'default': 1883}}, {'mqtt_port': 9999})
@@ -496,7 +495,6 @@ def test_config_defaults_flag_calls_print_defaults(mock_config):
 
 def test_config_unknown_key_returns_false(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
-    mock_config.load_user_config.return_value = {}
     result = simoc_sam_cli.config(key='not_a_real_key')
     assert result is False
     assert 'unknown config key' in capsys.readouterr().out
@@ -506,7 +504,7 @@ def test_config_key_without_value_calls_print_one(mock_config):
     schema = {'mqtt_port': {'default': 1883}}
     overrides = {}
     mock_config.get_schema.return_value = schema
-    mock_config.load_user_config.return_value = overrides
+    mock_config.read_user_overrides.return_value = overrides
     simoc_sam_cli.config(key='mqtt_port')
     mock_config.print_one.assert_called_once_with('mqtt_port', schema, overrides)
 
@@ -515,7 +513,7 @@ def test_config_key_accepts_hyphens(mock_config):
     """Test that hyphenated keys (e.g. from --flag style input) are normalized."""
     schema = {'mqtt_port': {'default': 1883}}
     mock_config.get_schema.return_value = schema
-    mock_config.load_user_config.return_value = {}
+    mock_config.read_user_overrides.return_value = {}
     simoc_sam_cli.config(key='mqtt-port')
     mock_config.print_one.assert_called_once_with('mqtt_port', schema, {})
 
@@ -523,7 +521,7 @@ def test_config_key_accepts_hyphens(mock_config):
 def test_config_reset_when_overridden(mock_config, capsys):
     schema = {'mqtt_port': {'default': 1883}}
     mock_config.get_schema.return_value = schema
-    mock_config.load_user_config.return_value = {'mqtt_port': 9999}
+    mock_config.read_user_overrides.return_value = {'mqtt_port': 9999}
     mock_config.format_value.return_value = '1883'
     simoc_sam_cli.config(key='mqtt_port', reset=True)
     mock_config.save_user_config.assert_called_once_with({})  # key removed
@@ -532,7 +530,7 @@ def test_config_reset_when_overridden(mock_config, capsys):
 
 def test_config_reset_when_not_overridden(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
-    mock_config.load_user_config.return_value = {}
+    mock_config.read_user_overrides.return_value = {}
     simoc_sam_cli.config(key='mqtt_port', reset=True)
     mock_config.save_user_config.assert_not_called()
     assert 'already at its default value' in capsys.readouterr().out
@@ -540,7 +538,7 @@ def test_config_reset_when_not_overridden(mock_config, capsys):
 
 def test_config_set_value_success(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
-    mock_config.load_user_config.return_value = {}
+    mock_config.read_user_overrides.return_value = {}
     mock_config.parse_value.return_value = 9999
     mock_config.format_value.return_value = '9999'
     mock_config.RELATED_COMMANDS = {'mqtt_port': 'setup-mosquitto'}
@@ -553,9 +551,30 @@ def test_config_set_value_success(mock_config, capsys):
 
 def test_config_set_value_parse_error_returns_false(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
-    mock_config.load_user_config.return_value = {}
+    mock_config.read_user_overrides.return_value = {}
     mock_config.parse_value.side_effect = ValueError('not an int')
     result = simoc_sam_cli.config(key='mqtt_port', value='not_a_number')
     assert result is False
     mock_config.save_user_config.assert_not_called()
     assert 'Error: not an int' in capsys.readouterr().out
+
+
+def test_config_save_error_reported_without_crashing(mock_config, capsys):
+    # InvalidConfig is a ValueError subclass -- caught by the same except
+    # as parse_value's plain ValueError/TypeError, so no special-casing needed
+    mock_config.get_schema.return_value = {'mqtt_secure': {'default': False}}
+    mock_config.read_user_overrides.return_value = {}
+    mock_config.parse_value.return_value = True
+    mock_config.save_user_config.side_effect = InvalidConfig("Set 'mqtt_certs_dir'")
+    result = simoc_sam_cli.config(key='mqtt_secure', value='true')
+    assert result is False
+    assert "Error: Set 'mqtt_certs_dir'" in capsys.readouterr().out
+
+
+def test_config_list_all_reports_invalid_stored_config_without_crashing(mock_config, capsys):
+    mock_config.get_schema.return_value = {'display_refresh': {'default': 1.0}}
+    mock_config.read_user_overrides.return_value = {'display_refresh': -1.0}
+    mock_config.print_all.side_effect = InvalidConfig('bad value')
+    result = simoc_sam_cli.config()
+    assert result is False
+    assert 'Error: bad value' in capsys.readouterr().out

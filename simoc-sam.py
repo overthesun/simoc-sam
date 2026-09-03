@@ -847,7 +847,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
             subprocess.run([*editor, str(config_path)])
             try:
                 print('Validating config...')
-                simoc_config.load_user_config()
+                simoc_config.get_config()  # called to validate the config
             except simoc_config.InvalidConfig as exc:
                 print(f'Warning: {exc}')
                 input('Press Enter to fix it in the editor (Ctrl-C to abort)...')
@@ -856,48 +856,43 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
                 break
         return
     schema = simoc_config.get_schema()
-    user_overrides = simoc_config.load_user_config()
     if defaults:
         simoc_config.print_defaults(schema)
         return
-    if key is None:
-        simoc_config.print_all(schema, user_overrides)
-        return
-    key = key.replace('-', '_')   # accept both var-name and var_name
-    if key not in schema:
-        print(f'Error: unknown config key: {key!r}')
-        print('Run `sam config` to see all available keys.')
-        return False
-    if reset:
-        if key in user_overrides:
-            del user_overrides[key]
-            try:
-                simoc_config.save_user_config(user_overrides)
-            except simoc_config.InvalidConfig as exc:
-                print(f'Error: {exc}')
-                return False
-            default = simoc_config.format_value(schema[key]['default'])
-            print(f'Reset {key} to default: {default}')
-        else:
-            print(f'{key} is already at its default value.')
-        return
-    if value is None:
-        simoc_config.print_one(key, schema, user_overrides)
-        return
+    if key is not None:
+        key = key.replace('-', '_')   # accept both var-name and var_name
+        if key not in schema:
+            print(f'Error: unknown config key: {key!r}')
+            print('Run `sam config` to see all available keys.')
+            return False
+    # InvalidConfig is a ValueError, so this also catches invalid values
+    # raised when print_all/print_one/save_user_config construct SimocConfig
     try:
+        user_overrides = simoc_config.read_user_overrides()
+        if key is None:
+            simoc_config.print_all(schema, user_overrides)
+            return
+        if reset:
+            if key in user_overrides:
+                del user_overrides[key]
+                simoc_config.save_user_config(user_overrides)
+                default = simoc_config.format_value(schema[key]['default'])
+                print(f'Reset {key} to default: {default}')
+            else:
+                print(f'{key} is already at its default value.')
+            return
+        if value is None:
+            simoc_config.print_one(key, schema, user_overrides)
+            return
         parsed = simoc_config.parse_value(value, schema[key])
+        user_overrides[key] = parsed
+        simoc_config.save_user_config(user_overrides)
+        print(f'{key} = {simoc_config.format_value(parsed)}')
+        if related := simoc_config.RELATED_COMMANDS.get(key):
+            print(f'  To apply: sam {related}')
     except (ValueError, TypeError) as exc:
         print(f'Error: {exc}')
         return False
-    user_overrides[key] = parsed
-    try:
-        simoc_config.save_user_config(user_overrides)
-    except simoc_config.InvalidConfig as exc:
-        print(f'Error: {exc}')
-        return False
-    print(f'{key} = {simoc_config.format_value(parsed)}')
-    if related := simoc_config.RELATED_COMMANDS.get(key):
-        print(f'  To apply: sam {related}')
 
 
 def create_parser():

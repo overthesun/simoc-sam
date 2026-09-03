@@ -1,7 +1,7 @@
 """SIMOC Live configuration: schema, loading, saving, and module-level vars.
 
 The ``sam config`` CLI command and the web admin interface use :func:`get_schema`,
-:func:`load_user_config`, :func:`save_user_config`, :func:`parse_value`, and the
+:func:`get_config`, :func:`save_user_config`, :func:`parse_value`, and the
 ``print_*`` helpers defined here.
 
 User overrides are stored as TOML at ``~/.config/simoc-sam/config.toml``.
@@ -203,14 +203,6 @@ def validate_fields(values: dict) -> None:
                             for e in errors.values()))
 
 
-def validate_overrides(overrides: dict) -> None:
-    """Validate *overrides* and raise :exc:`InvalidConfig` on errors."""
-    try:
-        SimocConfig(**overrides)  # validates the overrides in __post_init__
-    except TypeError as exc:
-        raise InvalidConfig(str(exc)) from exc
-
-
 @functools.cache
 def get_schema() -> dict[str, dict]:
     """Return a schema dict for every config field (result is cached).
@@ -246,6 +238,7 @@ def get_schema() -> dict[str, dict]:
 
 def generate_config(overrides: dict = {}) -> str:
     """Return a TOML config template; overrides appear as live values."""
+    get_config(overrides)  # called to validate overrides
     schema = get_schema()
     lines = [
         '# SIMOC Live configuration',
@@ -287,31 +280,33 @@ def config_path() -> pathlib.Path:
     return pathlib.Path.home() / '.config/simoc-sam/config.toml'
 
 
-def load_user_config() -> dict:
-    """Load and validate user overrides from ``~/.config/simoc-sam/config.toml``."""
+def read_user_overrides() -> dict:
+    """Read raw user overrides from the config file."""
     path = config_path()
     if not path.exists():
         return {}
     try:
         with open(path, 'rb') as f:
-            overrides = tomllib.load(f)
+            return tomllib.load(f)
     except tomllib.TOMLDecodeError as exc:
         raise InvalidConfig(f'Invalid TOML syntax in <{path}>: {exc}') from exc
-    validate_overrides(overrides)
-    return overrides
 
 
 def save_user_config(overrides: dict) -> None:
-    """Validate, then write the config template with overrides as live TOML values."""
-    validate_overrides(overrides)
+    """Write the config template with overrides as live TOML values."""
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(generate_config(overrides))
 
 
-def get_config() -> SimocConfig:
-    """Return a :class:`SimocConfig` merging defaults with user overrides."""
-    return SimocConfig(**load_user_config())
+def get_config(overrides: dict | None = None) -> SimocConfig:
+    """Return a :class:`SimocConfig` instance including values from overrides."""
+    if overrides is None:
+        overrides = read_user_overrides()
+    try:
+        return SimocConfig(**overrides)
+    except TypeError as exc:
+        raise InvalidConfig(str(exc)) from exc
 
 
 def parse_value(raw: str, schema_entry: dict):
@@ -360,7 +355,7 @@ def format_value(value) -> str:
 
 def print_all(schema: dict, user_overrides: dict) -> None:
     """Print all config values grouped by section; mark customised values."""
-    cfg = SimocConfig(**user_overrides)
+    cfg = get_config(user_overrides)
     current_group = None
     has_overrides = False
     for name, info in schema.items():
@@ -381,7 +376,7 @@ def print_all(schema: dict, user_overrides: dict) -> None:
 def print_one(name: str, schema: dict, user_overrides: dict) -> None:
     """Print the value and metadata for a single config key."""
     info = schema[name]
-    current = getattr(SimocConfig(**user_overrides), name)
+    current = getattr(get_config(user_overrides), name)
     print(f'{name} =\n{current}' if info['type'] == 'multiline_str'
           else f'{name} = {format_value(current)}')
     overridden = ' (overridden)' if name in user_overrides else ''
