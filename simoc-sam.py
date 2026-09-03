@@ -871,7 +871,11 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
     if reset:
         if key in user_overrides:
             del user_overrides[key]
-            simoc_config.save_user_config(user_overrides)
+            try:
+                simoc_config.save_user_config(user_overrides)
+            except simoc_config.InvalidConfig as exc:
+                print(f'Error: {exc}')
+                return False
             default = simoc_config.format_value(schema[key]['default'])
             print(f'Reset {key} to default: {default}')
         else:
@@ -886,7 +890,11 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
         print(f'Error: {exc}')
         return False
     user_overrides[key] = parsed
-    simoc_config.save_user_config(user_overrides)
+    try:
+        simoc_config.save_user_config(user_overrides)
+    except simoc_config.InvalidConfig as exc:
+        print(f'Error: {exc}')
+        return False
     print(f'{key} = {simoc_config.format_value(parsed)}')
     if related := simoc_config.RELATED_COMMANDS.get(key):
         print(f'  To apply: sam {related}')
