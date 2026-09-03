@@ -375,7 +375,7 @@ def print_all(schema: dict, user_overrides: dict) -> None:
         hint = '  [' + '|'.join(opts[:5]) + ('|...' if len(opts) > 5 else '') + ']' if opts else ''
         print(f'  {marker} {name:32}= {format_value(current)}{hint}')
     if has_overrides:
-        print('\n  * = customised (differs from default)')
+        print('\n  * = set in user config')
 
 
 def print_one(name: str, schema: dict, user_overrides: dict) -> None:
