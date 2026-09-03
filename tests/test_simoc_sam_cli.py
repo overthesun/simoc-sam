@@ -19,6 +19,8 @@ with patch.dict('sys.modules', {
 }):
     spec.loader.exec_module(simoc_sam_cli)
 
+from simoc_sam.config import InvalidConfig
+
 
 @pytest.fixture
 def clean_commands():
@@ -35,6 +37,7 @@ def mock_config(user_config):
     config_path() wired to a real (initially empty) config.toml path."""
     with patch.object(simoc_sam_cli, 'simoc_config') as mock:
         mock.config_path.return_value = user_config
+        mock.InvalidConfig = InvalidConfig  # real class -- used in `except` clauses
         yield mock
 
 
@@ -464,7 +467,7 @@ def test_config_edit_creates_missing_file_before_opening_editor(mock_config, use
 
 def test_config_edit_retries_until_valid(mock_config, user_config, capsys):
     user_config.write_text('# existing\n')
-    mock_config.load_user_config.side_effect = [ValueError('bad toml'), {}]
+    mock_config.load_user_config.side_effect = [InvalidConfig('bad toml'), {}]
     with patch('subprocess.run') as mock_run, patch('builtins.input') as mock_input:
         simoc_sam_cli.config(edit=True)
     assert mock_run.call_count == 2  # editor re-opened after the failed attempt

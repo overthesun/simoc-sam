@@ -20,6 +20,10 @@ import dataclasses
 import tomli_w
 
 
+class InvalidConfig(ValueError):
+    """Raised for an invalid config file, field value, or field combination."""
+
+
 _GROUPS: list[tuple[str, list[str]]] = [
     ('HAB info', ['location', 'humans', 'volume']),
     ('Sensors', ['sensors', 'sensor_read_delay']),
@@ -111,13 +115,10 @@ class SimocConfig:
     ])
 
     def __post_init__(self) -> None:
-        # Reset any field whose value doesn't match its schema type to the dataclass default.
-        fields_by_name = {f.name: f for f in dataclasses.fields(self)
-                          if not f.name.startswith('_')}
-        current = {name: getattr(self, name) for name in fields_by_name}
-        for name, error in validate_fields(current).items():
-            print(f'Warning: {error} -- using default.', file=sys.stderr)
-            setattr(self, name, get_field_default(fields_by_name[name]))
+        # Validate field types and options against the schema
+        current = {f.name: getattr(self, f.name) for f in dataclasses.fields(self)
+                   if not f.name.startswith('_')}
+        validate_fields(current)
 
         # Expand ~ and absolutize all path fields (accepts both str and Path input)
         for fname in self._PATH_FIELDS:
@@ -126,18 +127,15 @@ class SimocConfig:
         # Auto-derive location from hostname when not explicitly set
         if self.location is None:
             self.location = socket.gethostname().rstrip('0123456789')
-        # Ensure display_refresh is positive
-        if self.display_refresh <= 0:
-            print('Warning: display_refresh must be > 0; using 1.0.', file=sys.stderr)
-            self.display_refresh = 1.0
         # Strip whitespace from the display format template
         self.display_format = self.display_format.strip()
-        if not self.enable_jsonl_logging and self.data_source == 'logs':
-            print('Warning: JSONL logging is disabled but data_source is "logs".',
-                  file=sys.stderr)
+        # Ensure display_refresh is positive
+        if self.display_refresh <= 0:
+            raise InvalidConfig(f"'display_refresh' must be > 0, got {self.display_refresh!r}")
         if self.mqtt_secure and not self.mqtt_certs_dir.exists():
-            print(f'Warning: mqtt_secure is True but certs dir missing: '
-                  f'{self.mqtt_certs_dir}', file=sys.stderr)
+            raise InvalidConfig("Set 'mqtt_certs_dir' to enable 'mqtt_secure'")
+        if not self.enable_jsonl_logging and self.data_source == 'logs':
+            raise InvalidConfig("Enable JSONL logging to use 'logs' as the data source")
 
 
 SimocConfig._PATH_FIELDS = frozenset(
@@ -188,8 +186,8 @@ def validate_field(name, value, field_type, options=()) -> bool:
     return isinstance(value, str)  # str, multiline_str
 
 
-def validate_fields(values: dict) -> dict[str, str]:
-    """Return {field_name: error_message} for every invalid or unknown field."""
+def validate_fields(values: dict) -> None:
+    """Raise InvalidConfig listing every invalid or unknown field."""
     schema = get_schema()
     errors = {}
     for name, value in values.items():
@@ -200,13 +198,17 @@ def validate_fields(values: dict) -> dict[str, str]:
         if not validate_field(name, value, info['type'], info['options']):
             hint = f' (valid: {", ".join(map(str, info["options"]))})' if info['options'] else ''
             errors[name] = f'{name!r} should be {info["type"]!r}{hint}, got {value!r}'
-    return errors
+    if errors:
+        raise InvalidConfig('Invalid config values:\n' + '\n'.join(f'  {e}'
+                            for e in errors.values()))
 
 
-def ensure_valid_fields(values: dict) -> None:
-    """Raise ValueError listing every field in *values* with an invalid value."""
-    if errors := validate_fields(values):
-        raise ValueError('Invalid config values:\n' + '\n'.join(f'  {e}' for e in errors.values()))
+def validate_overrides(overrides: dict) -> None:
+    """Validate *overrides* and raise :exc:`InvalidConfig` on errors."""
+    try:
+        SimocConfig(**overrides)  # validates the overrides in __post_init__
+    except TypeError as exc:
+        raise InvalidConfig(str(exc)) from exc
 
 
 @functools.cache
@@ -294,14 +296,14 @@ def load_user_config() -> dict:
         with open(path, 'rb') as f:
             overrides = tomllib.load(f)
     except tomllib.TOMLDecodeError as exc:
-        raise ValueError(f'Invalid TOML syntax in <{path}>: {exc}') from exc
-    ensure_valid_fields(overrides)
+        raise InvalidConfig(f'Invalid TOML syntax in <{path}>: {exc}') from exc
+    validate_overrides(overrides)
     return overrides
 
 
 def save_user_config(overrides: dict) -> None:
     """Validate, then write the config template with overrides as live TOML values."""
-    ensure_valid_fields(overrides)
+    validate_overrides(overrides)
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(generate_config(overrides))
@@ -424,7 +426,7 @@ RELATED_COMMANDS: dict[str, str] = {
 # AttributeError instead of silently running with the wrong defaults.
 try:
     _cfg = get_config()
-except ValueError as exc:
+except InvalidConfig as exc:
     print(f'Warning: {exc}', file=sys.stderr)
 else:
     for _f in dataclasses.fields(_cfg):

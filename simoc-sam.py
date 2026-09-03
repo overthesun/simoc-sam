@@ -848,7 +848,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
             try:
                 print('Validating config...')
                 simoc_config.load_user_config()
-            except ValueError as exc:
+            except simoc_config.InvalidConfig as exc:
                 print(f'Warning: {exc}')
                 input('Press Enter to fix it in the editor (Ctrl-C to abort)...')
             else:

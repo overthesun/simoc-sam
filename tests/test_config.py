@@ -3,7 +3,6 @@ and module-level var exposure."""
 
 import os
 import sys
-import socket
 import pathlib
 import tomllib
 import importlib
@@ -116,9 +115,11 @@ def test_path_conversion_and_expansion(user_config):
 
 
 def test_config_warning_logs_without_jsonl(user_config, capsys):
+    # invalid combo in the file -- module bootstrap catches InvalidConfig
+    # and prints it as a warning, without crashing
     user_config.write_text('enable_jsonl_logging = false\ndata_source = "logs"\n')
     importlib.reload(config)
-    assert 'Warning: JSONL logging is disabled' in capsys.readouterr().err
+    assert "Enable JSONL logging to use 'logs' as the data source" in capsys.readouterr().err
 
 
 def test_module_import_survives_invalid_config_but_omits_attrs(user_config):
@@ -190,21 +191,37 @@ def test_simoc_config_display_format_stripped():
     assert not cfg.display_format.endswith('\n')
 
 
-def test_simoc_config_display_refresh_validation(capsys):
-    cfg = SimocConfig(display_refresh=-1.0)
-    assert cfg.display_refresh == 1.0
-    assert 'Warning' in capsys.readouterr().err
+def test_simoc_config_display_refresh_validation():
+    with pytest.raises(config.InvalidConfig, match='display_refresh'):
+        SimocConfig(display_refresh=-1.0)
 
 
-def test_simoc_config_data_source_validation(capsys):
-    cfg = SimocConfig(data_source='invalid')
-    assert cfg.data_source == 'mqtt'  # reset to the field default
-    assert 'Warning' in capsys.readouterr().err
+def test_simoc_config_data_source_validation():
+    with pytest.raises(config.InvalidConfig, match='data_source'):
+        SimocConfig(data_source='invalid')
 
 
-def test_simoc_config_jsonl_consistency_warning(capsys):
-    SimocConfig(enable_jsonl_logging=False, data_source='logs')
-    assert 'Warning' in capsys.readouterr().err
+def test_simoc_config_jsonl_consistency_raises():
+    with pytest.raises(config.InvalidConfig, match='JSONL'):
+        SimocConfig(enable_jsonl_logging=False, data_source='logs')
+
+
+def test_simoc_config_mqtt_secure_missing_certs_dir_raises(tmp_path):
+    with pytest.raises(config.InvalidConfig, match='mqtt_certs_dir'):
+        SimocConfig(mqtt_secure=True, mqtt_certs_dir=tmp_path / 'nope')
+
+
+def test_simoc_config_mqtt_secure_existing_certs_dir_ok(tmp_path):
+    cfg = SimocConfig(mqtt_secure=True, mqtt_certs_dir=tmp_path)  # tmp_path exists
+    assert cfg.mqtt_secure is True
+
+
+def test_save_user_config_mqtt_secure_without_certs_dir_raises(user_config):
+    # mqtt_certs_dir isn't overridden -- resolve_fields() must pull in its
+    # default so this cross-field check still catches it
+    with pytest.raises(config.InvalidConfig, match='mqtt_certs_dir'):
+        save_user_config({'mqtt_secure': True})
+    assert not user_config.exists()
 
 
 def test_simoc_config_constructor_override():
@@ -349,7 +366,7 @@ def test_load_user_config_missing(user_config):
 
 def test_load_user_config_invalid_toml(user_config):
     user_config.write_text('this is not [valid toml')
-    with pytest.raises(ValueError, match='Invalid TOML'):
+    with pytest.raises(config.InvalidConfig, match='Invalid TOML'):
         load_user_config()
     user_config.unlink()
 
@@ -389,7 +406,7 @@ def test_save_user_config_with_none_override_does_not_crash(user_config):
 
 
 def test_save_user_config_wrong_type_raises_and_does_not_write(user_config):
-    with pytest.raises(ValueError, match='mqtt_port'):
+    with pytest.raises(config.InvalidConfig, match='mqtt_port'):
         save_user_config({'mqtt_port': 'not_a_number'})
     assert not user_config.exists()  # rejected before writing
 
@@ -397,14 +414,20 @@ def test_save_user_config_wrong_type_raises_and_does_not_write(user_config):
 def test_save_user_config_invalid_list_content_raises_and_does_not_write(user_config):
     # right shape (a list) but an unknown sensor name -- validate_fields()
     # now checks content against schema options, not just type/shape
-    with pytest.raises(ValueError, match='not_a_sensor'):
+    with pytest.raises(config.InvalidConfig, match='not_a_sensor'):
         save_user_config({'sensors': ['scd30', 'not_a_sensor']})
     assert not user_config.exists()  # rejected before writing
 
 
 def test_save_user_config_invalid_literal_content_raises(user_config):
-    with pytest.raises(ValueError, match='display'):
+    with pytest.raises(config.InvalidConfig, match='display'):
         save_user_config({'display': 'not_a_display'})
+    assert not user_config.exists()
+
+
+def test_save_user_config_negative_display_refresh_raises(user_config):
+    with pytest.raises(config.InvalidConfig, match='display_refresh'):
+        save_user_config({'display_refresh': -1.0})
     assert not user_config.exists()
 
 
@@ -416,21 +439,19 @@ def test_get_config_returns_simoc_config(user_config):
 
 def test_get_config_wrong_type_raises(user_config):
     user_config.write_text('mqtt_port = "not_a_number"\n')
-    with pytest.raises(ValueError, match='mqtt_port'):
+    with pytest.raises(config.InvalidConfig, match='mqtt_port'):
         get_config()
     user_config.unlink()
 
 
-def test_post_init_wrong_type_bool(capsys):
-    cfg = SimocConfig(mqtt_secure='yes')  # str instead of bool
-    assert cfg.mqtt_secure is False  # dataclass default
-    assert 'Warning' in capsys.readouterr().err
+def test_post_init_wrong_type_bool():
+    with pytest.raises(config.InvalidConfig, match='mqtt_secure'):
+        SimocConfig(mqtt_secure='yes')  # str instead of bool
 
 
-def test_post_init_wrong_type_int_from_bool(capsys):
-    cfg = SimocConfig(humans=True)  # bool must be rejected for an int field
-    assert cfg.humans == 0
-    assert 'Warning' in capsys.readouterr().err
+def test_post_init_wrong_type_int_from_bool():
+    with pytest.raises(config.InvalidConfig, match='humans'):
+        SimocConfig(humans=True)  # bool must be rejected for an int field
 
 
 def test_post_init_wrong_type_float_accepts_int():
@@ -438,16 +459,14 @@ def test_post_init_wrong_type_float_accepts_int():
     assert cfg.sensor_read_delay == 5
 
 
-def test_post_init_wrong_type_list(capsys):
-    cfg = SimocConfig(sensors='bme688')  # str instead of list
-    assert cfg.sensors == ['bme688', 'scd30', 'sgp30']  # dataclass default
-    assert 'Warning' in capsys.readouterr().err
+def test_post_init_wrong_type_list():
+    with pytest.raises(config.InvalidConfig, match='sensors'):
+        SimocConfig(sensors='bme688')  # str instead of list
 
 
-def test_post_init_wrong_type_nullable_str(capsys):
-    cfg = SimocConfig(location=123)  # int instead of str|None
-    assert cfg.location == socket.gethostname().rstrip('0123456789')
-    assert 'Warning' in capsys.readouterr().err
+def test_post_init_wrong_type_nullable_str():
+    with pytest.raises(config.InvalidConfig, match='location'):
+        SimocConfig(location=123)  # int instead of str|None
 
 
 def test_post_init_path_field_accepts_str_and_path():
@@ -457,10 +476,9 @@ def test_post_init_path_field_accepts_str_and_path():
     assert cfg2.log_dir == pathlib.Path('/custom/logs2')
 
 
-def test_post_init_wrong_type_path_field(capsys):
-    cfg = SimocConfig(log_dir=123)  # int instead of str|Path
-    assert cfg.log_dir == pathlib.Path('~/logs').expanduser().absolute()
-    assert 'Warning' in capsys.readouterr().err
+def test_post_init_wrong_type_path_field():
+    with pytest.raises(config.InvalidConfig, match='log_dir'):
+        SimocConfig(log_dir=123)  # int instead of str|Path
 
 
 def test_get_config_applies_overrides(user_config):
@@ -472,7 +490,7 @@ def test_get_config_applies_overrides(user_config):
 
 def test_get_config_unknown_key_raises(user_config):
     user_config.write_text('mqtt_host = "ok"\nunknown_key = "bad"\n')
-    with pytest.raises(ValueError, match='unknown_key'):
+    with pytest.raises(config.InvalidConfig, match='unknown_key'):
         get_config()
     user_config.unlink()
 
@@ -485,7 +503,7 @@ def test_get_config_empty_file_uses_defaults(user_config):
 def test_load_user_config_wrong_type_raises(user_config):
     # the exact scenario reported: a bool field set to a string in the TOML file
     user_config.write_text('mqtt_secure = "false"\n')
-    with pytest.raises(ValueError, match='mqtt_secure'):
+    with pytest.raises(config.InvalidConfig, match='mqtt_secure'):
         load_user_config()
     user_config.unlink()
 
@@ -493,14 +511,14 @@ def test_load_user_config_wrong_type_raises(user_config):
 def test_load_user_config_unknown_key_raises(user_config):
     # catches typos, e.g. `mqqt_secure` instead of `mqtt_secure`
     user_config.write_text('not_a_real_key = 123\n')
-    with pytest.raises(ValueError, match='not_a_real_key'):
+    with pytest.raises(config.InvalidConfig, match='not_a_real_key'):
         load_user_config()
     user_config.unlink()
 
 
 def test_load_user_config_reports_multiple_type_errors(user_config):
     user_config.write_text('mqtt_secure = "false"\nhumans = "two"\n')
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(config.InvalidConfig) as exc_info:
         load_user_config()
     assert 'mqtt_secure' in str(exc_info.value)
     assert 'humans' in str(exc_info.value)
