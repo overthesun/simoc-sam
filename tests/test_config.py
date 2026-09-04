@@ -187,6 +187,23 @@ def test_simoc_config_jsonl_consistency_raises():
         SimocConfig(enable_jsonl_logging=False, data_source='logs')
 
 
+def test_simoc_config_negative_sensor_read_delay_raises():
+    with pytest.raises(config.InvalidConfig, match='sensor_read_delay'):
+        SimocConfig(sensor_read_delay=-1.0)
+
+
+def test_simoc_config_negative_mqtt_reconnect_delay_raises():
+    with pytest.raises(config.InvalidConfig, match='mqtt_reconnect_delay'):
+        SimocConfig(mqtt_reconnect_delay=-1.0)
+
+
+def test_simoc_config_zero_delays_ok():
+    # 0 is a valid (if aggressive) delay -- time.sleep(0) doesn't raise
+    cfg = SimocConfig(sensor_read_delay=0, mqtt_reconnect_delay=0)
+    assert cfg.sensor_read_delay == 0
+    assert cfg.mqtt_reconnect_delay == 0
+
+
 def test_simoc_config_mqtt_secure_missing_certs_dir_raises(tmp_path):
     with pytest.raises(config.InvalidConfig, match='mqtt_certs_dir'):
         SimocConfig(mqtt_secure=True, mqtt_certs_dir=tmp_path / 'nope')

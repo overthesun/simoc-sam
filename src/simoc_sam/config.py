@@ -125,8 +125,14 @@ class SimocConfig:
         # Ensure display_refresh is positive
         if self.display_refresh <= 0:
             raise InvalidConfig(f"'display_refresh' must be > 0, got {self.display_refresh!r}")
+        if self.sensor_read_delay < 0:
+            raise InvalidConfig(f"'sensor_read_delay' must be >= 0, "
+                                f"got {self.sensor_read_delay!r}")
+        if self.mqtt_reconnect_delay < 0:
+            raise InvalidConfig("'mqtt_reconnect_delay' must be >= 0, "
+                                f"got {self.mqtt_reconnect_delay!r}")
         if self.mqtt_secure and not self.mqtt_certs_dir.exists():
-            raise InvalidConfig("Set 'mqtt_certs_dir' to enable 'mqtt_secure'")
+            raise InvalidConfig("'mqtt_certs_dir' must be set when 'mqtt_secure' is true")
         if not self.enable_jsonl_logging and self.data_source == 'logs':
             raise InvalidConfig("Enable JSONL logging to use 'logs' as the data source")
 
