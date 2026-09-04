@@ -60,7 +60,6 @@ class SensorData:
     data: Dict[str, Any] = field(default_factory=dict)
     chip_id_register: int = None
     chip_id: int = None
-    features: list = field(default_factory=list)
 
 SENSORS_TOML = pathlib.Path(__file__).with_name('sensors.toml')
 
@@ -77,7 +76,6 @@ def load_sensor_data(file_path=SENSORS_TOML):
             data=sensor_info['data'],
             chip_id_register=sensor_info.get('chip_id_register'),
             chip_id=sensor_info.get('chip_id'),
-            features=sensor_info.get('features', []),
         )
     return sensor_data
 
@@ -151,17 +149,14 @@ def parse_args(arguments=None):
 
 
 def start_sensor(sensor_cls, *pargs, **kwargs):
-    from simoc_sam import config
     from simoc_sam.sensors.basesensor import MQTTWrapper
     args = parse_args()
     # TODO: add cmd line options for name/desc
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:
         if args.mqtt:
             delay, verbose = args.delay, args.verbose_mqtt
-            location = config.location
             host, port = args.host, args.port
-            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose,
-                                      location=location)
+            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
             mqttwrapper.start(host, port)
             try:
                 mqttwrapper.send_data()

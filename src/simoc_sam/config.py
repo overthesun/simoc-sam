@@ -232,7 +232,8 @@ def get_schema() -> dict[str, dict]:
     from simoc_sam.displays.utils import DISPLAY_DATA
     schema['display']['options'] = tuple(sorted(DISPLAY_DATA))
     schema['display']['type'] = 'literal'  # str annotation, but constrained by registry
-    schema['bno085_enabled_features']['options'] = tuple(SENSOR_DATA['bno085'].features)
+    from simoc_sam.sensors.bno085 import FEATURE_TO_ATTR
+    schema['bno085_enabled_features']['options'] = tuple(FEATURE_TO_ATTR)
     return schema
 
 
