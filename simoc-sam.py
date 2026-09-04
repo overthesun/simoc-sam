@@ -811,7 +811,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
     Key names accept hyphens or underscores, e.g.: mqtt-port / mqtt_port
     """
     flags = {'path': path, 'create': create, 'clean': clean,
-              'edit': edit, 'defaults': defaults, 'reset': reset}
+             'edit': edit, 'defaults': defaults, 'reset': reset}
     active = [f'--{name}' for name, on in flags.items() if on]
     if len(active) > 1:
         sys.exit(f'Error: {" and ".join(active)} cannot be used together.')
@@ -835,7 +835,8 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
         if config_path.exists():
             config_path.unlink()
             print(f'Removed: {config_path}')
-            config_path.parent.rmdir() if not any(config_path.parent.iterdir()) else None
+            if not any(config_path.parent.iterdir()):
+                config_path.parent.rmdir()  # remove parent directory if empty
         else:
             print('No user config file found.')
         return
@@ -865,8 +866,6 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
             print(f'Error: unknown config key: {key!r}')
             print('Run `sam config` to see all available keys.')
             return False
-    # InvalidConfig is a ValueError, so this also catches invalid values
-    # raised when print_all/print_one/save_user_config construct SimocConfig
     try:
         user_overrides = simoc_config.read_user_overrides()
         if key is None:
@@ -890,7 +889,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
         print(f'{key} = {simoc_config.format_value(parsed)}')
         if related := simoc_config.RELATED_COMMANDS.get(key):
             print(f'  To apply: sam {related}')
-    except (ValueError, TypeError) as exc:
+    except (simoc_config.InvalidConfig, ValueError, TypeError) as exc:
         print(f'Error: {exc}')
         return False
 

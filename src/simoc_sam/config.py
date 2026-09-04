@@ -57,44 +57,37 @@ A-z: {bno085_linear_accel_z:.2f}
 
 @dataclasses.dataclass
 class SimocConfig:
-    """All SIMOC Live settings with defaults.
-
-    ``Literal`` annotations define valid choices and drive ``sam config``
-    validation and the web admin form (dropdowns / checkbox groups).
-
-    Path fields are ``pathlib.Path`` objects, already expanded and absolute --
-    ``__post_init__`` converts the raw strings that arrive from TOML.
-    """
+    """All SIMOC Live settings with defaults."""
 
     # HAB info
     location: str | None = None
     humans: int = 0
     volume: int = 0
 
-    # Sensors and data collection
+    # Sensors
     sensors: list[str] = dataclasses.field(default_factory=lambda: ['bme688', 'scd30', 'sgp30'])
     sensor_read_delay: float = 10.0
 
-    # Display configuration
+    # Display
     display: str = 'ssd1306'
     display_refresh: float = 1.0
     display_format: str = _DEFAULT_DISPLAY_FORMAT
 
-    # MQTT configuration
+    # MQTT
     mqtt_host: str = 'localhost'
     mqtt_port: int = 1883
     mqtt_secure: bool = False
     mqtt_certs_dir: pathlib.Path = pathlib.Path('~/.mqttcerts')
     mqtt_reconnect_delay: float = 5.0
 
-    # SIMOC Web / SIO bridge configuration
+    # SIMOC Web / SIO bridge
     sio_host: str = 'localhost'
     sio_port: int = 8081
     data_source: typing.Literal['mqtt', 'logs'] = 'mqtt'
     mqtt_topic_sub: str = '#'
     simoc_web_dist_dir: pathlib.Path = pathlib.Path('/var/www/simoc')
 
-    # Flask API configuration
+    # Flask API
     api_host: str = 'localhost'
     api_port: int = 8082
 
@@ -106,7 +99,7 @@ class SimocConfig:
     data_dir: pathlib.Path = pathlib.Path('~/data')
     db_path: pathlib.Path = pathlib.Path('~/data/sensor_data.db')
 
-    # BNO085 configuration
+    # BNO085
     bno085_default_err_value: int = 0
     bno085_enabled_features: list[str] = dataclasses.field(default_factory=lambda: [
         'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
@@ -277,7 +270,7 @@ def generate_config(overrides: dict = {}) -> str:
 
 
 def config_path() -> pathlib.Path:
-    """Return the config file path (re-evaluated each call so test monkeypatching works)."""
+    """Return the config file path."""
     return pathlib.Path.home() / '.config/simoc-sam/config.toml'
 
 
@@ -311,10 +304,7 @@ def get_config(overrides: dict | None = None) -> SimocConfig:
 
 
 def parse_value(raw: str, schema_entry: dict):
-    """Parse a CLI string into the correct Python type for a config field.
-
-    Raises :exc:`ValueError` on invalid input.
-    """
+    """Parse a CLI string into the correct Python type for a config field."""
     field_type = schema_entry['type']
     options = schema_entry['options']
     if field_type == 'bool':
@@ -415,11 +405,9 @@ RELATED_COMMANDS: dict[str, str] = {
 
 
 # Expose SimocConfig fields as module-level attributes.
-# If the user config is invalid (bad TOML syntax or a wrong-typed value), the
-# attributes below are left unset -- `import simoc_sam.config` still succeeds
-# (so `sam config --edit`/`--clean`/`--path` keep working to fix the file),
-# but any command that reads e.g. `simoc_config.sensors` fails loudly with an
-# AttributeError instead of silently running with the wrong defaults.
+# If the user config is invalid (bad TOML syntax or invalid values),
+# the attributes below are left unset so that `import simoc_sam.config` and
+# commands that don't need the config still succeeds -- the others will fail.
 try:
     _cfg = get_config()
 except InvalidConfig as exc:
@@ -428,6 +416,3 @@ else:
     for _f in dataclasses.fields(_cfg):
         if not _f.name.startswith('_'):
             setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))
-
-# Convenience alias (used by tests and the admin interface)
-user_config_path = config_path()

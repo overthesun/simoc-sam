@@ -20,8 +20,7 @@ from .basesensor import AdafruitSensor
 
 ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
 
-# map available feature names to the corresponding BNO085 attributes;
-# see also sensors.toml for the list of available features
+# map available feature names to the corresponding BNO085 attributes
 FEATURE_TO_ATTR = {
     'RAW_ACCELEROMETER': 'raw_acceleration',
     'RAW_GYROSCOPE': 'raw_gyro',
