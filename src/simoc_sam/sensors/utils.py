@@ -60,6 +60,7 @@ class SensorData:
     data: Dict[str, Any] = field(default_factory=dict)
     chip_id_register: int = None
     chip_id: int = None
+    features: list = field(default_factory=list)
 
 SENSORS_TOML = pathlib.Path(__file__).with_name('sensors.toml')
 
@@ -76,6 +77,7 @@ def load_sensor_data(file_path=SENSORS_TOML):
             data=sensor_info['data'],
             chip_id_register=sensor_info.get('chip_id_register'),
             chip_id=sensor_info.get('chip_id'),
+            features=sensor_info.get('features', []),
         )
     return sensor_data
 

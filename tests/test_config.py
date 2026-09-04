@@ -125,6 +125,31 @@ def test_module_import_survives_invalid_config_but_omits_attrs(user_config):
     assert 'Warning' in result.stderr
 
 
+@pytest.mark.parametrize('import_stmt', [
+    'from simoc_sam.sensors import mocksensor',
+    'from simoc_sam.sensors import bno085',
+    'from simoc_sam import config',
+    'import simoc_sam.sensors.basesensor',
+])
+def test_no_circular_import_regardless_of_entry_point(import_stmt, tmp_path):
+    """Regression test for a config <-> sensors circular import.
+
+    config.get_schema() needs to validate `bno085_enabled_features` against
+    the sensor's supported features, and sensor modules need `config` --
+    each of these import statements previously could trigger an ImportError
+    ("partially initialized module") depending on which module a fresh
+    process happens to import first. Run in a real subprocess since the
+    bug only reproduces on a fresh (not-yet-cached) sys.modules.
+    """
+    result = subprocess.run(
+        [sys.executable, '-c', f'{import_stmt}\nprint("OK")'],
+        env={**os.environ, 'HOME': str(tmp_path)},
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert 'OK' in result.stdout, result.stderr
+
+
 
 def test_simoc_config_defaults():
     cfg = SimocConfig()

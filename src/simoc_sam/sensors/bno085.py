@@ -36,6 +36,8 @@ FEATURE_TO_ATTR = {
     'STEP_COUNTER': 'steps',
     'SHAKE_DETECTOR': 'shake',
 }
+# keep in sync with the 'features' list for [bno085] in sensors.toml
+assert set(FEATURE_TO_ATTR) == set(utils.SENSOR_DATA['bno085'].features)
 
 class BNO085(AdafruitSensor):
     def __init__(self, **kwargs):
