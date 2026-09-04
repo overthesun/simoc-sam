@@ -14,7 +14,6 @@ from typing import Literal
 import pytest
 
 from simoc_sam import config
-from simoc_sam import defaults
 from simoc_sam.config import (
     SimocConfig, get_field_type, get_field_default,
     get_schema, get_config, read_user_overrides, save_user_config,
@@ -38,47 +37,29 @@ def reload_config(tmp_path, monkeypatch):
 
 
 def test_default_vars():
-    # All config vars must appear in exactly one of the lists below.
-    unchanged_vars = [
-        'humans', 'volume', 'sensors', 'sensor_read_delay',
-        'display', 'display_refresh',
-        'mqtt_host', 'mqtt_port', 'mqtt_secure', 'mqtt_reconnect_delay',
-        'sio_host', 'sio_port', 'data_source', 'mqtt_topic_sub',
-        'api_host', 'api_port',
-        'verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging',
-        'bno085_default_err_value', 'bno085_enabled_features',
-    ]
-    changed_vars = ['location', 'display_format']
-    path_vars = sorted(SimocConfig._PATH_FIELDS)
-    all_vars = set(unchanged_vars + path_vars + changed_vars)
-
-    for var in dir(defaults):
-        if var.startswith('_'):
-            continue
-        assert var in all_vars, f'Untested config var: {var}'
-        assert hasattr(config, var), f'config missing: {var}'
-        assert hasattr(defaults, var)
-
-        if var in unchanged_vars:
-            assert getattr(config, var) == getattr(defaults, var)
-        elif var in path_vars:
-            default_path = getattr(defaults, var)
-            config_path = getattr(config, var)
-            expected = Path(default_path).expanduser().absolute()
-            assert isinstance(default_path, str)
-            assert isinstance(config_path, Path)
-            assert config_path.is_absolute()
-            assert '~' not in str(config_path)
-            assert str(config_path) == str(expected)
-        elif var == 'location':
-            assert defaults.location is None
-            assert config.location == 'testhost'
-        elif var == 'display_format':
-            assert config.display_format == defaults.display_format.strip()
+    # every SimocConfig field must be exposed as a module-level config var,
+    # matching its schema default (adjusted for path expansion/normalization)
+    for name, info in get_schema().items():
+        assert hasattr(config, name), f'config missing: {name}'
+        current = getattr(config, name)
+        default = info['default']
+        if name in SimocConfig._PATH_FIELDS:
+            expected = Path(default).expanduser().absolute()
+            assert isinstance(current, Path)
+            assert current.is_absolute()
+            assert '~' not in str(current)
+            assert str(current) == str(expected)
+        elif name == 'location':
+            assert default is None
+            assert current == 'testhost'  # auto-derived from hostname
+        elif name == 'display_format':
+            assert current == default.strip()
+        else:
+            assert current == default
 
 
 def test_user_config_override(user_config):
-    assert config.mqtt_host == defaults.mqtt_host
+    assert config.mqtt_host == get_schema()['mqtt_host']['default']
     assert config.location == 'testhost'
     user_config.write_text('mqtt_host = "overridden_host"\nlocation = "custom_location"\n')
     importlib.reload(config)
@@ -88,7 +69,7 @@ def test_user_config_override(user_config):
     import os
     os.environ['HOME'] = '/not/a/real/dir'
     importlib.reload(config)
-    assert config.mqtt_host == defaults.mqtt_host
+    assert config.mqtt_host == get_schema()['mqtt_host']['default']
     assert config.location == 'testhost'
 
 
@@ -217,8 +198,8 @@ def test_simoc_config_mqtt_secure_existing_certs_dir_ok(tmp_path):
 
 
 def test_save_user_config_mqtt_secure_without_certs_dir_raises(user_config):
-    # mqtt_certs_dir isn't overridden -- resolve_fields() must pull in its
-    # default so this cross-field check still catches it
+    # mqtt_certs_dir isn't overridden -- SimocConfig fills in its default,
+    # so this cross-field check still catches it
     with pytest.raises(config.InvalidConfig, match='mqtt_certs_dir'):
         save_user_config({'mqtt_secure': True})
     assert not user_config.exists()
