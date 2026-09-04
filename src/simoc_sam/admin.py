@@ -5,6 +5,7 @@ Provides endpoints for:
 - Running whitelisted simoc-sam.py management commands.
 """
 
+import re
 import sys
 import pathlib
 import tomllib
@@ -80,6 +81,23 @@ def _json_safe(value):
 
 
 # ─── command execution ─────────────────────────────────────────────────────────
+
+# Blocks path traversal / directory separators and flag-like args, since some
+# commands (e.g. setup-sensors, setup-display) interpolate these into
+# root-owned filesystem paths and unit names.
+_UNSAFE_ARG_RE = re.compile(r'[\\/\x00]')
+
+
+def _validate_args(extra_args):
+    """Raise ValueError if any extra arg looks unsafe to forward to simoc-sam.py."""
+    for arg in extra_args:
+        if not isinstance(arg, str) or not arg:
+            raise ValueError(f'Invalid argument: {arg!r}')
+        if arg.startswith('-'):
+            raise ValueError(f"Argument may not start with '-': {arg!r}")
+        if _UNSAFE_ARG_RE.search(arg):
+            raise ValueError(f'Argument contains unsafe characters: {arg!r}')
+
 
 def _run_command(cmd_name, extra_args, needs_root):
     """Run `simoc-sam.py CMD [args]` in a subprocess.
@@ -203,6 +221,10 @@ def post_run():
         extra_args = [str(extra_args)]
     if cmd_name not in _ALL_COMMANDS:
         return jsonify({'error': f'Unknown or disallowed command: {cmd_name!r}'}), 400
+    try:
+        _validate_args(extra_args)
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     meta = _ALL_COMMANDS[cmd_name]
     success, stdout, stderr = _run_command(cmd_name, extra_args, meta['needs_root'])
     return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})
