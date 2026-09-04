@@ -406,6 +406,14 @@ def test_config_standalone_flag_with_key_rejected(mock_config):
     mock_config.read_user_overrides.assert_not_called()
 
 
+def test_config_standalone_flag_with_value_only_rejected(mock_config):
+    # value can be set via the hidden --value flag even without a key
+    with pytest.raises(SystemExit) as exc_info:
+        simoc_sam_cli.config(value='9999', clean=True)
+    assert 'cannot be combined' in str(exc_info.value)
+    mock_config.read_user_overrides.assert_not_called()
+
+
 def test_config_reset_without_key_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config(reset=True)

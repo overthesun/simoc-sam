@@ -818,7 +818,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
     if reset:
         if key is None or value is not None:
             sys.exit('Error: --reset requires a key and no value.')
-    elif active and key is not None:
+    elif active and (key is not None or value is not None):
         sys.exit(f'Error: {active[0]} cannot be combined with a key or value.')
     config_path = simoc_config.config_path()
     if path:
