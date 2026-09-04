@@ -152,9 +152,12 @@ class AdafruitSensor(BaseSensor):
 
 
 class MQTTWrapper:
-    def __init__(self, sensor, *, read_delay=config.sensor_read_delay,
-                 verbose=config.verbose_sensor, location=config.location,
-                 secure=config.mqtt_secure, certs_dir=config.mqtt_certs_dir):
+    def __init__(self, sensor, *, read_delay=None, verbose=None,
+                 secure=None, certs_dir=None):
+        read_delay = config.sensor_read_delay if read_delay is None else read_delay
+        verbose = config.verbose_sensor if verbose is None else verbose
+        secure = config.mqtt_secure if secure is None else secure
+        certs_dir = config.mqtt_certs_dir if certs_dir is None else certs_dir
         self.sensor = sensor
         self.read_delay = read_delay  # how long to wait between readings
         self.verbose = verbose  # toggle verbose output

@@ -7,9 +7,6 @@ from datetime import datetime, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from .basesensor import MQTTWrapper
-from .. import config
-
 import tomllib
 
 
@@ -121,6 +118,7 @@ def get_addr_argparser():
 
 
 def parse_args(arguments=None):
+    from simoc_sam import config
     parser = get_addr_argparser()
     parser.add_argument('-d', '--read-delay', default=config.sensor_read_delay,
                         dest='delay', metavar='DELAY', type=float,
@@ -151,15 +149,14 @@ def parse_args(arguments=None):
 
 
 def start_sensor(sensor_cls, *pargs, **kwargs):
+    from simoc_sam.sensors.basesensor import MQTTWrapper
     args = parse_args()
     # TODO: add cmd line options for name/desc
     with sensor_cls(verbose=args.verbose_sensor, *pargs, **kwargs) as sensor:
         if args.mqtt:
             delay, verbose = args.delay, args.verbose_mqtt
-            location = config.location
             host, port = args.host, args.port
-            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose,
-                                      location=location)
+            mqttwrapper = MQTTWrapper(sensor, read_delay=delay, verbose=verbose)
             mqttwrapper.start(host, port)
             try:
                 mqttwrapper.send_data()

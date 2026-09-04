@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import uuid
+import shlex
 import shutil
 import socket
 import pathlib
@@ -21,10 +22,10 @@ except ModuleNotFoundError:
     Template = None
 
 try:
-    from simoc_sam import config
+    from simoc_sam import config as simoc_config
 except ModuleNotFoundError:
     # keep running if simoc_sam is not installed yet
-    config = None
+    simoc_config = None
 
 
 HOME = pathlib.Path.home()
@@ -399,7 +400,7 @@ def setup_or_teardown_sensors(function, sensors=None):
     if sensors:
         sensors = sensors.split(',')
     else:
-        sensors = config.sensors
+        sensors = simoc_config.sensors
     for sensor in sensors:
         function(f'sensor-runner@{sensor}')
 
@@ -418,7 +419,7 @@ def teardown_sensors(sensors=None):
 def setup_or_teardown_display(function, display=None):
     """Setup/teardown systemd service that runs the display."""
     if display is None:
-        display = config.display
+        display = simoc_config.display
     if not display:
         print('No display specified -- aborting.')
         return
@@ -489,10 +490,10 @@ def setup_nginx():
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
-    dist_dir = config.simoc_web_dist_dir
+    dist_dir = simoc_config.simoc_web_dist_dir
     write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir,
-                                    api_port=config.api_port,
-                                    sio_port=config.sio_port))
+                                    api_port=simoc_config.api_port,
+                                    sio_port=simoc_config.sio_port))
 
     simoc_live_link = sites_enabled / 'simoc_live'
     if simoc_live_link.exists() or simoc_live_link.is_symlink():
@@ -534,7 +535,7 @@ def teardown_flask():
 def setup_frontend():
     """Copy the frontend to the web dir and set up nginx, Flask API, and sqlwriter."""
     frontend_dir = SIMOC_SAM_DIR / 'frontend'
-    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    dist_dir = simoc_config.simoc_web_dist_dir
     print(f'Copying {frontend_dir} to {dist_dir}...')
     shutil.copytree(frontend_dir, dist_dir, dirs_exist_ok=True)
     setup_sqlwriter()
@@ -548,7 +549,7 @@ def teardown_frontend():
     """Revert the changes made by the setup-frontend command."""
     teardown_flask()
     teardown_nginx()
-    dist_dir = pathlib.Path(config.simoc_web_dist_dir)
+    dist_dir = simoc_config.simoc_web_dist_dir
     if dist_dir.exists():
         print(f'Removing {dist_dir}...')
         shutil.rmtree(dist_dir)
@@ -785,51 +786,118 @@ def teardown_rtc():
     return True
 
 
+def write_default_config(config_path):
+    """Write a fresh config template (all settings commented out) to config_path."""
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(simoc_config.generate_config())
+
+
 @cmd
-def create_config():
-    """Create a user config file in ~/.config/simoc-sam/ and a symlink to it."""
-    # create simoc-sam dir in ~/.config
-    config_dir = HOME / '.config' / 'simoc-sam'
-    config_dir.mkdir(parents=True, exist_ok=True)
-    # copy the default config.py file in there
-    source_config = pathlib.Path(config.__file__).parent / 'defaults.py'
-    dest_config = config_dir / 'config.py'
-    shutil.copy2(source_config, dest_config)
-    print(f'User config file created in: {dest_config}')
-    # create symlink in current directory
-    symlink_path = SIMOC_SAM_DIR / 'config.py'
-    if symlink_path.exists():
-        print(f'{symlink_path} already exists.')
+def config(key=None, value=None, *, path=False, create=False, clean=False,
+           edit=False, defaults=False, reset=False):
+    """Get or set a SIMOC Live configuration value.
+
+    sam config --path           print the path to the config file
+    sam config --create         create the user config file (all defaults commented out)
+    sam config --clean          remove the user config file
+    sam config --edit           open config file in $EDITOR
+    sam config --defaults       show all default values
+    sam config                  list all current values
+    sam config KEY              show current value of KEY
+    sam config KEY VALUE        set KEY to VALUE
+    sam config KEY --reset      reset KEY to its default
+
+    List values are comma-separated, e.g.: sam config sensors scd30,bme688
+    Key names accept hyphens or underscores, e.g.: mqtt-port / mqtt_port
+    """
+    flags = {'path': path, 'create': create, 'clean': clean,
+             'edit': edit, 'defaults': defaults, 'reset': reset}
+    active = [f'--{name}' for name, on in flags.items() if on]
+    if len(active) > 1:
+        sys.exit(f'Error: {" and ".join(active)} cannot be used together.')
+    if reset:
+        if key is None or value is not None:
+            sys.exit('Error: --reset requires a key and no value.')
+    elif active and (key is not None or value is not None):
+        sys.exit(f'Error: {active[0]} cannot be combined with a key or value.')
+    config_path = simoc_config.config_path()
+    if path:
+        print(config_path)
         return
+    if create:
+        if config_path.exists():
+            print(f'Config file already exists: {config_path}')
+            return
+        write_default_config(config_path)
+        print(f'Created: {config_path}')
+        return
+    if clean:
+        if config_path.exists():
+            config_path.unlink()
+            print(f'Removed: {config_path}')
+            if not any(config_path.parent.iterdir()):
+                config_path.parent.rmdir()  # remove parent directory if empty
+        else:
+            print('No user config file found.')
+        return
+    if edit:
+        if not config_path.exists():
+            write_default_config(config_path)
+        editor = shlex.split(os.environ.get('EDITOR', 'nano'))
+        while True:
+            subprocess.run([*editor, str(config_path)])
+            try:
+                print('Validating config...')
+                simoc_config.get_config()  # called to validate the config
+            except simoc_config.InvalidConfig as exc:
+                print(f'Warning: {exc}')
+                input('Press Enter to fix it in the editor (Ctrl-C to abort)...')
+            else:
+                print('Config is valid.')
+                break
+        return
+    schema = simoc_config.get_schema()
+    if defaults:
+        simoc_config.print_defaults(schema)
+        return
+    if key is not None:
+        key = key.replace('-', '_')   # accept both var-name and var_name
+        if key not in schema:
+            print(f'Error: unknown config key: {key!r}')
+            print('Run `sam config` to see all available keys.')
+            return False
     try:
-        symlink_path.symlink_to(dest_config)
-        print(f'Symlink to user config file created in: {symlink_path}')
-        print('You can now edit it to change the project configuration.')
-    except OSError as e:
-        print(f'Failed to create symlink: {e}')
-
-
-@cmd
-def clean_config():
-    """Remove the user config symlink and user config file."""
-    # remove symlink
-    symlink_path = SIMOC_SAM_DIR / 'config.py'
-    if symlink_path.is_symlink():
-        symlink_path.unlink()
-        print(f'Removed symlink: {symlink_path}')
-    elif symlink_path.exists():
-        print(f'{symlink_path} exists but is not a symlink. Skipping removal.')
-    # remove the ~/.config/simoc-sam dir (since it only contains the user config file)
-    config_dir = HOME / '.config' / 'simoc-sam'
-    if config_dir.exists():
-        shutil.rmtree(config_dir)
-        print(f'Removed config directory: {config_dir}')
+        user_overrides = simoc_config.read_user_overrides()
+        if key is None:
+            simoc_config.print_all(schema, user_overrides)
+            return
+        if reset:
+            if key in user_overrides:
+                del user_overrides[key]
+                simoc_config.save_user_config(user_overrides)
+                default = simoc_config.format_value(schema[key]['default'])
+                print(f'Reset {key} to default: {default}')
+            else:
+                print(f'{key} is already at its default value.')
+            return
+        if value is None:
+            simoc_config.print_one(key, schema, user_overrides)
+            return
+        parsed = simoc_config.parse_value(value, schema[key])
+        user_overrides[key] = parsed
+        simoc_config.save_user_config(user_overrides)
+        print(f'{key} = {simoc_config.format_value(parsed)}')
+        for related in simoc_config.RELATED_COMMANDS.get(key, ()):
+            print(f'  To apply: sam {related}')
+    except (simoc_config.InvalidConfig, ValueError, TypeError) as exc:
+        print(f'Error: {exc}')
+        return False
 
 
 def create_parser():
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
-        description="Setup and run SIMOC-SAM.",
+        description="Setup and run SIMOC Live.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND')
@@ -866,10 +934,16 @@ def create_parser():
                 if param.default is inspect.Parameter.empty:
                     raise TypeError(f'Command {cmd_name!r}: keyword-only parameter '
                                     f'{param_name!r} must have a default value')
-                # Keyword-only params: add as named --args only
-                subparser.add_argument(flag, dest=param_name,
-                                       default=argparse.SUPPRESS,
-                                       **param_type(param.default))
+                if isinstance(param.default, bool) and param.default is False:
+                    # False-default booleans: bare --flag enables (store_true).
+                    subparser.add_argument(flag, dest=param_name,
+                                           action='store_true', default=False)
+                else:
+                    # All other keyword-only params, including True-default booleans
+                    # which still accept --flag=true / --flag=false values.
+                    subparser.add_argument(flag, dest=param_name,
+                                           default=argparse.SUPPRESS,
+                                           **param_type(param.default))
             else:
                 raise TypeError(f'Unsupported parameter kind for {cmd_name}: '
                                 f'{param.kind}')

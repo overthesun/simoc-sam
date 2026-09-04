@@ -7,6 +7,12 @@ import pytest
 from simoc_sam.db import init_db, close_db
 
 
+@pytest.fixture(autouse=True, scope='session')
+def mock_has_mcp2221():
+    with patch('simoc_sam.sensors.utils.has_mcp2221', return_value=False):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def patch_gethostname():
     with patch('socket.gethostname', return_value='testhost1'):
@@ -27,6 +33,14 @@ def temp_log_dir(tmp_path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     return log_dir
+
+
+@pytest.fixture
+def user_config(tmp_path):
+    """Return the ~/.config/simoc-sam/config.toml path under tmp_path."""
+    config_dir = tmp_path / '.config' / 'simoc-sam'
+    config_dir.mkdir(parents=True)
+    return config_dir / 'config.toml'  # don't create the file itself
 
 
 async def wait_until(condition, timeout=5.0, interval=0.1):
