@@ -338,7 +338,7 @@ def parse_value(raw: str, schema_entry: dict):
 def format_value(value) -> str:
     """Format a value for one-line CLI display."""
     if isinstance(value, list):
-        return ', '.join(str(v) for v in value) if value else '(empty list)'
+        return ','.join(str(v) for v in value) if value else '(empty list)'
     if isinstance(value, str) and '\n' in value:
         return '(multiline -- run `sam config KEY` to view)'
     return str(value) if value is not None else '(none)'

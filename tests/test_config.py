@@ -591,7 +591,7 @@ def test_parse_value_str():
 
 
 def test_fmt_list():
-    assert format_value(['a', 'b', 'c']) == 'a, b, c'
+    assert format_value(['a', 'b', 'c']) == 'a,b,c'
 
 def test_fmt_empty_list():
     assert format_value([]) == '(empty list)'
