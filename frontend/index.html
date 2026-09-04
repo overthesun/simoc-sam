@@ -14,6 +14,7 @@
     <nav>
       <button id="nav-live" class="nav-btn active" data-section="live">Live</button>
       <button id="nav-history" class="nav-btn" data-section="history">History</button>
+      <button id="nav-admin" class="nav-btn" data-section="admin">Admin</button>
     </nav>
   </header>
 
@@ -80,6 +81,51 @@
         </div>
       </div>
       <div id="history-results"></div>
+    </section>
+
+    <!-- Admin Interface -->
+    <section id="section-admin" hidden>
+
+      <!-- Config Editor -->
+      <div class="admin-panel">
+        <div class="admin-panel-header">
+          <h2>Configuration</h2>
+          <div class="view-mode-switch">
+            <span>Structured</span>
+            <label class="switch">
+              <input type="checkbox" id="config-mode-toggle">
+              <span class="slider"></span>
+            </label>
+            <span>Raw</span>
+          </div>
+        </div>
+        <div id="admin-config-status" class="status-line"></div>
+        <div id="admin-config-form"></div>
+        <div id="admin-config-raw" hidden>
+          <textarea id="admin-raw-editor" spellcheck="false"></textarea>
+        </div>
+        <div class="admin-save-row">
+          <button id="btn-save-config" class="primary">Save</button>
+          <span id="admin-no-config-hint" class="status-line" hidden>Saving will create the config file.</span>
+          <span id="admin-dirty-warning" class="admin-dirty-warning" hidden>Unsaved changes</span>
+          <span id="admin-save-status" class="status-line"></span>
+        </div>
+      </div>
+
+      <!-- Commands -->
+      <div class="admin-panel">
+        <h2>Commands</h2>
+        <div id="admin-commands-status" class="status-line"></div>
+        <div id="admin-command-groups"></div>
+        <div id="admin-output-wrap" hidden>
+          <div class="admin-output-header">
+            <span id="admin-output-title">Output</span>
+            <button id="btn-clear-output" class="toggle">Clear</button>
+          </div>
+          <pre id="admin-output"></pre>
+        </div>
+      </div>
+
     </section>
   </main>
 

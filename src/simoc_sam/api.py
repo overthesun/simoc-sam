@@ -18,6 +18,7 @@ from flask import Flask, jsonify, request, g, Response
 from werkzeug.exceptions import HTTPException
 
 from simoc_sam import config, db
+from simoc_sam.admin import admin_bp
 from simoc_sam.sensors.utils import SENSOR_DATA
 
 
@@ -66,6 +67,8 @@ def create_app(db_path=None):
         conn = g.pop('db_conn', None)
         if conn is not None:
             conn.close()
+
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
     @app.errorhandler(Exception)
     def handle_unexpected_error(err):

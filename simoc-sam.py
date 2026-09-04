@@ -51,11 +51,24 @@ APT_REMOVE = ['chromium']
 
 COMMANDS = {}
 
-def cmd(func):
-    """Decorator to add commands to the COMMANDS dict."""
-    func.params = inspect.signature(func).parameters
-    COMMANDS[func.__name__] = func
-    return func
+def cmd(func=None, *, category=None, admin=False, args_hint=None):
+    """Decorator to add commands to the COMMANDS dict.
+
+    Can be used bare (@cmd) or with keyword arguments:
+        @cmd(category='Services', admin=True, args_hint='sensor1,sensor2')
+    Set admin=True to expose the command in the web admin interface.
+    """
+    def decorator(f):
+        f.params = inspect.signature(f).parameters
+        f.category = category
+        f.admin = admin
+        if args_hint is not None:
+            f.args_hint = args_hint
+        COMMANDS[f.__name__] = f
+        return f
+    if func is not None:         # called as @cmd without parentheses
+        return decorator(func)
+    return decorator
 
 def run(args, **kwargs):
     print('>>', ' '.join(args))
@@ -74,6 +87,7 @@ def needs_venv(func):
             print('venv dir missing -- creating it')
             create_venv()
         return func(*args, **kwargs)
+    inner.needs_venv = True
     return inner
 
 def needs_root(func):
@@ -92,6 +106,7 @@ def needs_root(func):
             return result.returncode == 0
         else:
             return func(*args, **kwargs)
+    inner.needs_root = True
     return inner
 
 def write_template(path, replacements):
@@ -124,7 +139,7 @@ def clean_venv():
     print('venv dir removed.')
 
 
-@cmd
+@cmd(category='System', admin=True)
 def update():
     """Update the code to the latest version."""
     # get the current branch
@@ -265,7 +280,7 @@ def fix_ip():
         subprocess.run(['sudo', 'reboot'])
 
 
-@cmd
+@cmd(category='Network', admin=True, args_hint='[interface] [ssid] [password]')
 @needs_root
 def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     """Setup a hotspot that allows direct connections to the RPi."""
@@ -280,14 +295,14 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     )
     return setup_nmconn(hotspot_nmconn, repls) and setup_git_remote_push()
 
-@cmd
+@cmd(category='Network', admin=True)
 @needs_root
 def teardown_hotspot():
     """Revert the changes made by the setup-hotspot command."""
     return teardown_nmconn(HOTSPOT_CONN) and teardown_git_remote_push()
 
 
-@cmd
+@cmd(category='Network', admin=True, args_hint='ssid password [interface]')
 @needs_root
 def setup_wifi(ssid=None, password=None, interface='wlan0'):
     """Setup a connection to an existing WiFi network."""
@@ -305,7 +320,7 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
     )
     return setup_nmconn(wifi_nmconn, repls)
 
-@cmd
+@cmd(category='Network', admin=True)
 @needs_root
 def teardown_wifi():
     """Revert the changes made by the setup-wifi command."""
@@ -332,7 +347,7 @@ def teardown_nmconn(conn_id):
     return run(['nmcli', 'connection', 'delete', conn_id])
 
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def setup_mosquitto():
     """Setup and configure a local Mosquitto MQTT broker."""
@@ -354,7 +369,7 @@ def setup_mosquitto():
         print('Failed to enable/start mosquitto service. Check logs with:')
         print('  journalctl -u mosquitto -n 50')
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def teardown_mosquitto():
     """Revert the changes made by the setup-mosquitto command."""
@@ -404,13 +419,13 @@ def setup_or_teardown_sensors(function, sensors=None):
     for sensor in sensors:
         function(f'sensor-runner@{sensor}')
 
-@cmd
+@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (blank = all from config)')
 @needs_root
 def setup_sensors(sensors=None):
     """Setup systemd services that run the sensors."""
     setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
-@cmd
+@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (blank = all from config)')
 @needs_root
 def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
@@ -425,58 +440,58 @@ def setup_or_teardown_display(function, display=None):
         return
     function(f'display-runner@{display}')
 
-@cmd
+@cmd(category='Services', admin=True, args_hint='display-name  (blank = from config)')
 @needs_root
 def setup_display(display=None):
     """Setup systemd service that runs the display."""
     setup_or_teardown_display(setup_systemd_unit, display)
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def teardown_display(display=None):
     """Revert the changes made by the setup-display command."""
     setup_or_teardown_display(teardown_systemd_unit, display)
 
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def setup_siobridge():
     """Setup a systemd service that runs the siobridge."""
     setup_systemd_unit('siobridge')
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def teardown_siobridge():
     """Revert the changes made by the setup-siobridge command."""
     teardown_systemd_unit('siobridge')
 
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def setup_csvwriter():
     """Setup a systemd service that runs the csvwriter."""
     setup_systemd_unit('csvwriter')
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def teardown_csvwriter():
     """Revert the changes made by the setup-csvwriter command."""
     teardown_systemd_unit('csvwriter')
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def setup_sqlwriter():
     """Setup a systemd service that runs the sqlwriter."""
     setup_systemd_unit('sqlwriter')
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def teardown_sqlwriter():
     """Revert the changes made by the setup-sqlwriter command."""
     teardown_systemd_unit('sqlwriter')
 
 
-@cmd
+@cmd(category='Frontend', admin=True)
 @needs_root
 def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
@@ -508,7 +523,7 @@ def setup_nginx():
     else:
         run(['systemctl', 'reload', 'nginx'])  # reload to apply new config
 
-@cmd
+@cmd(category='Frontend', admin=True)
 @needs_root
 def teardown_nginx():
     """Revert the changes made by the setup-nginx command."""
@@ -517,20 +532,20 @@ def teardown_nginx():
     pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
 
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def setup_flask():
     """Setup a systemd service that runs the Flask API."""
     setup_systemd_unit('flaskapi')
 
-@cmd
+@cmd(category='Services', admin=True)
 @needs_root
 def teardown_flask():
     """Revert the changes made by the setup-flask command."""
     teardown_systemd_unit('flaskapi')
 
 
-@cmd
+@cmd(category='Frontend', admin=True)
 @needs_root
 def setup_frontend():
     """Copy the frontend to the web dir and set up nginx, Flask API, and sqlwriter."""
@@ -543,7 +558,7 @@ def setup_frontend():
     setup_flask()
     print(f'\nFrontend available at: http://{HOSTNAME}.local/')
 
-@cmd
+@cmd(category='Frontend', admin=True)
 @needs_root
 def teardown_frontend():
     """Revert the changes made by the setup-frontend command."""
@@ -576,28 +591,28 @@ def run_tmux(file='mqtt'):
         run([str(tmux_path), TMUX_SNAME])  # start new sessions
 
 
-@cmd
+@cmd(category='Info', admin=True)
 @needs_venv
 def info():
     """Print host info about the network and devices."""
     import hostinfo
     hostinfo.print_info()
 
-@cmd
+@cmd(category='Info', admin=True)
 @needs_venv
 def network_info():
     """Print info about the network (hostname, addresses)."""
     import hostinfo
     hostinfo.print_network_info()
 
-@cmd
+@cmd(category='Info', admin=True)
 @needs_venv
 def devices_info():
     """Print info about the connected I2C devices."""
     import hostinfo
     hostinfo.print_devices_info()
 
-@cmd
+@cmd(category='Info', admin=True)
 def services_info():
     """Print status of SIMOC Live services and key system services."""
     import hostinfo
@@ -731,7 +746,7 @@ def parse_timestamp(timestamp):
             print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
             return
 
-@cmd
+@cmd(category='System', admin=True, args_hint='timestamp (ISO or Unix, blank = now)')
 def set_rtc_time(timestamp=None):
     """Set the RTC time to the specified timestamp (ISO or Unix)."""
     dt = parse_timestamp(timestamp) if timestamp else datetime.datetime.now()
@@ -741,7 +756,7 @@ def set_rtc_time(timestamp=None):
     return (run(['sudo', 'hwclock', '--set', '--date', formatted]) and
             run(['timedatectl', 'status']))
 
-@cmd
+@cmd(category='System', admin=True)
 @needs_root
 def setup_rtc():
     """Setup PCF8523 RTC by adding dtoverlay to config.txt."""
@@ -764,7 +779,7 @@ def setup_rtc():
     print('After reboot, use the `set-rtc-time` command to set the RTC time.')
     return True
 
-@cmd
+@cmd(category='System', admin=True)
 @needs_root
 def teardown_rtc():
     """Revert the changes made by the setup-rtc command."""

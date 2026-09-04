@@ -1,0 +1,208 @@
+"""Admin Flask Blueprint for SIMOC-SAM.
+
+Provides endpoints for:
+- Reading and writing the user configuration file (structured or raw).
+- Running whitelisted simoc-sam.py management commands.
+"""
+
+import sys
+import pathlib
+import tomllib
+import subprocess
+import importlib.util
+
+from flask import Blueprint, jsonify, request
+
+from simoc_sam import config as sam_config
+
+
+# ─── paths ────────────────────────────────────────────────────────────────────
+
+_HERE = pathlib.Path(__file__).resolve().parent
+SIMOC_SAM_DIR = _HERE.parents[1]           # repository root (src/simoc_sam → src → repo)
+SIMOC_SAM_SCRIPT = SIMOC_SAM_DIR / 'simoc-sam.py'
+
+
+# ─── command loading ─────────────────────────────────────────────────────────
+
+# Preferred display order for command groups in the admin UI.
+_GROUP_ORDER = ['Info', 'Services', 'Frontend', 'Network', 'System']
+
+
+def _load_commands():
+    """Import simoc-sam.py and build a grouped commands dict.
+
+    Only @cmd(admin=True) functions are included; group names, docstrings,
+    needs_root, and args_hint are taken directly from function attributes set
+    by the @cmd / @needs_root / @needs_venv decorators in simoc-sam.py.
+    """
+    try:
+        spec = importlib.util.spec_from_file_location('_simoc_sam', SIMOC_SAM_SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        raw = module.COMMANDS
+    except Exception as exc:
+        return {'Error': {'load-error': {'doc': str(exc), 'needs_root': False}}}
+
+    ungrouped: dict = {}
+    for name, func in raw.items():
+        if not getattr(func, 'admin', False):
+            continue
+        cat = getattr(func, 'category', None) or 'Uncategorized'
+        entry: dict = {
+            'doc': (func.__doc__ or '').strip().split('\n')[0],
+            'needs_root': bool(getattr(func, 'needs_root', False)),
+        }
+        hint = getattr(func, 'args_hint', None)
+        if hint:
+            entry['args_hint'] = hint
+        ungrouped.setdefault(cat, {})[name.replace('_', '-')] = entry
+
+    # Return groups in preferred UI order; append any unexpected categories last.
+    groups = {cat: ungrouped[cat] for cat in _GROUP_ORDER if cat in ungrouped}
+    groups.update({cat: cmds for cat, cmds in ungrouped.items() if cat not in groups})
+    return groups
+
+
+COMMANDS = _load_commands()
+_ALL_COMMANDS = {
+    cmd_name: meta
+    for group_cmds in COMMANDS.values()
+    for cmd_name, meta in group_cmds.items()
+}
+
+
+# ─── config value helpers ──────────────────────────────────────────────────────
+
+def _json_safe(value):
+    """Convert a config value to something JSON-serialisable (e.g. Path → str)."""
+    return str(value) if isinstance(value, pathlib.Path) else value
+
+
+# ─── command execution ─────────────────────────────────────────────────────────
+
+def _run_command(cmd_name, extra_args, needs_root):
+    """Run `simoc-sam.py CMD [args]` in a subprocess.
+
+    Returns (success: bool, stdout: str, stderr: str).
+    Uses the current venv Python (sys.executable) so that simoc_sam imports work.
+    For root commands, prefixes with sudo --preserve-env=HOME.
+    """
+    cmd_list = [sys.executable, str(SIMOC_SAM_SCRIPT), cmd_name, *extra_args]
+    if needs_root:
+        cmd_list = ['sudo', '--preserve-env=HOME', *cmd_list]
+    try:
+        result = subprocess.run(
+            cmd_list,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(SIMOC_SAM_DIR),
+        )
+        return result.returncode == 0, result.stdout, result.stderr
+    except subprocess.TimeoutExpired:
+        return False, '', 'Command timed out after 120 seconds.'
+    except OSError as exc:
+        return False, '', str(exc)
+
+
+# ─── Blueprint ─────────────────────────────────────────────────────────────────
+
+admin_bp = Blueprint('admin', __name__)
+
+
+@admin_bp.get('/config')
+def get_config():
+    """Return the config schema, current values, raw file content, and I2C-detected devices."""
+    schema = sam_config.get_schema()
+    cfg = sam_config.get_config(sam_config.read_user_overrides())
+    values = {name: _json_safe(getattr(cfg, name)) for name in schema}
+    path = sam_config.config_path()
+    raw = path.read_text() if path.exists() else sam_config.generate_config()
+    # Best-effort I2C scan; returns None when not running on RPi hardware.
+    try:
+        from simoc_sam.utils import get_i2c_names
+        i2c_devices = get_i2c_names()
+    except Exception:
+        i2c_devices = None
+    return jsonify({
+        'schema': [{'name': name, **info} for name, info in schema.items()],
+        'values': values,
+        'raw': raw,
+        'user_config_exists': path.exists(),
+        'user_config_path': str(path),
+        'i2c_devices': i2c_devices,
+    })
+
+
+@admin_bp.post('/config')
+def post_config():
+    """Save config changes.
+
+    Body: { mode: 'fields'|'raw', fields?: {name: value}, content?: str }
+    """
+    payload = request.get_json()
+    if not payload:
+        return jsonify({'error': 'Missing JSON body'}), 400
+    mode = payload.get('mode', 'fields')
+    path = sam_config.config_path()
+
+    if mode == 'raw':
+        content = payload.get('content', '')
+        try:
+            overrides = tomllib.loads(content)
+        except tomllib.TOMLDecodeError as exc:
+            return jsonify({'error': f'Invalid TOML syntax: {exc}'}), 400
+        try:
+            sam_config.get_config(overrides)  # validate before saving
+        except sam_config.InvalidConfig as exc:
+            return jsonify({'error': str(exc)}), 400
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        return jsonify({'success': True,
+                        'message': 'Config saved. Restart services to apply changes.'})
+
+    # Structured mode
+    schema = sam_config.get_schema()
+    submitted = payload.get('fields', {})
+    if not isinstance(submitted, dict):
+        return jsonify({'error': '"fields" must be an object'}), 400
+    for name, value in submitted.items():
+        if name not in schema:
+            return jsonify({'error': f'Unknown field: {name!r}'}), 400
+        info = schema[name]
+        if not sam_config.validate_field(name, value, info['type'], info['options']):
+            return jsonify({'error': f'Invalid value for {name!r}: {value!r}'}), 400
+    try:
+        sam_config.get_config(submitted)  # cross-field validation
+    except sam_config.InvalidConfig as exc:
+        return jsonify({'error': str(exc)}), 400
+    sam_config.save_user_config(submitted)
+    return jsonify({'success': True,
+                    'message': 'Config saved. Restart services to apply changes.'})
+
+
+@admin_bp.get('/commands')
+def get_commands():
+    """Return the grouped command whitelist."""
+    return jsonify({'commands': COMMANDS})
+
+
+@admin_bp.post('/run')
+def post_run():
+    """Run a whitelisted simoc-sam.py command.
+
+    Body: { cmd: str, args?: [str] }
+    """
+    payload = request.get_json()
+    if not payload:
+        return jsonify({'error': 'Missing JSON body'}), 400
+    cmd_name = payload.get('cmd', '')
+    extra_args = payload.get('args', [])
+    if not isinstance(extra_args, list):
+        extra_args = [str(extra_args)]
+    if cmd_name not in _ALL_COMMANDS:
+        return jsonify({'error': f'Unknown or disallowed command: {cmd_name!r}'}), 400
+    meta = _ALL_COMMANDS[cmd_name]
+    success, stdout, stderr = _run_command(cmd_name, extra_args, meta['needs_root'])
+    return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})
