@@ -374,10 +374,13 @@ def print_one(name: str, schema: dict, user_overrides: dict) -> None:
     """Print the value and metadata for a single config key."""
     info = schema[name]
     current = getattr(get_config(user_overrides), name)
-    print(f'{name} =\n{current}' if info['type'] == 'multiline_str'
-          else f'{name} = {format_value(current)}')
     overridden = ' (overridden)' if name in user_overrides else ''
-    print(f'  default: {format_value(info["default"])}{overridden}')
+    if info['type'] == 'multiline_str':
+        print(f'{name} =\n{current}')
+        print(f'  default:\n{info["default"]}{overridden}')
+    else:
+        print(f'{name} = {format_value(current)}')
+        print(f'  default: {format_value(info["default"])}{overridden}')
     if opts := info['options']:
         print(f'  options: {", ".join(opts)}')
 

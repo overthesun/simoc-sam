@@ -670,6 +670,23 @@ def test_print_defaults_covers_all_fields(capsys):
         assert name in out, f'{name} missing from print_defaults output'
 
 
+def test_print_defaults_shows_multiline_default_directly(capsys):
+    # an overridden display_format's actual default must still be viewable
+    print_defaults(get_schema())
+    out = capsys.readouterr().out
+    assert 'SIMOC LIVE' in out
+    assert '(multiline' not in out
+
+
+def test_print_one_shows_multiline_default_directly(user_config, capsys):
+    save_user_config({'display_format': 'custom {uptime}'})
+    print_one('display_format', get_schema(), read_user_overrides())
+    out = capsys.readouterr().out
+    assert 'custom {uptime}' in out  # current (overridden) value
+    assert 'SIMOC LIVE' in out  # actual default, not a placeholder
+    assert '(multiline' not in out
+
+
 def test_related_commands_mqtt_points_to_actual_consumers():
     # setup-mosquitto only manages the local broker daemon, not the client
     # settings used by sensor-runner/siobridge to connect to a broker
