@@ -651,3 +651,13 @@ def test_print_defaults_covers_all_fields(capsys):
     out = capsys.readouterr().out
     for name in get_schema():
         assert name in out, f'{name} missing from print_defaults output'
+
+
+def test_related_commands_mqtt_points_to_actual_consumers():
+    # setup-mosquitto only manages the local broker daemon, not the client
+    # settings used by sensor-runner/siobridge to connect to a broker
+    for key in ('mqtt_host', 'mqtt_port', 'mqtt_secure', 'mqtt_certs_dir'):
+        related = config.RELATED_COMMANDS[key]
+        assert 'setup-mosquitto' not in related
+        assert 'setup-sensors' in related
+        assert 'setup-siobridge' in related

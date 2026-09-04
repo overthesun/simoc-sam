@@ -383,24 +383,29 @@ def print_defaults(schema: dict) -> None:
         if info['group'] != current_group:
             current_group = info['group']
             print(f'\n{current_group}:')
-        print(f'  {name:32}= {format_value(info["default"])}')
+        if info['type'] == 'multiline_str':
+            print(f'  {name} =\n{info["default"]}')
+        else:
+            print(f'  {name:32}= {format_value(info["default"])}')
 
 
-# Maps config field names to the sam command that applies the change.
+# Maps config field names to the sam command(s) that apply the change.
 # Shown as a hint by `sam config KEY VALUE` after saving.
-RELATED_COMMANDS: dict[str, str] = {
-    'sensors': 'setup-sensors',
-    'display': 'setup-display',
-    'mqtt_host': 'setup-mosquitto',
-    'mqtt_port': 'setup-mosquitto',
-    'mqtt_secure': 'setup-mosquitto',
-    'mqtt_certs_dir': 'setup-mosquitto',
-    'data_source': 'setup-siobridge',
-    'sio_host': 'setup-siobridge',
-    'sio_port': 'setup-siobridge',
-    'api_host': 'setup-flask',
-    'api_port': 'setup-flask',
-    'simoc_web_dist_dir': 'setup-nginx',
+RELATED_COMMANDS: dict[str, tuple[str, ...]] = {
+    'sensors': ('setup-sensors',),
+    'display': ('setup-display',),
+    # these are read by sensor-runner (MQTTWrapper) and siobridge, not by
+    # the local Mosquitto broker started by setup-mosquitto
+    'mqtt_host': ('setup-sensors', 'setup-siobridge'),
+    'mqtt_port': ('setup-sensors', 'setup-siobridge'),
+    'mqtt_secure': ('setup-sensors', 'setup-siobridge'),
+    'mqtt_certs_dir': ('setup-sensors', 'setup-siobridge'),
+    'data_source': ('setup-siobridge',),
+    'sio_host': ('setup-siobridge',),
+    'sio_port': ('setup-siobridge',),
+    'api_host': ('setup-flask',),
+    'api_port': ('setup-flask',),
+    'simoc_web_dist_dir': ('setup-nginx',),
 }
 
 

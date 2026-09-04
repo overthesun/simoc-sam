@@ -549,12 +549,13 @@ def test_config_set_value_success(mock_config, capsys):
     mock_config.read_user_overrides.return_value = {}
     mock_config.parse_value.return_value = 9999
     mock_config.format_value.return_value = '9999'
-    mock_config.RELATED_COMMANDS = {'mqtt_port': 'setup-mosquitto'}
+    mock_config.RELATED_COMMANDS = {'mqtt_port': ('setup-sensors', 'setup-siobridge')}
     simoc_sam_cli.config(key='mqtt_port', value='9999')
     mock_config.save_user_config.assert_called_once_with({'mqtt_port': 9999})
     out = capsys.readouterr().out
     assert 'mqtt_port = 9999' in out
-    assert 'sam setup-mosquitto' in out
+    assert 'sam setup-sensors' in out
+    assert 'sam setup-siobridge' in out
 
 
 def test_config_set_value_parse_error_returns_false(mock_config, capsys):

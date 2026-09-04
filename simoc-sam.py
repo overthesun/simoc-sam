@@ -887,7 +887,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
         user_overrides[key] = parsed
         simoc_config.save_user_config(user_overrides)
         print(f'{key} = {simoc_config.format_value(parsed)}')
-        if related := simoc_config.RELATED_COMMANDS.get(key):
+        for related in simoc_config.RELATED_COMMANDS.get(key, ()):
             print(f'  To apply: sam {related}')
     except (simoc_config.InvalidConfig, ValueError, TypeError) as exc:
         print(f'Error: {exc}')
