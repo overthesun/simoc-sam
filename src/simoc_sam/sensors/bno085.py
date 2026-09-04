@@ -18,8 +18,6 @@ from .basesensor import AdafruitSensor
 #   * to solve this the features are re-enabled again
 #   * note that soft/hard-resetting doesn't seem to solve this problem
 
-ERR_VALUE = getattr(config, 'bno085_default_err_value', 0)
-
 # map available feature names to the corresponding BNO085 attributes
 FEATURE_TO_ATTR = {
     'RAW_ACCELEROMETER': 'raw_acceleration',
@@ -45,6 +43,7 @@ class BNO085(AdafruitSensor):
         from adafruit_bno08x.i2c import BNO08X_I2C
         self.i2c = self.busio.I2C(self.board.SCL, self.board.SDA, frequency=800000)
         self.bno = BNO08X_I2C(self.i2c)
+        self.err_value = config.bno085_default_err_value
         self.enable_features()
 
     def enable_features(self, features=None):
@@ -84,11 +83,11 @@ class BNO085(AdafruitSensor):
         """Try to read an attribute (retrying in case of failure)."""
         # define placeholder value used when the attributes can't be read
         if attr_name in {'stability_classification', 'steps', 'shake'}:
-            default = ERR_VALUE  # these attrs expect a scalar value (int/str)
+            default = self.err_value  # these attrs expect a scalar value (int/str)
         elif attr_name == 'activity_classification':
-            default = {'most_likely': ERR_VALUE}  # dict with a most_likely key
+            default = {'most_likely': self.err_value}  # dict with a most_likely key
         else:
-            default = [ERR_VALUE] * 4  # lists with 3/4 values
+            default = [self.err_value] * 4  # lists with 3/4 values
         for attempt in range(5):
             try:
                 return getattr(self.bno, attr_name, default)
@@ -157,7 +156,7 @@ class BNO085(AdafruitSensor):
         # Activity classification (string)
         if 'ACTIVITY_CLASSIFIER' in enabled_features:
             classification = attrs['ACTIVITY_CLASSIFIER']
-            most_likely = classification.get('most_likely', ERR_VALUE)
+            most_likely = classification.get('most_likely', self.err_value)
             reading.update(activity_classification=most_likely)
         # Step counter (int)
         if 'STEP_COUNTER' in enabled_features:
