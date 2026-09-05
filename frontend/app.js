@@ -771,6 +771,14 @@ async function saveAdminConfig() {
       body: JSON.stringify(body),
     });
     saveStatus.textContent = data.message || 'Saved.';
+    const applyHint = $('#admin-apply-hint');
+    if (data.related_commands?.length) {
+      applyHint.textContent = `Run after saving: ${data.related_commands.join(', ')}`;
+      applyHint.hidden = false;
+    } else {
+      applyHint.textContent = '';
+      applyHint.hidden = true;
+    }
     await loadAdminConfig();  // refresh to show canonical values
   } catch (err) {
     saveStatus.textContent = `Error: ${err.message}`;

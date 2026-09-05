@@ -166,13 +166,38 @@ def post_config():
         info = schema[name]
         if not sam_config.validate_field(name, value, info['type'], info['options']):
             return jsonify({'error': f'Invalid value for {name!r}: {value!r}'}), 400
+    current_overrides = sam_config.read_user_overrides()
+    current_config = sam_config.get_config(current_overrides)
+    desired_values = {
+        name: getattr(current_config, name)
+        for name in schema
+    }
+    desired_values.update(submitted)
     try:
-        sam_config.get_config(submitted)  # cross-field validation
+        desired_config = sam_config.get_config(desired_values)
+        default_config = sam_config.get_config({})
     except sam_config.InvalidConfig as exc:
         return jsonify({'error': str(exc)}), 400
-    sam_config.save_user_config(submitted)
-    return jsonify({'success': True,
-                    'message': 'Config saved. Restart services to apply changes.'})
+    changed_fields = [
+        name for name in schema
+        if getattr(desired_config, name) != getattr(default_config, name)
+    ]
+    overrides = {
+        name: submitted.get(name, current_overrides.get(name))
+        for name in changed_fields
+    }
+    sam_config.save_user_config(overrides)
+    related_commands = sorted({
+        command
+        for name in changed_fields
+        for command in sam_config.RELATED_COMMANDS.get(name, ())
+    })
+    return jsonify({
+        'success': True,
+        'changed_fields': changed_fields,
+        'related_commands': related_commands,
+        'message': 'Config saved. Restart services to apply changes.',
+    })
 
 
 @admin_bp.get('/commands')

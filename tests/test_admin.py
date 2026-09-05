@@ -38,12 +38,14 @@ def test_post_config_structured_saves_valid_overrides(client):
     test_client, config_path = client
 
     response = test_client.post('/api/admin/config', json={
-        'mode': 'fields',
         'fields': {'humans': 3, 'sensors': ['scd30']},
     })
 
     assert response.status_code == 200
-    assert response.get_json()['success'] is True
+    data = response.get_json()
+    assert data['success'] is True
+    assert data['changed_fields'] == ['humans', 'sensors']
+    assert data['related_commands'] == ['setup-sensors']
     assert admin.sam_config.read_user_overrides() == {
         'humans': 3,
         'sensors': ['scd30'],
@@ -51,11 +53,48 @@ def test_post_config_structured_saves_valid_overrides(client):
     assert config_path.exists()
 
 
+def test_post_config_structured_preserves_existing_overrides(client):
+    test_client, _ = client
+
+    first = test_client.post('/api/admin/config', json={
+        'fields': {'humans': 3, 'sensors': ['scd30']},
+    })
+    assert first.status_code == 200
+
+    second = test_client.post('/api/admin/config', json={
+        'fields': {'humans': 4},
+    })
+
+    assert second.status_code == 200
+    assert admin.sam_config.read_user_overrides() == {
+        'humans': 4,
+        'sensors': ['scd30'],
+    }
+
+
+def test_post_config_structured_removes_values_reset_to_defaults(client):
+    test_client, _ = client
+
+    response = test_client.post('/api/admin/config', json={
+        'fields': {'humans': 3, 'sensors': ['scd30']},
+    })
+    assert response.status_code == 200
+
+    response = test_client.post('/api/admin/config', json={
+        'fields': {'humans': 0, 'sensors': ['bme688', 'scd30', 'sgp30']},
+    })
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['changed_fields'] == []
+    assert data['related_commands'] == []
+    assert admin.sam_config.read_user_overrides() == {}
+
+
 def test_post_config_structured_rejects_unknown_field(client):
     test_client, config_path = client
 
     response = test_client.post('/api/admin/config', json={
-        'mode': 'fields',
         'fields': {'not_a_config_field': 'value'},
     })
 
@@ -68,7 +107,6 @@ def test_post_config_structured_rejects_invalid_combination(client):
     test_client, config_path = client
 
     response = test_client.post('/api/admin/config', json={
-        'mode': 'fields',
         'fields': {'data_source': 'logs', 'enable_jsonl_logging': False},
     })
 
