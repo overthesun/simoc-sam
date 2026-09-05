@@ -285,7 +285,9 @@ def test_post_run_rejects_malformed_request(client, payload):
 def test_post_run_rejects_unsafe_arguments(client, argument):
     test_client, _ = client
 
-    with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+    with patch.dict(admin._ALL_COMMANDS, {
+        'safe-command': {'name': 'safe-command', 'needs_root': False},
+    }):
         response = test_client.post('/api/admin/run', json={
             'cmd': 'safe-command',
             'args': [argument],
@@ -299,7 +301,8 @@ def test_post_run_executes_allowed_command(client):
     test_client, _ = client
     completed = (True, 'command output', '')
 
-    with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+    command = {'name': 'safe-command', 'needs_root': False}
+    with patch.dict(admin._ALL_COMMANDS, {'safe-command': command}):
         with patch.object(admin, '_run_command', return_value=completed) as run_command:
             response = test_client.post('/api/admin/run', json={
                 'cmd': 'safe-command',
@@ -312,7 +315,7 @@ def test_post_run_executes_allowed_command(client):
         'stdout': 'command output',
         'stderr': '',
     }
-    run_command.assert_called_once_with('safe-command', ['valid-value'], False)
+    run_command.assert_called_once_with(command, ['valid-value'])
 
 
 def test_run_command_builds_root_command():
@@ -322,8 +325,9 @@ def test_run_command_builds_root_command():
         'stderr': '',
     })()
 
+    command = {'name': 'setup-sensors', 'needs_root': True}
     with patch.object(admin.subprocess, 'run', return_value=completed) as run:
-        result = admin._run_command('setup-sensors', ['scd30'], True)
+        result = admin._run_command(command, ['scd30'])
 
     assert result == (True, 'ok', '')
     run.assert_called_once_with(
@@ -339,17 +343,19 @@ def test_run_command_builds_root_command():
 
 
 def test_run_command_returns_user_safe_errors():
+    command = {'name': 'safe-command', 'needs_root': False}
     with patch.object(admin.subprocess, 'run', side_effect=OSError('not found')):
-        with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
-            assert admin._run_command('safe-command', [], False) == (
+        with patch.dict(admin._ALL_COMMANDS, {'safe-command': command}):
+            assert admin._run_command(command, []) == (
                 False, '', 'Unable to start command.'
             )
 
-    with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+    command = {'name': 'safe-command', 'needs_root': False}
+    with patch.dict(admin._ALL_COMMANDS, {'safe-command': command}):
         with patch.object(admin.subprocess, 'run', side_effect=admin.subprocess.TimeoutExpired(
             cmd='safe-command', timeout=120,
         )):
-            assert admin._run_command('safe-command', [], False) == (
+            assert admin._run_command(command, []) == (
                 False, '', 'Command timed out.'
             )
 
@@ -361,8 +367,9 @@ def test_run_command_hides_child_tracebacks():
         'stderr': 'Traceback (most recent call last):\nsecret path\n',
     })()
 
-    with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+    command = {'name': 'safe-command', 'needs_root': False}
+    with patch.dict(admin._ALL_COMMANDS, {'safe-command': command}):
         with patch.object(admin.subprocess, 'run', return_value=completed):
-            assert admin._run_command('safe-command', [], False) == (
+            assert admin._run_command(command, []) == (
                 False, '', 'Command failed. See the server logs for details.'
             )

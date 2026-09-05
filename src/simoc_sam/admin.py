@@ -50,6 +50,7 @@ def _load_commands():
     except Exception:
         LOGGER.exception('Failed to load admin command registry')
         return {'Error': {'load-error': {
+            'name': 'load-error',
             'doc': 'The command registry is unavailable.',
             'needs_root': False,
             'params': [],
@@ -61,6 +62,7 @@ def _load_commands():
             continue
         cat = getattr(func, 'category', None) or 'Uncategorized'
         entry: dict = {
+            'name': name.replace('_', '-'),
             'doc': (func.__doc__ or '').strip().split('\n')[0],
             'needs_root': bool(getattr(func, 'needs_root', False)),
         }
@@ -113,7 +115,8 @@ _UNSAFE_ARG_RE = re.compile(r'[\\/\x00]')
 
 
 def _validate_args(extra_args):
-    """Raise ValueError if any extra arg looks unsafe to forward to simoc-sam.py."""
+    """Return validated arguments safe to forward to simoc-sam.py."""
+    validated = []
     for arg in extra_args:
         if not isinstance(arg, str) or not arg:
             raise ValueError(f'Invalid argument: {arg!r}')
@@ -121,23 +124,24 @@ def _validate_args(extra_args):
             raise ValueError(f"Argument may not start with '-': {arg!r}")
         if _UNSAFE_ARG_RE.search(arg):
             raise ValueError(f'Argument contains unsafe characters: {arg!r}')
+        validated.append(arg)
+    return validated
 
 
-def _run_command(cmd_name, extra_args, needs_root):
+def _run_command(command, extra_args):
     """Run `simoc-sam.py CMD [args]` in a subprocess.
 
     Returns (success: bool, stdout: str, stderr: str).
     Uses the current venv Python (sys.executable) so that simoc_sam imports work.
     For root commands, prefixes with sudo --preserve-env=HOME.
     """
-    if cmd_name not in _ALL_COMMANDS:
-        return False, '', 'Command is not available.'
     try:
-        _validate_args(extra_args)
+        validated_args = _validate_args(extra_args)
     except ValueError:
         return False, '', 'Command arguments are invalid.'
-    cmd_list = [sys.executable, str(SIMOC_SAM_SCRIPT), cmd_name, *extra_args]
-    if needs_root:
+    cmd_name = command['name']
+    cmd_list = [sys.executable, str(SIMOC_SAM_SCRIPT), cmd_name, *validated_args]
+    if command['needs_root']:
         cmd_list = ['sudo', '--preserve-env=HOME', *cmd_list]
     try:
         result = subprocess.run(
@@ -358,10 +362,8 @@ def post_run():
     if command is None:
         return jsonify({'error': 'Unknown or disallowed command'}), 400
     try:
-        _validate_args(extra_args)
+        validated_args = _validate_args(extra_args)
     except ValueError:
         return jsonify({'error': 'Command arguments are invalid'}), 400
-    success, stdout, stderr = _run_command(
-        command_name, extra_args, command['needs_root']
-    )
+    success, stdout, stderr = _run_command(command, validated_args)
     return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})
