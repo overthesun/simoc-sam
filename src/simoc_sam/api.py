@@ -8,6 +8,7 @@ import io
 import csv
 import json
 import logging
+import secrets
 import time
 import pathlib
 import sqlite3
@@ -43,6 +44,15 @@ def to_unix_ms(ts):
 def create_app(db_path=None):
     """Create and return the Flask app (db_path overrides config.db_path)."""
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path='')
+    secret_path = config.admin_session_secret_path()
+    try:
+        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        if not secret_path.exists():
+            secret_path.write_bytes(secrets.token_bytes(32))
+            secret_path.chmod(0o600)
+        app.secret_key = secret_path.read_bytes()
+    except OSError:
+        app.secret_key = secrets.token_bytes(32)
     app.config['DB_PATH'] = db_path or config.db_path
 
     # When running under Gunicorn, inherit its log handlers and level so

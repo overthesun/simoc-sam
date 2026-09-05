@@ -8,10 +8,12 @@ Provides endpoints for:
 import re
 import sys
 import pathlib
+import secrets
 import subprocess
 import importlib.util
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, abort, jsonify, request, session
+from werkzeug.security import check_password_hash
 
 from simoc_sam import config as sam_config
 
@@ -126,6 +128,90 @@ def _run_command(cmd_name, extra_args, needs_root):
 # ─── Blueprint ─────────────────────────────────────────────────────────────────
 
 admin_bp = Blueprint('admin', __name__)
+
+
+def _admin_enabled():
+    try:
+        return sam_config.get_config().admin_enabled
+    except sam_config.InvalidConfig:
+        return False
+
+
+def _admin_secure():
+    try:
+        return sam_config.get_config().admin_secure
+    except sam_config.InvalidConfig:
+        return True
+
+
+def _login_required():
+    return _admin_secure() and not session.get('admin_authenticated', False)
+
+
+@admin_bp.before_request
+def protect_admin():
+    if request.endpoint == 'admin.get_visibility':
+        return None
+    if not _admin_enabled():
+        abort(404)
+    if request.endpoint == 'admin.login':
+        return None
+    if _login_required():
+        return jsonify({'error': 'Admin authentication required'}), 401
+    if request.method == 'POST':
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not secrets.compare_digest(token, session.get('csrf_token', '')):
+            return jsonify({'error': 'Invalid CSRF token'}), 403
+    return None
+
+
+@admin_bp.get('/visibility')
+def get_visibility():
+    """Return admin availability and navigation visibility."""
+    try:
+        cfg = sam_config.get_config()
+    except sam_config.InvalidConfig:
+        return jsonify({'enabled': False, 'visible': False, 'secure': True})
+    csrf_token = session.get('csrf_token')
+    if cfg.admin_enabled and not csrf_token:
+        csrf_token = secrets.token_urlsafe(32)
+        session['csrf_token'] = csrf_token
+    return jsonify({
+        'enabled': cfg.admin_enabled,
+        'visible': cfg.admin_enabled and cfg.admin_visible,
+        'secure': cfg.admin_secure,
+        'csrf_token': csrf_token if cfg.admin_enabled and not cfg.admin_secure else None,
+    })
+
+
+@admin_bp.post('/login')
+def login():
+    """Authenticate the local admin session."""
+    if not _admin_enabled():
+        abort(404)
+    payload = request.get_json()
+    password = payload.get('password') if isinstance(payload, dict) else None
+    password_path = sam_config.admin_password_path()
+    if not isinstance(password, str) or not password_path.is_file():
+        return jsonify({'error': 'Invalid admin credentials'}), 401
+    try:
+        password_hash = password_path.read_text().strip()
+        valid = check_password_hash(password_hash, password)
+    except (OSError, ValueError):
+        valid = False
+    if not valid:
+        return jsonify({'error': 'Invalid admin credentials'}), 401
+    session.clear()
+    session['admin_authenticated'] = True
+    session['csrf_token'] = secrets.token_urlsafe(32)
+    return jsonify({'success': True, 'csrf_token': session['csrf_token']})
+
+
+@admin_bp.post('/logout')
+def logout():
+    """End the current local admin session."""
+    session.clear()
+    return jsonify({'success': True})
 
 
 @admin_bp.get('/config')

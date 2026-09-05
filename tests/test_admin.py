@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
+from werkzeug.security import generate_password_hash
 
 from simoc_sam import admin
 
@@ -11,10 +12,16 @@ from simoc_sam import admin
 @pytest.fixture
 def client(tmp_path):
     app = Flask(__name__)
+    app.secret_key = b'test-secret'
     app.register_blueprint(admin.admin_bp, url_prefix='/api/admin')
     config_path = tmp_path / 'config.toml'
-    with patch.object(admin.sam_config, 'config_path', return_value=config_path):
+    with patch.object(admin.sam_config, 'config_path', return_value=config_path), \
+         patch.object(admin, '_admin_enabled', return_value=True), \
+         patch.object(admin, '_admin_secure', return_value=False):
         with app.test_client() as test_client:
+            with test_client.session_transaction() as session:
+                session['csrf_token'] = 'test-csrf-token'
+            test_client.environ_base['HTTP_X_CSRF_TOKEN'] = 'test-csrf-token'
             yield test_client, config_path
 
 
@@ -32,6 +39,97 @@ def test_get_config_returns_schema_and_values(client):
     sensors = next(field for field in data['schema'] if field['name'] == 'sensors')
     assert sensors['type'] == 'list'
     assert 'bme688' in sensors['options']
+
+
+def test_get_visibility_defaults_to_hidden(client):
+    test_client, _ = client
+
+    with patch.object(admin, '_admin_enabled', return_value=False):
+        response = test_client.get('/api/admin/visibility')
+
+    assert response.status_code == 200
+    assert response.get_json()['visible'] is False
+    assert response.get_json()['enabled'] is False
+
+
+def test_disabled_admin_returns_not_found(client):
+    test_client, _ = client
+
+    with patch.object(admin, '_admin_enabled', return_value=False):
+        response = test_client.get('/api/admin/config')
+
+    assert response.status_code == 404
+
+
+def test_get_visibility_reflects_config(client):
+    test_client, config_path = client
+    config_path.write_text('admin_enabled = true\nadmin_visible = true\n')
+
+    response = test_client.get('/api/admin/visibility')
+
+    assert response.status_code == 200
+    assert response.get_json()['visible'] is True
+
+
+def test_insecure_visibility_bootstraps_csrf_token(client):
+    test_client, config_path = client
+    config_path.write_text('admin_enabled = true\nadmin_secure = false\n')
+
+    response = test_client.get('/api/admin/visibility')
+
+    assert response.status_code == 200
+    assert response.get_json()['csrf_token']
+
+
+def test_secure_admin_requires_authentication(client):
+    test_client, _ = client
+
+    with patch.object(admin, '_admin_secure', return_value=True):
+        response = test_client.get('/api/admin/config')
+
+    assert response.status_code == 401
+
+
+def test_secure_admin_login_returns_csrf_token(client):
+    test_client, config_path = client
+    password_path = config_path.parent / 'admin-password.hash'
+    password_path.write_text(generate_password_hash('test-password'))
+
+    with patch.object(admin, '_admin_secure', return_value=True):
+        response = test_client.post('/api/admin/login', json={'password': 'test-password'})
+
+    assert response.status_code == 200
+    assert response.get_json()['csrf_token']
+
+
+def test_secure_admin_can_save_after_login(client):
+    test_client, config_path = client
+    password_path = config_path.parent / 'admin-password.hash'
+    password_path.write_text(generate_password_hash('test-password'))
+
+    with patch.object(admin, '_admin_secure', return_value=True):
+        login_response = test_client.post(
+            '/api/admin/login',
+            json={'password': 'test-password'},
+        )
+        csrf_token = login_response.get_json()['csrf_token']
+        response = test_client.post(
+            '/api/admin/config',
+            json={'fields': {'humans': 2}},
+            headers={'X-CSRF-Token': csrf_token},
+        )
+
+    assert response.status_code == 200
+
+
+def test_secure_admin_rejects_mutation_without_csrf(client):
+    test_client, _ = client
+
+    with patch.object(admin, '_admin_secure', return_value=False):
+        response = test_client.post('/api/admin/config', json={'fields': {}},
+                                    headers={'X-CSRF-Token': ''})
+
+    assert response.status_code == 403
 
 
 def test_post_config_structured_saves_valid_overrides(client):

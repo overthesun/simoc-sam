@@ -9,6 +9,7 @@ import shutil
 import socket
 import pathlib
 import inspect
+import getpass
 import argparse
 import datetime
 import tempfile
@@ -113,6 +114,22 @@ def write_template(path, replacements):
     """Replace {{placeholders}} in a file with the given replacements."""
     template = Template(path.read_text())
     path.write_text(template.render(replacements))
+
+
+@cmd
+def admin_password():
+    """Set or replace the local admin password used by the web interface."""
+    from werkzeug.security import generate_password_hash
+    first = getpass.getpass('Admin password: ')
+    second = getpass.getpass('Repeat admin password: ')
+    if not first or first != second:
+        print('Passwords are empty or do not match.')
+        return False
+    path = simoc_config.admin_password_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(generate_password_hash(first))
+    path.chmod(0o600)
+    print(f'Admin password saved to {path}')
 
 @cmd
 def create_venv():

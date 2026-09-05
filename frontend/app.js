@@ -105,6 +105,15 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
   btn.addEventListener('click', () => showSection(btn.dataset.section));
 });
 
+async function loadAdminVisibility() {
+  try {
+    const data = await fetchJSON('/api/admin/visibility');
+    $('#nav-admin').hidden = !data.visible;
+  } catch {
+    $('#nav-admin').hidden = true;
+  }
+}
+
 
 /* ---------- live dashboard ---------- */
 
@@ -582,12 +591,36 @@ const adminState = {
   schema: [],
   values: {},
   i2cDevices: null,          // list of I2C-detected device names, or null if unavailable
+  adminEnabled: false,
+  adminSecure: true,
+  csrfToken: null,
   dirty: false,              // true when config form has unsaved edits
 };
 
 async function loadAdmin() {
-  await Promise.all([loadAdminConfig(), loadAdminCommands()]);
-  adminState.loaded = true;
+  try {
+    const visibility = await fetchJSON('/api/admin/visibility');
+    adminState.adminEnabled = visibility.enabled;
+    adminState.adminSecure = visibility.secure;
+    if (!visibility.enabled) return;
+    if (visibility.secure && !adminState.csrfToken) await loginAdmin();
+    if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
+    await Promise.all([loadAdminConfig(), loadAdminCommands()]);
+    adminState.loaded = true;
+  } catch (err) {
+    $('#admin-config-status').textContent = `Admin unavailable: ${err.message}`;
+  }
+}
+
+async function loginAdmin() {
+  const password = window.prompt('Admin password:');
+  if (password === null) throw new Error('Admin login cancelled.');
+  const data = await fetchJSON('/api/admin/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password}),
+  });
+  adminState.csrfToken = data.csrf_token;
 }
 
 async function loadAdminConfig() {
@@ -767,7 +800,10 @@ async function saveAdminConfig() {
     const body = {fields: collectConfigFields()};
     const data = await fetchJSON('/api/admin/config', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
       body: JSON.stringify(body),
     });
     saveStatus.textContent = data.message || 'Saved.';
@@ -852,7 +888,10 @@ async function runAdminCommand(cmd, meta, btn) {
   try {
     const data = await fetchJSON('/api/admin/run', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
       body: JSON.stringify({cmd, args: extra_args}),
     });
     const out = [data.stdout,
@@ -898,6 +937,7 @@ document.querySelectorAll('.quick-range [data-range]').forEach((btn) => {
 });
 
 initTimePickers();
+loadAdminVisibility();
 // restore view mode and quick range; suppress saves until selection is also restored
 _restoringPrefs = true;
 const {viewMode: _savedViewMode, quickRange: _savedQuickRange} = loadPrefs();
