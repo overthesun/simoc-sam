@@ -308,8 +308,9 @@ def post_config():
         desired_values.update(submitted)
         desired_config = sam_config.get_config(desired_values)
         default_config = sam_config.get_config({})
-    except sam_config.InvalidConfig as exc:
-        return jsonify({'error': str(exc)}), 400
+    except sam_config.InvalidConfig:
+        LOGGER.warning('Rejected config update because the current or desired config is invalid')
+        return jsonify({'error': 'Config values are invalid or inconsistent'}), 400
     changed_fields = [
         name for name in schema
         if getattr(desired_config, name) != getattr(default_config, name)
@@ -345,20 +346,22 @@ def post_run():
     Body: { cmd: str, args?: [str] }
     """
     payload = _json_object()
-    cmd_name = payload.get('cmd', '')
+    command_name = payload.get('cmd', '')
     extra_args = payload.get('args', [])
-    if not isinstance(cmd_name, str) or not cmd_name:
+    if not isinstance(command_name, str) or not command_name:
         return jsonify({'error': '"cmd" must be a non-empty string'}), 400
     if not isinstance(extra_args, list):
         return jsonify({'error': '"args" must be an array of strings'}), 400
     if not all(isinstance(arg, str) for arg in extra_args):
         return jsonify({'error': '"args" must be an array of strings'}), 400
-    if cmd_name not in _ALL_COMMANDS:
-        return jsonify({'error': f'Unknown or disallowed command: {cmd_name!r}'}), 400
+    command = _ALL_COMMANDS.get(command_name)
+    if command is None:
+        return jsonify({'error': 'Unknown or disallowed command'}), 400
     try:
         _validate_args(extra_args)
-    except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
-    meta = _ALL_COMMANDS[cmd_name]
-    success, stdout, stderr = _run_command(cmd_name, extra_args, meta['needs_root'])
+    except ValueError:
+        return jsonify({'error': 'Command arguments are invalid'}), 400
+    success, stdout, stderr = _run_command(
+        command_name, extra_args, command['needs_root']
+    )
     return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})

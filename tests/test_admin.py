@@ -219,7 +219,7 @@ def test_post_config_structured_rejects_invalid_combination(client):
     })
 
     assert response.status_code == 400
-    assert 'Enable JSONL logging' in response.get_json()['error']
+    assert response.get_json()['error'] == 'Config values are invalid or inconsistent'
     assert not config_path.exists()
 
 
@@ -232,7 +232,7 @@ def test_post_config_rejects_invalid_existing_config(client):
     })
 
     assert response.status_code == 400
-    assert 'mqtt_port' in response.get_json()['error']
+    assert response.get_json()['error'] == 'Config values are invalid or inconsistent'
 
 
 def test_post_run_rejects_unknown_command(client):
@@ -244,7 +244,7 @@ def test_post_run_rejects_unknown_command(client):
     })
 
     assert response.status_code == 400
-    assert 'Unknown or disallowed command' in response.get_json()['error']
+    assert response.get_json()['error'] == 'Unknown or disallowed command'
 
 
 def test_get_commands_exposes_argument_metadata(client):
