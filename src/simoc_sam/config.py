@@ -25,6 +25,7 @@ class InvalidConfig(ValueError):
 
 
 _GROUPS: list[tuple[str, list[str]]] = [
+    ('Admin', ['admin_enabled', 'admin_secure', 'admin_visible']),
     ('HAB info', ['location', 'humans', 'volume']),
     ('Sensors', ['sensors', 'sensor_read_delay']),
     ('Display', ['display', 'display_refresh', 'display_format']),
@@ -58,6 +59,11 @@ A-z: {bno085_linear_accel_z:.2f}
 @dataclasses.dataclass
 class SimocConfig:
     """All SIMOC Live settings with defaults."""
+
+    # Admin interface
+    admin_enabled: bool = False
+    admin_secure: bool = True
+    admin_visible: bool = False
 
     # HAB info
     location: str | None = None
@@ -277,6 +283,16 @@ def generate_config(overrides: dict = {}) -> str:
 def config_path() -> pathlib.Path:
     """Return the config file path."""
     return pathlib.Path.home() / '.config/simoc-sam/config.toml'
+
+
+def admin_password_path() -> pathlib.Path:
+    """Return the path to the local admin password hash."""
+    return config_path().parent / 'admin-password.hash'
+
+
+def admin_session_secret_path() -> pathlib.Path:
+    """Return the path to the Flask admin session secret."""
+    return config_path().parent / 'admin-session.secret'
 
 
 def read_user_overrides() -> dict:

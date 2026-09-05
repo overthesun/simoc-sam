@@ -62,7 +62,11 @@ function showModal(message) {
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
+  if (!response.ok) {
+    const error = new Error(data.error || response.statusText);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -75,22 +79,46 @@ function formatTimeNow() {
   return new Date().toLocaleTimeString('en-GB');
 }
 
+async function fetchAdminJSON(url, options = {}) {
+  try {
+    return await fetchJSON(url, options);
+  } catch (err) {
+    if (err.status !== 401 || !adminState.adminSecure || url.endsWith('/login')) {
+      throw err;
+    }
+    adminState.csrfToken = null;
+    adminState.loaded = false;
+    await loginAdmin();
+    const headers = {
+      ...(options.headers || {}),
+      'X-CSRF-Token': adminState.csrfToken,
+    };
+    return fetchJSON(url, {...options, headers});
+  }
+}
+
 
 /* ---------- navigation ---------- */
 
 async function showSection(name) {
+  if (name !== 'admin' && adminState.dirty) {
+    if (!window.confirm('You have unsaved config changes. Leave without saving?')) return;
+  }
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.section === name);
   });
   $('#section-live').hidden = name !== 'live';
   $('#section-history').hidden = name !== 'history';
+  $('#section-admin').hidden = name !== 'admin';
   if (name === 'live') {
     startPolling();
   } else {
     stopPolling();
-    if (!state.lastResult) {
+    if (name === 'history' && !state.lastResult) {
       await selectionUIReady;  // ensure UI is ready before querying
       if (Object.keys(getSelection()).length) runQuery();
+    } else if (name === 'admin' && !adminState.loaded) {
+      loadAdmin();
     }
   }
 }
@@ -98,6 +126,15 @@ async function showSection(name) {
 document.querySelectorAll('.nav-btn').forEach((btn) => {
   btn.addEventListener('click', () => showSection(btn.dataset.section));
 });
+
+async function loadAdminVisibility() {
+  try {
+    const data = await fetchJSON('/api/admin/visibility');
+    $('#nav-admin').hidden = !data.visible;
+  } catch {
+    $('#nav-admin').hidden = true;
+  }
+}
 
 
 /* ---------- live dashboard ---------- */
@@ -569,6 +606,443 @@ async function exportFull() {
 }
 
 
+/* ---------- admin ---------- */
+
+const adminState = {
+  loaded: false,
+  schema: [],
+  values: {},
+  i2cDevices: null,          // list of I2C-detected device names, or null if unavailable
+  adminEnabled: false,
+  adminSecure: true,
+  csrfToken: null,
+  dirty: false,              // true when config form has unsaved edits
+};
+
+async function loadAdmin() {
+  try {
+    const visibility = await fetchJSON('/api/admin/visibility');
+    adminState.adminEnabled = visibility.enabled;
+    adminState.adminSecure = visibility.secure;
+    if (!visibility.enabled) return;
+    if (visibility.secure && !adminState.csrfToken) await loginAdmin();
+    if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
+    await Promise.all([loadAdminConfig(), loadAdminCommands()]);
+    adminState.loaded = true;
+    $('#btn-admin-logout').hidden = !visibility.secure;
+  } catch (err) {
+    $('#admin-config-status').textContent = `Admin unavailable: ${err.message}`;
+  }
+}
+
+async function loginAdmin() {
+  const modal = $('#admin-login-modal');
+  const form = $('#admin-login-form');
+  const passwordInput = $('#admin-password');
+  const errorEl = $('#admin-login-error');
+  errorEl.hidden = true;
+  passwordInput.value = '';
+  modal.showModal();
+  passwordInput.focus();
+  return new Promise((resolve, reject) => {
+    const finish = (callback) => {
+      form.removeEventListener('submit', submit);
+      $('#btn-admin-login-cancel').removeEventListener('click', cancel);
+      modal.removeEventListener('cancel', cancel);
+      modal.close();
+      callback();
+    };
+    const cancel = () => finish(() => reject(new Error('Admin login cancelled.')));
+    modal.addEventListener('cancel', cancel);
+    async function submit(event) {
+      event.preventDefault();
+      try {
+        const data = await fetchJSON('/api/admin/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({password: passwordInput.value}),
+        });
+        adminState.csrfToken = data.csrf_token;
+        finish(resolve);
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.hidden = false;
+        passwordInput.select();
+      }
+    }
+    form.addEventListener('submit', submit);
+    $('#btn-admin-login-cancel').addEventListener('click', cancel);
+  });
+}
+
+async function logoutAdmin() {
+  try {
+    await fetchJSON('/api/admin/logout', {
+      method: 'POST',
+      headers: {'X-CSRF-Token': adminState.csrfToken || ''},
+    });
+  } finally {
+    adminState.loaded = false;
+    adminState.csrfToken = null;
+    $('#btn-admin-logout').hidden = true;
+    showSection('live');
+  }
+}
+
+async function loadAdminConfig() {
+  const statusEl = $('#admin-config-status');
+  statusEl.textContent = 'Loading\u2026';
+  try {
+    const data = await fetchAdminJSON('/api/admin/config');
+    adminState.schema = data.schema;
+    adminState.values = data.values;
+    adminState.i2cDevices = data.i2c_devices ?? null;
+    renderConfigForm();
+    statusEl.textContent = data.user_config_exists ? `Config: ${data.user_config_path}` : '';
+    $('#admin-no-config-hint').hidden = data.user_config_exists;
+    setDirty(false);
+    markActiveSensors();
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+function setDirty(dirty) {
+  adminState.dirty = dirty;
+  $('#admin-dirty-warning').hidden = !dirty;
+}
+
+// Mark which sensors are detected on the I2C bus: undetected = dimmed.
+// Uses the i2c_devices list returned by GET /api/admin/config (null if not on RPi).
+function markActiveSensors() {
+  const sensorDiv = document.getElementById('cfg-sensors');
+  if (!sensorDiv || !adminState.i2cDevices) return;
+  const connected = new Set(adminState.i2cDevices);
+  for (const lbl of sensorDiv.querySelectorAll('.admin-config-check-label')) {
+    const cb = lbl.querySelector('input[type="checkbox"]');
+    if (!cb) continue;
+    if (connected.has(cb.value)) {
+      lbl.title = 'Detected on I2C bus';
+    } else {
+      lbl.classList.add('sensor-undetected');
+      lbl.title = 'Not detected on I2C bus';
+    }
+  }
+}
+
+function renderConfigForm() {
+  const form = $('#admin-config-form');
+  form.replaceChildren();
+  const groups = {};
+  for (const field of adminState.schema) {
+    (groups[field.group] ??= []).push(field);
+  }
+  for (const [group, fields] of Object.entries(groups)) {
+    const fs = document.createElement('fieldset');
+    fs.className = 'admin-config-group';
+    const legend = document.createElement('legend');
+    legend.textContent = group;
+    fs.appendChild(legend);
+    for (const field of fields) {
+      const row = document.createElement('div');
+      row.className = 'admin-config-row';
+      const label = document.createElement('label');
+      label.className = 'admin-config-label';
+      label.textContent = field.name;
+      label.htmlFor = `cfg-${field.name}`;
+      row.appendChild(label);
+      row.appendChild(makeConfigInput(field));
+      fs.appendChild(row);
+    }
+    form.appendChild(fs);
+  }
+}
+
+function makeConfigInput(field) {
+  const val = adminState.values[field.name];
+  const id = `cfg-${field.name}`;
+  if (field.type === 'bool') {
+    // Text-labelled toggle matching the Plot/Table convention:
+    // left label = unchecked state → True on left, False on right.
+    // inp.checked is INVERTED so that unchecked (dot-left) = True.
+    const wrapper = document.createElement('div');
+    wrapper.className = 'admin-bool-toggle';
+    const inp = document.createElement('input');
+    inp.type = 'checkbox'; inp.id = id; inp.name = field.name;
+    inp.checked = !val;   // invert: unchecked = True (dot left)
+    const sw = document.createElement('label');
+    sw.className = 'switch'; sw.htmlFor = id;
+    sw.append(inp, Object.assign(document.createElement('span'), {className: 'slider'}));
+    wrapper.append(
+      Object.assign(document.createElement('span'), {textContent: 'True'}),
+      sw,
+      Object.assign(document.createElement('span'), {textContent: 'False'}),
+    );
+    return wrapper;
+  }
+  if (field.type === 'literal') {
+    const sel = document.createElement('select');
+    sel.id = id; sel.name = field.name;
+    sel.className = 'admin-config-input';
+    for (const opt of field.options || []) {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      if (opt === val) o.selected = true;
+      sel.appendChild(o);
+    }
+    return sel;
+  }
+  if (field.type === 'list' && field.options && field.options.length) {
+    const div = document.createElement('div');
+    div.className = 'admin-config-checkboxes'; div.id = id;
+    const checked = new Set(Array.isArray(val) ? val : []);
+    for (const opt of field.options) {
+      const lbl = document.createElement('label');
+      lbl.className = 'admin-config-check-label';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.value = opt; cb.checked = checked.has(opt);
+      lbl.append(cb, document.createTextNode(opt));
+      div.appendChild(lbl);
+    }
+    return div;
+  }
+  if (field.type === 'multiline_str') {
+    const ta = document.createElement('textarea');
+    ta.id = id; ta.name = field.name;
+    ta.className = 'admin-config-textarea';
+    ta.value = val ?? '';
+    ta.spellcheck = false;
+    return ta;
+  }
+  const inp = document.createElement('input');
+  inp.id = id; inp.name = field.name;
+  inp.className = 'admin-config-input';
+  if (field.type === 'list') {
+    inp.type = 'text';
+    inp.value = Array.isArray(val) ? val.join(', ') : (val ?? '');
+    inp.placeholder = 'comma-separated values';
+  } else if (field.type === 'int') {
+    inp.type = 'number'; inp.step = '1'; inp.value = val ?? '';
+  } else if (field.type === 'float') {
+    inp.type = 'number'; inp.step = 'any'; inp.value = val ?? '';
+  } else {
+    inp.type = 'text'; inp.value = val ?? '';
+    if (field.type === 'nullable_str') inp.placeholder = 'leave empty for None';
+  }
+  return inp;
+}
+
+function collectConfigFields() {
+  const fields = {};
+  for (const field of adminState.schema) {
+    const el = document.getElementById(`cfg-${field.name}`);
+    if (!el) continue;
+    if (field.type === 'bool') {
+      fields[field.name] = !el.checked;   // invert back: unchecked = True
+    } else if (field.type === 'list' && field.options && field.options.length) {
+      fields[field.name] = [...el.querySelectorAll('input[type="checkbox"]:checked')]
+        .map((cb) => cb.value);
+    } else if (field.type === 'literal') {
+      fields[field.name] = el.value;
+    } else if (field.type === 'list') {
+      fields[field.name] = el.value.split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (field.type === 'int') {
+      if (!el.value.trim()) continue;
+      const v = parseInt(el.value, 10);
+      if (!isNaN(v)) fields[field.name] = v;
+    } else if (field.type === 'float') {
+      if (!el.value.trim()) continue;
+      const v = parseFloat(el.value);
+      if (!isNaN(v)) fields[field.name] = v;
+    } else if (field.type === 'nullable_str') {
+      fields[field.name] = el.value.trim() ? el.value : null;
+    } else {
+      fields[field.name] = el.value;
+    }
+  }
+  return fields;
+}
+
+async function saveAdminConfig() {
+  const saveStatus = $('#admin-save-status');
+  saveStatus.textContent = 'Saving\u2026';
+  try {
+    const body = {fields: collectConfigFields()};
+    const data = await fetchAdminJSON('/api/admin/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    saveStatus.textContent = data.message || 'Saved.';
+    const applyHint = $('#admin-apply-hint');
+    if (data.related_commands?.length) {
+      applyHint.textContent = `Run after saving: ${data.related_commands.join(', ')}`;
+      applyHint.hidden = false;
+    } else {
+      applyHint.textContent = '';
+      applyHint.hidden = true;
+    }
+    await loadAdminConfig();  // refresh to show canonical values
+  } catch (err) {
+    saveStatus.textContent = `Error: ${err.message}`;
+  }
+}
+
+async function loadAdminCommands() {
+  try {
+    const data = await fetchAdminJSON('/api/admin/commands');
+    renderCommandGroups(data.commands);
+  } catch (err) {
+    $('#admin-commands-status').textContent = `Error loading commands: ${err.message}`;
+  }
+}
+
+function renderCommandGroups(commands) {
+  const container = $('#admin-command-groups');
+  container.replaceChildren();
+  for (const [group, cmds] of Object.entries(commands)) {
+    const section = document.createElement('div');
+    section.className = 'admin-cmd-group';
+    const h3 = document.createElement('h3');
+    h3.textContent = group;
+    section.appendChild(h3);
+    const btns = document.createElement('div');
+    btns.className = 'admin-cmd-btns';
+    for (const [cmd, meta] of Object.entries(cmds)) {
+      const btn = document.createElement('button');
+      btn.className = 'admin-cmd-btn' + (meta.needs_root ? ' needs-root' : '');
+      btn.textContent = cmd;
+      btn.title = meta.doc + (meta.args_hint ? `\nArgs: ${meta.args_hint}` : '');
+      btn.addEventListener('click', () => runAdminCommand(cmd, meta, btn));
+      btns.appendChild(btn);
+    }
+    section.appendChild(btns);
+    container.appendChild(section);
+  }
+}
+
+const CONFIRM_CMDS = new Set([
+  'teardown-sensors', 'teardown-display', 'teardown-siobridge',
+  'teardown-csvwriter', 'teardown-sqlwriter', 'teardown-mosquitto',
+  'teardown-frontend', 'teardown-nginx', 'teardown-hotspot', 'teardown-wifi',
+  'reboot', 'shutdown',
+]);
+
+function commandArgs(cmd, meta) {
+  const params = meta.params || [];
+  if (!params.length) return Promise.resolve([]);
+  const modal = $('#admin-command-modal');
+  const form = $('#admin-command-form');
+  const fields = $('#admin-command-fields');
+  const errorEl = $('#admin-command-form-error');
+  $('#admin-command-form-title').textContent = cmd;
+  $('#admin-command-form-description').textContent = meta.doc || '';
+  fields.replaceChildren();
+  errorEl.hidden = true;
+  for (const param of params) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'admin-command-field';
+    const label = document.createElement('label');
+    label.htmlFor = `admin-arg-${param.name}`;
+    label.textContent = param.name + (param.required ? ' (required)' : '');
+    const input = document.createElement('input');
+    input.id = label.htmlFor;
+    input.name = param.name;
+    input.type = param.secret ? 'password' :
+      (param.type === 'int' || param.type === 'float' ? 'number' : 'text');
+    if (param.type === 'float') input.step = 'any';
+    if (param.type === 'int') input.step = '1';
+    if (param.required) input.required = true;
+    if (param.default !== null && param.default !== undefined) {
+      input.value = param.default;
+    }
+    wrapper.append(label, input);
+    fields.appendChild(wrapper);
+  }
+  modal.showModal();
+  fields.querySelector('input')?.focus();
+  return new Promise((resolve) => {
+    const cancelButton = $('#btn-admin-command-cancel');
+    const finish = (value) => {
+      form.removeEventListener('submit', submit);
+      cancelButton.removeEventListener('click', cancel);
+      modal.removeEventListener('cancel', cancel);
+      modal.close();
+      resolve(value);
+    };
+    const cancel = () => finish(null);
+    async function submit(event) {
+      event.preventDefault();
+      const values = [...fields.querySelectorAll('input')].map((input) => input.value.trim());
+      if (params.some((param, index) => param.required && !values[index])) {
+        errorEl.textContent = 'Complete all required fields.';
+        errorEl.hidden = false;
+        return;
+      }
+      while (values.length && !values.at(-1)) values.pop();
+      finish(values);
+    }
+    form.addEventListener('submit', submit);
+    cancelButton.addEventListener('click', cancel);
+    modal.addEventListener('cancel', cancel);
+  });
+}
+
+async function runAdminCommand(cmd, meta, btn) {
+  const extra_args = await commandArgs(cmd, meta);
+  if (extra_args === null) return;
+  if (CONFIRM_CMDS.has(cmd)) {
+    if (!window.confirm(`Run "${cmd}"?\nThis may interrupt running services.`)) return;
+  }
+
+  const statusEl = $('#admin-commands-status');
+  statusEl.textContent = `Running: ${cmd}\u2026`;
+  btn.disabled = true;
+  const outputWrap = $('#admin-output-wrap');
+  const outputEl = $('#admin-output');
+  outputWrap.hidden = false;
+  $('#admin-output-title').textContent = cmd;
+  outputEl.textContent = '\u2026running\u2026';
+
+  try {
+    const data = await fetchAdminJSON('/api/admin/run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
+      body: JSON.stringify({cmd, args: extra_args}),
+    });
+    const out = [data.stdout,
+                 data.stderr ? `--- stderr ---\n${data.stderr}` : '']
+      .filter(Boolean).join('\n');
+    outputEl.textContent = out || '(no output)';
+    statusEl.textContent = data.success
+      ? `\u2713 ${cmd} completed.`
+      : `\u2717 ${cmd} failed \u2014 see output below.`;
+  } catch (err) {
+    outputEl.textContent = err.message;
+    statusEl.textContent = `Error running ${cmd}.`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Dirty tracking: any edit to the config form marks unsaved changes.
+$('#admin-config-form').addEventListener('input',  () => setDirty(true));
+$('#admin-config-form').addEventListener('change', () => setDirty(true));
+
+$('#btn-save-config').addEventListener('click', saveAdminConfig);
+$('#btn-admin-logout').addEventListener('click', logoutAdmin);
+$('#btn-clear-output').addEventListener('click', () => {
+  $('#admin-output').textContent = '';
+  $('#admin-output-wrap').hidden = true;
+});
+
+
 /* ---------- init ---------- */
 
 $('#view-mode-toggle').addEventListener('change', (e) => {
@@ -586,6 +1060,7 @@ document.querySelectorAll('.quick-range [data-range]').forEach((btn) => {
 });
 
 initTimePickers();
+loadAdminVisibility();
 // restore view mode and quick range; suppress saves until selection is also restored
 _restoringPrefs = true;
 const {viewMode: _savedViewMode, quickRange: _savedQuickRange} = loadPrefs();
@@ -600,3 +1075,6 @@ selectionUIReady = buildSelectionUI()
     $('#history-status').textContent = `Error loading sensors: ${err.message}`;
   });
 startPolling();
+window.addEventListener('beforeunload', (e) => {
+  if (adminState.dirty) { e.preventDefault(); e.returnValue = ''; }
+});

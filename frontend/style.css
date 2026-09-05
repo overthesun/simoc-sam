@@ -31,6 +31,8 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
@@ -47,6 +49,8 @@ header h1 {
 }
 
 .header-logo { height: 2rem; width: auto; }
+
+nav { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 .nav-btn {
   background: none;
@@ -236,6 +240,26 @@ dialog {
   max-width: 24rem;
 }
 dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+dialog h2 { margin-top: 0; color: var(--accent); font-size: 1rem; }
+dialog form { display: grid; gap: 0.6rem; }
+dialog input[type="password"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
+.dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.4rem; }
+.dialog-error { color: #ef7777; margin: 0; }
+.admin-command-field { display: grid; gap: 0.25rem; }
+.admin-command-field label { color: var(--muted); font-size: 0.85rem; }
+.admin-command-field input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
 
 /* flatpickr dark theme overrides */
 .flatpickr-calendar {
@@ -290,3 +314,165 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
 .flatpickr-time .numInputWrapper span.arrowDown::after { border-top-color: var(--muted); }
 .flatpickr-time .numInputWrapper:hover span.arrowUp::after { border-bottom-color: var(--text); }
 .flatpickr-time .numInputWrapper:hover span.arrowDown::after { border-top-color: var(--text); }
+
+/* ── admin ──────────────────────────────────────────────────────────────────── */
+
+#section-admin:not([hidden]) { display: flex; flex-direction: column; gap: 1rem; }
+
+.admin-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.admin-panel > h2 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--accent); }
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.admin-panel-header h2 { margin: 0; font-size: 1rem; color: var(--accent); }
+.admin-mode-btns { display: flex; gap: 0.4rem; }
+
+/* config form */
+
+.admin-config-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+.admin-config-group legend { color: var(--muted); font-size: 0.85rem; padding: 0 0.4rem; }
+
+.admin-config-row {
+  display: grid;
+  grid-template-columns: 18rem 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.admin-config-row:last-child { border-bottom: none; }
+.admin-config-label { color: var(--muted); font-size: 0.85rem; font-family: monospace; }
+
+.admin-config-input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.admin-config-textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.admin-config-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.25rem 0;
+}
+
+.admin-config-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  user-select: none;
+}
+.admin-config-check-label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+.admin-config-check-label input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
+/* Connected-sensor state indicators (set by markActiveSensors) */
+.admin-config-check-label.sensor-undetected { opacity: 0.4; }
+.admin-config-check-label.sensor-undetected:has(input:checked) { opacity: 1; }
+
+/* Bool toggle: True [switch] False text-labelled wrapper */
+.admin-bool-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.admin-save-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.admin-save-row .status-line { margin: 0; }
+#btn-save-config { padding: 0.4rem 1rem; }
+.admin-dirty-warning { color: var(--accent); font-size: 0.85rem; }
+
+/* commands */
+
+.admin-cmd-group { margin-bottom: 0.75rem; }
+.admin-cmd-group h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-cmd-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.admin-cmd-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.3rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.admin-cmd-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.admin-cmd-btn.needs-root { border-color: #5a3a2a; color: #cc8855; }
+.admin-cmd-btn.needs-root:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.admin-cmd-btn:disabled { opacity: 0.5; cursor: default; }
+
+.admin-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.75rem 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+#admin-output {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow: auto;
+  margin: 0;
+}
