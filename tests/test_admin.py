@@ -18,7 +18,7 @@ def client(tmp_path):
             yield test_client, config_path
 
 
-def test_get_config_returns_schema_values_and_generated_raw_config(client):
+def test_get_config_returns_schema_and_values(client):
     test_client, config_path = client
 
     response = test_client.get('/api/admin/config')
@@ -27,7 +27,7 @@ def test_get_config_returns_schema_values_and_generated_raw_config(client):
     data = response.get_json()
     assert data['user_config_exists'] is False
     assert data['user_config_path'] == str(config_path)
-    assert data['raw'].startswith('# SIMOC Live configuration')
+    assert 'raw' not in data
     assert data['values']['mqtt_port'] == 1883
     sensors = next(field for field in data['schema'] if field['name'] == 'sensors')
     assert sensors['type'] == 'list'
@@ -74,41 +74,6 @@ def test_post_config_structured_rejects_invalid_combination(client):
 
     assert response.status_code == 400
     assert 'Enable JSONL logging' in response.get_json()['error']
-    assert not config_path.exists()
-
-
-def test_post_config_raw_saves_valid_toml(client):
-    test_client, config_path = client
-    content = 'humans = 4\nsensors = ["bme688"]\n'
-
-    response = test_client.post('/api/admin/config', json={
-        'mode': 'raw',
-        'content': content,
-    })
-
-    assert response.status_code == 200
-    assert config_path.read_text() == content
-    assert admin.sam_config.read_user_overrides() == {
-        'humans': 4,
-        'sensors': ['bme688'],
-    }
-
-
-@pytest.mark.parametrize('content', [
-    'humans = [',
-    'unknown_field = true',
-    'mqtt_port = "not an integer"',
-])
-def test_post_config_raw_rejects_invalid_toml_or_values(client, content):
-    test_client, config_path = client
-
-    response = test_client.post('/api/admin/config', json={
-        'mode': 'raw',
-        'content': content,
-    })
-
-    assert response.status_code == 400
-    assert 'error' in response.get_json()
     assert not config_path.exists()
 
 

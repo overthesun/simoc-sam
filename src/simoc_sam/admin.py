@@ -8,7 +8,6 @@ Provides endpoints for:
 import re
 import sys
 import pathlib
-import tomllib
 import subprocess
 import importlib.util
 
@@ -131,12 +130,11 @@ admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.get('/config')
 def get_config():
-    """Return the config schema, current values, raw file content, and I2C-detected devices."""
+    """Return the config schema, current values, and I2C-detected devices."""
     schema = sam_config.get_schema()
     cfg = sam_config.get_config(sam_config.read_user_overrides())
     values = {name: _json_safe(getattr(cfg, name)) for name in schema}
     path = sam_config.config_path()
-    raw = path.read_text() if path.exists() else sam_config.generate_config()
     # Best-effort I2C scan; returns None when not running on RPi hardware.
     try:
         from simoc_sam.utils import get_i2c_names
@@ -146,7 +144,6 @@ def get_config():
     return jsonify({
         'schema': [{'name': name, **info} for name, info in schema.items()],
         'values': values,
-        'raw': raw,
         'user_config_exists': path.exists(),
         'user_config_path': str(path),
         'i2c_devices': i2c_devices,
@@ -155,32 +152,10 @@ def get_config():
 
 @admin_bp.post('/config')
 def post_config():
-    """Save config changes.
-
-    Body: { mode: 'fields'|'raw', fields?: {name: value}, content?: str }
-    """
+    """Save structured config changes from the schema-backed form."""
     payload = request.get_json()
     if not payload:
         return jsonify({'error': 'Missing JSON body'}), 400
-    mode = payload.get('mode', 'fields')
-    path = sam_config.config_path()
-
-    if mode == 'raw':
-        content = payload.get('content', '')
-        try:
-            overrides = tomllib.loads(content)
-        except tomllib.TOMLDecodeError as exc:
-            return jsonify({'error': f'Invalid TOML syntax: {exc}'}), 400
-        try:
-            sam_config.get_config(overrides)  # validate before saving
-        except sam_config.InvalidConfig as exc:
-            return jsonify({'error': str(exc)}), 400
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-        return jsonify({'success': True,
-                        'message': 'Config saved. Restart services to apply changes.'})
-
-    # Structured mode
     schema = sam_config.get_schema()
     submitted = payload.get('fields', {})
     if not isinstance(submitted, dict):

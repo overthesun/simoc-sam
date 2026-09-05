@@ -581,7 +581,6 @@ const adminState = {
   loaded: false,
   schema: [],
   values: {},
-  configMode: 'structured',  // 'structured' | 'raw'
   i2cDevices: null,          // list of I2C-detected device names, or null if unavailable
   dirty: false,              // true when config form has unsaved edits
 };
@@ -600,7 +599,6 @@ async function loadAdminConfig() {
     adminState.values = data.values;
     adminState.i2cDevices = data.i2c_devices ?? null;
     renderConfigForm();
-    $('#admin-raw-editor').value = data.raw;
     statusEl.textContent = data.user_config_exists ? `Config: ${data.user_config_path}` : '';
     $('#admin-no-config-hint').hidden = data.user_config_exists;
     setDirty(false);
@@ -766,9 +764,7 @@ async function saveAdminConfig() {
   const saveStatus = $('#admin-save-status');
   saveStatus.textContent = 'Saving\u2026';
   try {
-    const body = adminState.configMode === 'raw'
-      ? {mode: 'raw', content: $('#admin-raw-editor').value}
-      : {mode: 'fields', fields: collectConfigFields()};
+    const body = {fields: collectConfigFields()};
     const data = await fetchJSON('/api/admin/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -866,16 +862,9 @@ async function runAdminCommand(cmd, meta, btn) {
   }
 }
 
-$('#config-mode-toggle').addEventListener('change', (e) => {
-  adminState.configMode = e.target.checked ? 'raw' : 'structured';
-  $('#admin-config-form').hidden = e.target.checked;
-  $('#admin-config-raw').hidden = !e.target.checked;
-});
-
-// Dirty tracking: any edit to the config form or raw editor marks unsaved changes.
+// Dirty tracking: any edit to the config form marks unsaved changes.
 $('#admin-config-form').addEventListener('input',  () => setDirty(true));
 $('#admin-config-form').addEventListener('change', () => setDirty(true));
-$('#admin-raw-editor').addEventListener('input',   () => setDirty(true));
 
 $('#btn-save-config').addEventListener('click', saveAdminConfig);
 $('#btn-clear-output').addEventListener('click', () => {

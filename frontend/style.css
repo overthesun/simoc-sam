@@ -397,19 +397,6 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
   white-space: nowrap;
 }
 
-#admin-raw-editor {
-  width: 100%;
-  min-height: 22rem;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.5rem;
-  font-family: monospace;
-  font-size: 0.85rem;
-  resize: vertical;
-}
-
 .admin-save-row {
   display: flex;
   align-items: center;
