@@ -41,6 +41,16 @@ def test_get_config_returns_schema_and_values(client):
     assert 'bme688' in sensors['options']
 
 
+@pytest.mark.parametrize('payload', [[], 'text', 1])
+def test_post_config_rejects_non_object_json(client, payload):
+    test_client, _ = client
+
+    response = test_client.post('/api/admin/config', json=payload)
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'JSON object required'
+
+
 def test_get_visibility_defaults_to_hidden(client):
     test_client, _ = client
 
@@ -223,6 +233,20 @@ def test_post_run_rejects_unknown_command(client):
 
     assert response.status_code == 400
     assert 'Unknown or disallowed command' in response.get_json()['error']
+
+
+@pytest.mark.parametrize('payload', [
+    {'cmd': []},
+    {'cmd': 'safe-command', 'args': 'scd30'},
+    {'cmd': 'safe-command', 'args': [None]},
+])
+def test_post_run_rejects_malformed_request(client, payload):
+    test_client, _ = client
+
+    response = test_client.post('/api/admin/run', json=payload)
+
+    assert response.status_code == 400
+    assert 'error' in response.get_json()
 
 
 @pytest.mark.parametrize('argument', [

@@ -12,8 +12,9 @@ import secrets
 import subprocess
 import importlib.util
 
-from flask import Blueprint, abort, jsonify, request, session
+from werkzeug.exceptions import BadRequest
 from werkzeug.security import check_password_hash
+from flask import Blueprint, abort, jsonify, request, session
 
 from simoc_sam import config as sam_config
 
@@ -130,6 +131,19 @@ def _run_command(cmd_name, extra_args, needs_root):
 admin_bp = Blueprint('admin', __name__)
 
 
+@admin_bp.errorhandler(BadRequest)
+def handle_bad_request(error):
+    return jsonify({'error': error.description}), 400
+
+
+def _json_object():
+    """Return the request JSON object or raise a JSON 400 error."""
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise BadRequest('JSON object required')
+    return payload
+
+
 def _admin_enabled():
     try:
         return sam_config.get_config().admin_enabled
@@ -189,8 +203,8 @@ def login():
     """Authenticate the local admin session."""
     if not _admin_enabled():
         abort(404)
-    payload = request.get_json()
-    password = payload.get('password') if isinstance(payload, dict) else None
+    payload = _json_object()
+    password = payload.get('password')
     password_path = sam_config.admin_password_path()
     if not isinstance(password, str) or not password_path.is_file():
         return jsonify({'error': 'Invalid admin credentials'}), 401
@@ -239,9 +253,7 @@ def get_config():
 @admin_bp.post('/config')
 def post_config():
     """Save structured config changes from the schema-backed form."""
-    payload = request.get_json()
-    if not payload:
-        return jsonify({'error': 'Missing JSON body'}), 400
+    payload = _json_object()
     schema = sam_config.get_schema()
     submitted = payload.get('fields', {})
     if not isinstance(submitted, dict):
@@ -298,13 +310,15 @@ def post_run():
 
     Body: { cmd: str, args?: [str] }
     """
-    payload = request.get_json()
-    if not payload:
-        return jsonify({'error': 'Missing JSON body'}), 400
+    payload = _json_object()
     cmd_name = payload.get('cmd', '')
     extra_args = payload.get('args', [])
+    if not isinstance(cmd_name, str) or not cmd_name:
+        return jsonify({'error': '"cmd" must be a non-empty string'}), 400
     if not isinstance(extra_args, list):
-        extra_args = [str(extra_args)]
+        return jsonify({'error': '"args" must be an array of strings'}), 400
+    if not all(isinstance(arg, str) for arg in extra_args):
+        return jsonify({'error': '"args" must be an array of strings'}), 400
     if cmd_name not in _ALL_COMMANDS:
         return jsonify({'error': f'Unknown or disallowed command: {cmd_name!r}'}), 400
     try:
