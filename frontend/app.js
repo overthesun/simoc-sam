@@ -847,11 +847,15 @@ function collectConfigFields() {
     } else if (field.type === 'list') {
       fields[field.name] = el.value.split(',').map((s) => s.trim()).filter(Boolean);
     } else if (field.type === 'int') {
+      if (!el.value.trim()) continue;
       const v = parseInt(el.value, 10);
-      fields[field.name] = isNaN(v) ? 0 : v;
+      if (!isNaN(v)) fields[field.name] = v;
     } else if (field.type === 'float') {
+      if (!el.value.trim()) continue;
       const v = parseFloat(el.value);
-      fields[field.name] = isNaN(v) ? 0.0 : v;
+      if (!isNaN(v)) fields[field.name] = v;
+    } else if (field.type === 'nullable_str') {
+      fields[field.name] = el.value.trim() ? el.value : null;
     } else {
       fields[field.name] = el.value;
     }

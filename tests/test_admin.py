@@ -132,7 +132,7 @@ def test_secure_admin_can_save_after_login(client):
     assert response.status_code == 200
 
 
-def test_secure_admin_rejects_mutation_without_csrf(client):
+def test_insecure_admin_rejects_mutation_without_csrf(client):
     test_client, _ = client
 
     with patch.object(admin, '_admin_secure', return_value=False):
