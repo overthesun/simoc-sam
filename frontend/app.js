@@ -607,20 +607,64 @@ async function loadAdmin() {
     if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
     await Promise.all([loadAdminConfig(), loadAdminCommands()]);
     adminState.loaded = true;
+    $('#btn-admin-logout').hidden = !visibility.secure;
   } catch (err) {
     $('#admin-config-status').textContent = `Admin unavailable: ${err.message}`;
   }
 }
 
 async function loginAdmin() {
-  const password = window.prompt('Admin password:');
-  if (password === null) throw new Error('Admin login cancelled.');
-  const data = await fetchJSON('/api/admin/login', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({password}),
+  const modal = $('#admin-login-modal');
+  const form = $('#admin-login-form');
+  const passwordInput = $('#admin-password');
+  const errorEl = $('#admin-login-error');
+  errorEl.hidden = true;
+  passwordInput.value = '';
+  modal.showModal();
+  passwordInput.focus();
+  return new Promise((resolve, reject) => {
+    const finish = (callback) => {
+      form.removeEventListener('submit', submit);
+      $('#btn-admin-login-cancel').removeEventListener('click', cancel);
+      modal.removeEventListener('cancel', cancel);
+      modal.close();
+      callback();
+    };
+    const cancel = () => finish(() => reject(new Error('Admin login cancelled.')));
+    modal.addEventListener('cancel', cancel);
+    async function submit(event) {
+      event.preventDefault();
+      try {
+        const data = await fetchJSON('/api/admin/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({password: passwordInput.value}),
+        });
+        adminState.csrfToken = data.csrf_token;
+        finish(resolve);
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.hidden = false;
+        passwordInput.select();
+      }
+    }
+    form.addEventListener('submit', submit);
+    $('#btn-admin-login-cancel').addEventListener('click', cancel);
   });
-  adminState.csrfToken = data.csrf_token;
+}
+
+async function logoutAdmin() {
+  try {
+    await fetchJSON('/api/admin/logout', {
+      method: 'POST',
+      headers: {'X-CSRF-Token': adminState.csrfToken || ''},
+    });
+  } finally {
+    adminState.loaded = false;
+    adminState.csrfToken = null;
+    $('#btn-admin-logout').hidden = true;
+    showSection('live');
+  }
 }
 
 async function loadAdminConfig() {
@@ -914,6 +958,7 @@ $('#admin-config-form').addEventListener('input',  () => setDirty(true));
 $('#admin-config-form').addEventListener('change', () => setDirty(true));
 
 $('#btn-save-config').addEventListener('click', saveAdminConfig);
+$('#btn-admin-logout').addEventListener('click', logoutAdmin);
 $('#btn-clear-output').addEventListener('click', () => {
   $('#admin-output').textContent = '';
   $('#admin-output-wrap').hidden = true;

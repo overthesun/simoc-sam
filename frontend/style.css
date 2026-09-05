@@ -240,6 +240,17 @@ dialog {
   max-width: 24rem;
 }
 dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+dialog h2 { margin-top: 0; color: var(--accent); font-size: 1rem; }
+dialog form { display: grid; gap: 0.6rem; }
+dialog input[type="password"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
+.dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.4rem; }
+.dialog-error { color: #ef7777; margin: 0; }
 
 /* flatpickr dark theme overrides */
 .flatpickr-calendar {

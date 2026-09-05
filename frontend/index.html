@@ -88,7 +88,10 @@
 
       <!-- Config Editor -->
       <div class="admin-panel">
-        <div class="admin-panel-header"><h2>Configuration</h2></div>
+        <div class="admin-panel-header">
+          <h2>Configuration</h2>
+          <button id="btn-admin-logout" class="toggle" hidden>Log out</button>
+        </div>
         <div id="admin-config-status" class="status-line"></div>
         <div id="admin-config-form"></div>
         <div class="admin-save-row">
@@ -121,6 +124,20 @@
     <p id="modal-message"></p>
     <form method="dialog">
       <button class="primary">OK</button>
+    </form>
+  </dialog>
+
+  <dialog id="admin-login-modal">
+    <form id="admin-login-form">
+      <h2>Admin access</h2>
+      <p>Enter the local admin password to continue.</p>
+      <label for="admin-password">Password</label>
+      <input id="admin-password" type="password" autocomplete="current-password" required>
+      <p id="admin-login-error" class="dialog-error" hidden></p>
+      <div class="dialog-actions">
+        <button id="btn-admin-login-cancel" type="button" class="toggle">Cancel</button>
+        <button type="submit" class="primary">Log in</button>
+      </div>
     </form>
   </dialog>
 
