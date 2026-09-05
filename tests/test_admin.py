@@ -223,6 +223,18 @@ def test_post_config_structured_rejects_invalid_combination(client):
     assert not config_path.exists()
 
 
+def test_post_config_rejects_invalid_existing_config(client):
+    test_client, config_path = client
+    config_path.write_text('mqtt_port = "not an integer"\n')
+
+    response = test_client.post('/api/admin/config', json={
+        'fields': {'humans': 3},
+    })
+
+    assert response.status_code == 400
+    assert 'mqtt_port' in response.get_json()['error']
+
+
 def test_post_run_rejects_unknown_command(client):
     test_client, _ = client
 
@@ -328,11 +340,29 @@ def test_run_command_builds_root_command():
 
 def test_run_command_returns_user_safe_errors():
     with patch.object(admin.subprocess, 'run', side_effect=OSError('not found')):
-        assert admin._run_command('safe-command', [], False) == (False, '', 'not found')
+        with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+            assert admin._run_command('safe-command', [], False) == (
+                False, '', 'Unable to start command.'
+            )
 
-    with patch.object(admin.subprocess, 'run', side_effect=admin.subprocess.TimeoutExpired(
-        cmd='safe-command', timeout=120,
-    )):
-        assert admin._run_command('safe-command', [], False) == (
-            False, '', 'Command timed out after 120 seconds.'
-        )
+    with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+        with patch.object(admin.subprocess, 'run', side_effect=admin.subprocess.TimeoutExpired(
+            cmd='safe-command', timeout=120,
+        )):
+            assert admin._run_command('safe-command', [], False) == (
+                False, '', 'Command timed out.'
+            )
+
+
+def test_run_command_hides_child_tracebacks():
+    completed = type('Completed', (), {
+        'returncode': 1,
+        'stdout': '',
+        'stderr': 'Traceback (most recent call last):\nsecret path\n',
+    })()
+
+    with patch.dict(admin._ALL_COMMANDS, {'safe-command': {'needs_root': False}}):
+        with patch.object(admin.subprocess, 'run', return_value=completed):
+            assert admin._run_command('safe-command', [], False) == (
+                False, '', 'Command failed. See the server logs for details.'
+            )

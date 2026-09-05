@@ -8,6 +8,7 @@ Provides endpoints for:
 import re
 import sys
 import inspect
+import logging
 import pathlib
 import secrets
 import subprocess
@@ -25,6 +26,7 @@ from simoc_sam import config as sam_config
 _HERE = pathlib.Path(__file__).resolve().parent
 SIMOC_SAM_DIR = _HERE.parents[1]           # repository root (src/simoc_sam → src → repo)
 SIMOC_SAM_SCRIPT = SIMOC_SAM_DIR / 'simoc-sam.py'
+LOGGER = logging.getLogger(__name__)
 
 
 # ─── command loading ─────────────────────────────────────────────────────────
@@ -45,8 +47,13 @@ def _load_commands():
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         raw = module.COMMANDS
-    except Exception as exc:
-        return {'Error': {'load-error': {'doc': str(exc), 'needs_root': False}}}
+    except Exception:
+        LOGGER.exception('Failed to load admin command registry')
+        return {'Error': {'load-error': {
+            'doc': 'The command registry is unavailable.',
+            'needs_root': False,
+            'params': [],
+        }}}
 
     ungrouped: dict = {}
     for name, func in raw.items():
@@ -123,6 +130,12 @@ def _run_command(cmd_name, extra_args, needs_root):
     Uses the current venv Python (sys.executable) so that simoc_sam imports work.
     For root commands, prefixes with sudo --preserve-env=HOME.
     """
+    if cmd_name not in _ALL_COMMANDS:
+        return False, '', 'Command is not available.'
+    try:
+        _validate_args(extra_args)
+    except ValueError:
+        return False, '', 'Command arguments are invalid.'
     cmd_list = [sys.executable, str(SIMOC_SAM_SCRIPT), cmd_name, *extra_args]
     if needs_root:
         cmd_list = ['sudo', '--preserve-env=HOME', *cmd_list]
@@ -134,11 +147,17 @@ def _run_command(cmd_name, extra_args, needs_root):
             timeout=120,
             cwd=str(SIMOC_SAM_DIR),
         )
-        return result.returncode == 0, result.stdout, result.stderr
+        stderr = result.stderr
+        if 'Traceback (most recent call last):' in stderr:
+            LOGGER.error('Command %s failed with a traceback:\n%s', cmd_name, stderr)
+            stderr = 'Command failed. See the server logs for details.'
+        return result.returncode == 0, result.stdout, stderr
     except subprocess.TimeoutExpired:
-        return False, '', 'Command timed out after 120 seconds.'
-    except OSError as exc:
-        return False, '', str(exc)
+        LOGGER.warning('Command %s timed out', cmd_name)
+        return False, '', 'Command timed out.'
+    except OSError:
+        LOGGER.exception('Failed to start command %s', cmd_name)
+        return False, '', 'Unable to start command.'
 
 
 # ─── Blueprint ─────────────────────────────────────────────────────────────────
@@ -279,14 +298,14 @@ def post_config():
         info = schema[name]
         if not sam_config.validate_field(name, value, info['type'], info['options']):
             return jsonify({'error': f'Invalid value for {name!r}: {value!r}'}), 400
-    current_overrides = sam_config.read_user_overrides()
-    current_config = sam_config.get_config(current_overrides)
-    desired_values = {
-        name: getattr(current_config, name)
-        for name in schema
-    }
-    desired_values.update(submitted)
     try:
+        current_overrides = sam_config.read_user_overrides()
+        current_config = sam_config.get_config(current_overrides)
+        desired_values = {
+            name: getattr(current_config, name)
+            for name in schema
+        }
+        desired_values.update(submitted)
         desired_config = sam_config.get_config(desired_values)
         default_config = sam_config.get_config({})
     except sam_config.InvalidConfig as exc:
