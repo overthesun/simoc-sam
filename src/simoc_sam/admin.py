@@ -7,6 +7,7 @@ Provides endpoints for:
 
 import re
 import sys
+import inspect
 import pathlib
 import secrets
 import subprocess
@@ -56,6 +57,20 @@ def _load_commands():
             'doc': (func.__doc__ or '').strip().split('\n')[0],
             'needs_root': bool(getattr(func, 'needs_root', False)),
         }
+        params = getattr(func, 'params', {})
+        entry['params'] = [
+            {
+                'name': param_name,
+                'required': param.default is inspect.Parameter.empty,
+                'default': (None if param.default is inspect.Parameter.empty
+                             else param.default),
+                'type': ('bool' if isinstance(param.default, bool)
+                         else type(param.default).__name__),
+                'secret': 'password' in param_name.lower(),
+            }
+            for param_name, param in params.items()
+            if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+        ]
         hint = getattr(func, 'args_hint', None)
         if hint:
             entry['args_hint'] = hint

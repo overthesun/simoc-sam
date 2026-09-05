@@ -251,6 +251,15 @@ dialog input[type="password"] {
 }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.4rem; }
 .dialog-error { color: #ef7777; margin: 0; }
+.admin-command-field { display: grid; gap: 0.25rem; }
+.admin-command-field label { color: var(--muted); font-size: 0.85rem; }
+.admin-command-field input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
 
 /* flatpickr dark theme overrides */
 .flatpickr-calendar {

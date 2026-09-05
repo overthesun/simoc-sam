@@ -927,17 +927,69 @@ const CONFIRM_CMDS = new Set([
   'reboot', 'shutdown',
 ]);
 
-async function runAdminCommand(cmd, meta, btn) {
-  // Collect optional args for commands that accept them.
-  let extra_args = [];
-  if (meta.args_hint) {
-    const input = window.prompt(
-      `${cmd}\n${meta.doc}\n\nArgs (${meta.args_hint}):\nLeave blank to use defaults.`,
-      ''
-    );
-    if (input === null) return;  // user cancelled
-    if (input.trim()) extra_args = input.trim().split(/\s+/);
+function commandArgs(cmd, meta) {
+  const params = meta.params || [];
+  if (!params.length) return Promise.resolve([]);
+  const modal = $('#admin-command-modal');
+  const form = $('#admin-command-form');
+  const fields = $('#admin-command-fields');
+  const errorEl = $('#admin-command-form-error');
+  $('#admin-command-form-title').textContent = cmd;
+  $('#admin-command-form-description').textContent = meta.doc || '';
+  fields.replaceChildren();
+  errorEl.hidden = true;
+  for (const param of params) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'admin-command-field';
+    const label = document.createElement('label');
+    label.htmlFor = `admin-arg-${param.name}`;
+    label.textContent = param.name + (param.required ? ' (required)' : '');
+    const input = document.createElement('input');
+    input.id = label.htmlFor;
+    input.name = param.name;
+    input.type = param.secret ? 'password' :
+      (param.type === 'int' || param.type === 'float' ? 'number' : 'text');
+    if (param.type === 'float') input.step = 'any';
+    if (param.type === 'int') input.step = '1';
+    if (param.required) input.required = true;
+    if (param.default !== null && param.default !== undefined) {
+      input.value = param.default;
+    }
+    wrapper.append(label, input);
+    fields.appendChild(wrapper);
   }
+  modal.showModal();
+  fields.querySelector('input')?.focus();
+  return new Promise((resolve) => {
+    const cancelButton = $('#btn-admin-command-cancel');
+    const finish = (value) => {
+      form.removeEventListener('submit', submit);
+      cancelButton.removeEventListener('click', cancel);
+      modal.removeEventListener('cancel', cancel);
+      modal.close();
+      resolve(value);
+    };
+    const cancel = () => finish(null);
+    async function submit(event) {
+      event.preventDefault();
+      const values = [...fields.querySelectorAll('input')].map((input) => input.value.trim());
+      if (params.some((param, index) => param.required && !values[index])) {
+        errorEl.textContent = 'Complete all required fields.';
+        errorEl.hidden = false;
+        return;
+      }
+      while (values.length && !values.at(-1)) values.pop();
+      finish(values);
+    }
+    form.addEventListener('submit', submit);
+    cancelButton.addEventListener('click', cancel);
+    modal.addEventListener('cancel', cancel);
+  });
+}
+
+async function runAdminCommand(cmd, meta, btn) {
+  const extra_args = await commandArgs(cmd, meta);
+  if (extra_args === null) return;
   if (CONFIRM_CMDS.has(cmd)) {
     if (!window.confirm(`Run "${cmd}"?\nThis may interrupt running services.`)) return;
   }

@@ -235,6 +235,20 @@ def test_post_run_rejects_unknown_command(client):
     assert 'Unknown or disallowed command' in response.get_json()['error']
 
 
+def test_get_commands_exposes_argument_metadata(client):
+    test_client, _ = client
+
+    response = test_client.get('/api/admin/commands')
+
+    assert response.status_code == 200
+    setup_wifi = response.get_json()['commands']['Network']['setup-wifi']
+    assert [param['name'] for param in setup_wifi['params']] == [
+        'ssid', 'password', 'interface',
+    ]
+    assert setup_wifi['params'][1]['secret'] is True
+    assert setup_wifi['params'][2]['default'] == 'wlan0'
+
+
 @pytest.mark.parametrize('payload', [
     {'cmd': []},
     {'cmd': 'safe-command', 'args': 'scd30'},
