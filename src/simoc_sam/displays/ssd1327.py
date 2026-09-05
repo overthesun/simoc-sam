@@ -25,7 +25,7 @@ def blit_image_to_bitmap(bitmap, image, width):
     Only writes pixels that differ from the bitmap's current state.
     Returns the number of pixels changed.
     """
-    pixels = image.getdata()
+    pixels = image.get_flattened_data()
     changes = 0
     for i, pixel in enumerate(pixels):
         val = 1 if pixel else 0

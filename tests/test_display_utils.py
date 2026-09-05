@@ -312,13 +312,13 @@ def test_draw_image_returns_1bit_image():
 def test_draw_image_black_background():
     """Test that draw_image renders a black background."""
     image = utils.draw_image(128, 64, [" "])  # empty line with no text
-    pixels = set(image.getdata())
+    pixels = set(image.get_flattened_data())
     assert pixels == {0}  # all pixels should be black (0)
 
 def test_draw_image_has_white_pixels_for_text():
     """Test that draw_image renders text as white pixels on black background."""
     image = utils.draw_image(128, 64, ["Test"])
-    pixels = list(image.getdata())
+    pixels = list(image.get_flattened_data())
     # should only have black (0) and white (255) pixels
     assert set(pixels) == {0, 255}
     assert pixels.count(0) > pixels.count(255)  # more black than white
@@ -327,8 +327,8 @@ def test_draw_image_blank_rows_add_space():
     """Test that blank rows add spacing but no text pixels."""
     image_no_blank = utils.draw_image(128, 64, ["Row 1", "Row 2"])
     image_with_blank = utils.draw_image(128, 64, ["Row 1", "   ", "Row 2"])
-    white_no_blank = sum(1 for p in image_no_blank.getdata() if p)
-    white_with_blank = sum(1 for p in image_with_blank.getdata() if p)
+    white_no_blank = sum(1 for p in image_no_blank.get_flattened_data() if p)
+    white_with_blank = sum(1 for p in image_with_blank.get_flattened_data() if p)
     # same text so the same white pixel count, but different images
     assert white_no_blank == white_with_blank
     assert image_no_blank.tobytes() != image_with_blank.tobytes()
