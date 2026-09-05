@@ -62,7 +62,11 @@ function showModal(message) {
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
+  if (!response.ok) {
+    const error = new Error(data.error || response.statusText);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -73,6 +77,24 @@ function formatLocal(tsMs) {
 
 function formatTimeNow() {
   return new Date().toLocaleTimeString('en-GB');
+}
+
+async function fetchAdminJSON(url, options = {}) {
+  try {
+    return await fetchJSON(url, options);
+  } catch (err) {
+    if (err.status !== 401 || !adminState.adminSecure || url.endsWith('/login')) {
+      throw err;
+    }
+    adminState.csrfToken = null;
+    adminState.loaded = false;
+    await loginAdmin();
+    const headers = {
+      ...(options.headers || {}),
+      'X-CSRF-Token': adminState.csrfToken,
+    };
+    return fetchJSON(url, {...options, headers});
+  }
 }
 
 
@@ -671,7 +693,7 @@ async function loadAdminConfig() {
   const statusEl = $('#admin-config-status');
   statusEl.textContent = 'Loading\u2026';
   try {
-    const data = await fetchJSON('/api/admin/config');
+    const data = await fetchAdminJSON('/api/admin/config');
     adminState.schema = data.schema;
     adminState.values = data.values;
     adminState.i2cDevices = data.i2c_devices ?? null;
@@ -842,7 +864,7 @@ async function saveAdminConfig() {
   saveStatus.textContent = 'Saving\u2026';
   try {
     const body = {fields: collectConfigFields()};
-    const data = await fetchJSON('/api/admin/config', {
+    const data = await fetchAdminJSON('/api/admin/config', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -867,7 +889,7 @@ async function saveAdminConfig() {
 
 async function loadAdminCommands() {
   try {
-    const data = await fetchJSON('/api/admin/commands');
+    const data = await fetchAdminJSON('/api/admin/commands');
     renderCommandGroups(data.commands);
   } catch (err) {
     $('#admin-commands-status').textContent = `Error loading commands: ${err.message}`;
@@ -930,7 +952,7 @@ async function runAdminCommand(cmd, meta, btn) {
   outputEl.textContent = '\u2026running\u2026';
 
   try {
-    const data = await fetchJSON('/api/admin/run', {
+    const data = await fetchAdminJSON('/api/admin/run', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
