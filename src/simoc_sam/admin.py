@@ -7,10 +7,12 @@ Provides endpoints for:
 
 import re
 import sys
+import time
 import inspect
 import logging
 import pathlib
 import secrets
+import threading
 import subprocess
 import importlib.util
 
@@ -27,6 +29,10 @@ _HERE = pathlib.Path(__file__).resolve().parent
 SIMOC_SAM_DIR = _HERE.parents[1]           # repository root (src/simoc_sam → src → repo)
 SIMOC_SAM_SCRIPT = SIMOC_SAM_DIR / 'simoc-sam.py'
 LOGGER = logging.getLogger(__name__)
+_LOGIN_LIMIT = 5
+_LOGIN_WINDOW = 60.0
+_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
+_LOGIN_LOCK = threading.Lock()
 
 
 # ─── command loading ─────────────────────────────────────────────────────────
@@ -197,7 +203,32 @@ def _admin_secure():
 
 
 def _login_required():
-    return _admin_secure() and not session.get('admin_authenticated', False)
+    if not _admin_secure() or not session.get('admin_authenticated', False):
+        return _admin_secure()
+    try:
+        password_hash = sam_config.admin_password_path().read_text().strip()
+    except OSError:
+        return True
+    return session.get('admin_password_hash') != password_hash
+
+
+def _login_rate_limited(client_id):
+    now = time.monotonic()
+    with _LOGIN_LOCK:
+        attempts = [timestamp for timestamp in _LOGIN_ATTEMPTS.get(client_id, [])
+                    if now - timestamp < _LOGIN_WINDOW]
+        _LOGIN_ATTEMPTS[client_id] = attempts
+        return len(attempts) >= _LOGIN_LIMIT
+
+
+def _record_login_failure(client_id):
+    with _LOGIN_LOCK:
+        _LOGIN_ATTEMPTS.setdefault(client_id, []).append(time.monotonic())
+
+
+def _clear_login_failures(client_id):
+    with _LOGIN_LOCK:
+        _LOGIN_ATTEMPTS.pop(client_id, None)
 
 
 @admin_bp.before_request
@@ -243,8 +274,12 @@ def login():
         abort(404)
     payload = _json_object()
     password = payload.get('password')
+    client_id = request.remote_addr or 'unknown'
+    if _login_rate_limited(client_id):
+        return jsonify({'error': 'Too many login attempts. Try again later.'}), 429
     password_path = sam_config.admin_password_path()
     if not isinstance(password, str) or not password_path.is_file():
+        _record_login_failure(client_id)
         return jsonify({'error': 'Invalid admin credentials'}), 401
     try:
         password_hash = password_path.read_text().strip()
@@ -252,10 +287,13 @@ def login():
     except (OSError, ValueError):
         valid = False
     if not valid:
+        _record_login_failure(client_id)
         return jsonify({'error': 'Invalid admin credentials'}), 401
+    _clear_login_failures(client_id)
     session.clear()
     session['admin_authenticated'] = True
     session['csrf_token'] = secrets.token_urlsafe(32)
+    session['admin_password_hash'] = password_hash
     return jsonify({'success': True, 'csrf_token': session['csrf_token']})
 
 

@@ -83,7 +83,7 @@ async function fetchAdminJSON(url, options = {}) {
   try {
     return await fetchJSON(url, options);
   } catch (err) {
-    if (err.status !== 401 || !adminState.adminSecure || url.endsWith('/login')) {
+    if (err.status !== 401 || url.endsWith('/login')) {
       throw err;
     }
     adminState.csrfToken = null;

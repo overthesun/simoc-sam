@@ -14,6 +14,7 @@ import typing
 import socket
 import pathlib
 import tomllib
+import secrets
 import functools
 import dataclasses
 
@@ -293,6 +294,19 @@ def admin_password_path() -> pathlib.Path:
 def admin_session_secret_path() -> pathlib.Path:
     """Return the path to the Flask admin session secret."""
     return config_path().parent / 'admin-session.secret'
+
+
+def get_admin_session_secret() -> bytes:
+    """Read or atomically create the Flask admin session secret."""
+    path = admin_session_secret_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open('xb') as secret_file:
+            secret_file.write(secrets.token_bytes(32))
+        path.chmod(0o600)
+    except FileExistsError:
+        pass
+    return path.read_bytes()
 
 
 def read_user_overrides() -> dict:

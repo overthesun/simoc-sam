@@ -15,6 +15,8 @@ def client(tmp_path):
     app.secret_key = b'test-secret'
     app.register_blueprint(admin.admin_bp, url_prefix='/api/admin')
     config_path = tmp_path / 'config.toml'
+    with admin._LOGIN_LOCK:
+        admin._LOGIN_ATTEMPTS.clear()
     with patch.object(admin.sam_config, 'config_path', return_value=config_path), \
          patch.object(admin, '_admin_enabled', return_value=True), \
          patch.object(admin, '_admin_secure', return_value=False):
@@ -110,6 +112,36 @@ def test_secure_admin_login_returns_csrf_token(client):
 
     assert response.status_code == 200
     assert response.get_json()['csrf_token']
+
+
+def test_password_rotation_invalidates_existing_session(client):
+    test_client, config_path = client
+    password_path = config_path.parent / 'admin-password.hash'
+    password_path.write_text(generate_password_hash('test-password'))
+
+    with patch.object(admin, '_admin_secure', return_value=True):
+        login_response = test_client.post(
+            '/api/admin/login', json={'password': 'test-password'}
+        )
+        assert login_response.status_code == 200
+        password_path.write_text(generate_password_hash('new-password'))
+        response = test_client.get('/api/admin/config')
+
+    assert response.status_code == 401
+
+
+def test_login_rate_limit(client):
+    test_client, config_path = client
+    password_path = config_path.parent / 'admin-password.hash'
+    password_path.write_text(generate_password_hash('test-password'))
+
+    with patch.object(admin, '_admin_secure', return_value=True):
+        for _ in range(admin._LOGIN_LIMIT):
+            response = test_client.post('/api/admin/login', json={'password': 'wrong'})
+            assert response.status_code == 401
+        response = test_client.post('/api/admin/login', json={'password': 'wrong'})
+
+    assert response.status_code == 429
 
 
 def test_secure_admin_can_save_after_login(client):
