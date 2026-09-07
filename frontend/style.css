@@ -452,6 +452,8 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
 .admin-cmd-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .admin-cmd-btn.needs-root { border-color: #5a3a2a; color: #cc8855; }
 .admin-cmd-btn.needs-root:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.admin-cmd-btn.danger { border-color: #5a2a2a; color: #cc6666; }
+.admin-cmd-btn.danger:hover:not(:disabled) { border-color: #cc4444; color: #ff8080; }
 .admin-cmd-btn:disabled { opacity: 0.5; cursor: default; }
 
 .admin-output-header {

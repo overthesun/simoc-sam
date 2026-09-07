@@ -628,6 +628,7 @@ async function loadAdmin() {
     if (visibility.secure && !adminState.csrfToken) await loginAdmin();
     if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
     $('#admin-commands-panel').hidden = !visibility.allow_commands;
+    $('#admin-power-panel').hidden = !visibility.allow_power;
     const tasks = [loadAdminConfig()];
     if (visibility.allow_commands) tasks.push(loadAdminCommands());
     await Promise.all(tasks);
@@ -1037,6 +1038,36 @@ async function runAdminCommand(cmd, meta, btn) {
 // Dirty tracking: any edit to the config form marks unsaved changes.
 $('#admin-config-form').addEventListener('input',  () => setDirty(true));
 $('#admin-config-form').addEventListener('change', () => setDirty(true));
+
+async function runAdminPower(action) {
+  const label = action === 'reboot' ? 'restart' : 'shut down';
+  if (!window.confirm(`Are you sure you want to ${label} the system?`)) return;
+  const statusEl = $('#admin-power-status');
+  statusEl.textContent = `${label === 'restart' ? 'Restarting' : 'Shutting down'}\u2026`;
+  $('#btn-admin-reboot').disabled = true;
+  $('#btn-admin-shutdown').disabled = true;
+  try {
+    const data = await fetchAdminJSON('/api/admin/power', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
+      body: JSON.stringify({action}),
+    });
+    statusEl.textContent = data.success
+      ? `Command sent -- the system should ${label} shortly.`
+      : `\u2717 Failed to ${label}: ${data.stderr || '(no output)'}`;
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+  } finally {
+    $('#btn-admin-reboot').disabled = false;
+    $('#btn-admin-shutdown').disabled = false;
+  }
+}
+
+$('#btn-admin-reboot').addEventListener('click', () => runAdminPower('reboot'));
+$('#btn-admin-shutdown').addEventListener('click', () => runAdminPower('shutdown'));
 
 $('#btn-save-config').addEventListener('click', saveAdminConfig);
 $('#btn-admin-logout').addEventListener('click', logoutAdmin);
