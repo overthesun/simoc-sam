@@ -53,6 +53,12 @@ def init_db(db_path=None, verbose=True):
             CREATE INDEX IF NOT EXISTS idx_{sensor_name}_sensor_id_ts
             ON {sensor_name} (sensor_id, timestamp)
         ''')
+        # Bare timestamp index: the composite index above can't serve
+        # timestamp-only range queries (used by the frontend/API).
+        conn.execute(f'''
+            CREATE INDEX IF NOT EXISTS idx_{sensor_name}_ts
+            ON {sensor_name} (timestamp)
+        ''')
     conn.commit()
     _conn = conn
     return conn
@@ -122,8 +128,9 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
     # values use parameterized queries to prevent SQL injection.
     full_sql = f'SELECT * FROM {sensor} {where} ORDER BY timestamp'
     if decimate:
-        # Two O(log N) index seeks give the rowid range of matching rows.
-        # Fast when WHERE uses an indexed column (e.g. sensor_id).
+        # Two O(log N) covering-index seeks (idx_*_ts for time-only filters,
+        # idx_*_sensor_id_ts for sensor_id filters) give the rowid range of
+        # matching rows without touching the table.
         # Assumes rows are inserted in timestamp order so the id range
         # corresponds to the timestamp range.
         boundary_sql = f'SELECT id FROM {sensor} {where} ORDER BY timestamp'
