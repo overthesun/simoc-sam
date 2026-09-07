@@ -26,14 +26,13 @@ class InvalidConfig(ValueError):
 
 
 _GROUPS: list[tuple[str, list[str]]] = [
-    ('Admin', ['admin_enabled', 'admin_secure', 'admin_visible',
-               'admin_allow_commands', 'admin_allow_power']),
     ('HAB info', ['location', 'humans', 'volume']),
     ('Sensors', ['sensors', 'sensor_read_delay']),
     ('Display', ['display', 'display_refresh', 'display_format']),
     ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure',
               'mqtt_certs_dir', 'mqtt_reconnect_delay']),
-    ('SIMOC Live frontend', ['use_https']),
+    ('SIMOC Live frontend', ['use_https', 'admin_enabled', 'admin_secure', 'admin_visible',
+                             'admin_allow_commands', 'admin_allow_power']),
     ('SIMOC Web', ['sio_host', 'sio_port', 'data_source',
                    'mqtt_topic_sub', 'simoc_web_dist_dir']),
     ('Flask API', ['api_host', 'api_port']),
@@ -63,15 +62,6 @@ A-z: {bno085_linear_accel_z:.2f}
 class SimocConfig:
     """All SIMOC Live settings with defaults."""
 
-    # Admin interface
-    admin_enabled: bool = False
-    admin_secure: bool = True
-    admin_visible: bool = False
-    # generic "run any whitelisted command" and fixed reboot/shutdown actions --
-    # both off by default, independent of each other
-    admin_allow_commands: bool = False
-    admin_allow_power: bool = False
-
     # HAB info
     location: str | None = None
     humans: int = 0
@@ -97,6 +87,14 @@ class SimocConfig:
     # self-signed HTTPS causes browser warnings -- off by default since the
     # sniffing risk on a local network is low compared to that UX cost
     use_https: bool = False
+    # Admin interface
+    admin_enabled: bool = False
+    admin_secure: bool = True
+    admin_visible: bool = False
+    # generic "run any whitelisted command" and fixed reboot/shutdown actions --
+    # both off by default, independent of each other
+    admin_allow_commands: bool = False
+    admin_allow_power: bool = False
 
     # SIMOC Web / SIO bridge
     sio_host: str = 'localhost'
