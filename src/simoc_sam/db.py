@@ -128,9 +128,10 @@ def get_readings(sensor, *, conn=None, sensor_id=None, location=None, host=None,
     # values use parameterized queries to prevent SQL injection.
     full_sql = f'SELECT * FROM {sensor} {where} ORDER BY timestamp'
     if decimate:
-        # Two O(log N) covering-index seeks (idx_*_ts for time-only filters,
-        # idx_*_sensor_id_ts for sensor_id filters) give the rowid range of
-        # matching rows without touching the table.
+        # Two boundary seeks give the rowid range of matching rows.
+        # O(log N) via covering index for time-only filters (idx_*_ts) and
+        # sensor_id filters (idx_*_sensor_id_ts); location/host filters are
+        # not indexed and may scan until the first/last matching row.
         # Assumes rows are inserted in timestamp order so the id range
         # corresponds to the timestamp range.
         boundary_sql = f'SELECT id FROM {sensor} {where} ORDER BY timestamp'
