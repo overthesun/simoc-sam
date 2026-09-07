@@ -976,6 +976,9 @@ def main():
                  if param.default is inspect.Parameter.empty]
     try:
         return func(*call_args, **call_kwargs)
+    except KeyboardInterrupt:
+        print('Aborted.')
+        return False
     except Exception as exc:
         print(exc)
         return False
