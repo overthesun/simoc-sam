@@ -150,10 +150,9 @@ def test_main_keyword_only_not_positional(clean_commands):
     simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'pi@rpi.local']):
-        with pytest.raises(SystemExit) as exc_info:
-            simoc_sam_cli.main()
+        result = simoc_sam_cli.main()
 
-    assert exc_info.value.code == 0
+    assert result is True
     # target is a required positional — passed positionally, not as a keyword
     mock_cmd.assert_called_once_with('pi@rpi.local')
 
@@ -181,10 +180,9 @@ def test_main_positional_args_only(clean_commands):
     simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'wlan0', 'MyNetwork']):
-        with pytest.raises(SystemExit) as exc_info:
-            simoc_sam_cli.main()
+        result = simoc_sam_cli.main()
 
-    assert exc_info.value.code == 0
+    assert result is True
     mock_cmd.assert_called_once_with(interface='wlan0', ssid='MyNetwork', password='default123')
 
 
@@ -196,10 +194,9 @@ def test_main_named_args_only(clean_commands):
     simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', '--interface=wlan2', '--password=secret']):
-        with pytest.raises(SystemExit) as exc_info:
-            simoc_sam_cli.main()
+        result = simoc_sam_cli.main()
 
-    assert exc_info.value.code == 0
+    assert result is True
     mock_cmd.assert_called_once_with(interface='wlan2', password='secret')
 
 
@@ -211,10 +208,9 @@ def test_main_mixed_positional_and_named(clean_commands):
     simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd', 'wlan0', '--password=mysecret']):
-        with pytest.raises(SystemExit) as exc_info:
-            simoc_sam_cli.main()
+        result = simoc_sam_cli.main()
 
-    assert exc_info.value.code == 0
+    assert result is True
     # interface from positional, ssid uses its default (None), password from --flag
     mock_cmd.assert_called_once_with(interface='wlan0', ssid=None, password='mysecret')
 
@@ -231,11 +227,24 @@ def test_main_defaults_passed_explicitly(clean_commands):
     simoc_sam_cli.cmd(mock_cmd)
 
     with patch('sys.argv', ['simoc-sam.py', 'test-cmd']):
-        with pytest.raises(SystemExit) as exc_info:
-            simoc_sam_cli.main()
+        result = simoc_sam_cli.main()
 
-    assert exc_info.value.code == 0
+    assert result is True
     mock_cmd.assert_called_once_with(interface='wlan0', password='default123')
+
+
+def test_main_catches_exception_and_returns_false(clean_commands, capsys):
+    """Test that main() catches exceptions raised by the command and returns False."""
+    def test_cmd():
+        """Test command."""
+        raise RuntimeError('boom')
+    simoc_sam_cli.cmd(test_cmd)
+
+    with patch('sys.argv', ['simoc-sam.py', 'test-cmd']):
+        result = simoc_sam_cli.main()
+
+    assert result is False
+    assert 'boom' in capsys.readouterr().out
 
 
 @patch('os.geteuid', return_value=1000)  # Not root

@@ -135,8 +135,8 @@ def admin_password():
 def create_venv():
     """Create and set up a virtualenv."""
     if VENV_DIR.exists():
-        print('venv already exists -- aborting.')
-        return
+        print('venv already exists -- use `clean-venv` to remove it.')
+        return True
     return (
         run([sys.executable, '-m', 'venv', str(VENV_DIR)]) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
@@ -149,11 +149,12 @@ def create_venv():
 def clean_venv():
     """Remove the venv dir."""
     if not VENV_DIR.exists():
-        print(f'No venv dir found -- aborting.')
-        return
+        print(f'No venv dir found.')
+        return True
     print(f'Removing venv dir: {VENV_DIR}')
     shutil.rmtree(VENV_DIR)
     print('venv dir removed.')
+    return True
 
 
 @cmd(category='System', admin=True)
@@ -193,8 +194,8 @@ def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     def rsync_cmd(user, host, path):
         return ['rsync', '-avz', *excludes, repo, f'{user}@{host}:{path}']
     try:
-        subprocess.run(rsync_cmd(user, host, path),
-                       check=True, stderr=subprocess.PIPE)
+        return not subprocess.run(rsync_cmd(user, host, path),
+                                  check=True, stderr=subprocess.PIPE).returncode
     except subprocess.CalledProcessError as err:
         stderr = err.stderr.decode('utf-8')
         if (('failure in name resolution' in stderr or
@@ -203,19 +204,20 @@ def copy_repo(target, *, exclude_venv=True, exclude_git=True):
             print(f'Failed to resolve <{host}>.')
             host += '.local'
             print(f'Retrying with <{host}>...')
-            subprocess.run(rsync_cmd(user, host, path))
+            return not subprocess.run(rsync_cmd(user, host, path)).returncode
         else:
             print(stderr)
+            return False
 
 @cmd
 def copy_repo_venv(target):
     """Copy the repository to a remote host using rsync (includes venv dir)."""
-    copy_repo(target, exclude_venv=False)
+    return copy_repo(target, exclude_venv=False)
 
 @cmd
 def copy_repo_git(target):
     """Copy the repository to a remote host using rsync (includes .git dir)."""
-    copy_repo(target, exclude_git=False)
+    return copy_repo(target, exclude_git=False)
 
 
 @cmd
@@ -274,12 +276,14 @@ def fix_ip():
         hostnum = match[1]  # extract e.g. '1' from 'samrpi1'
     else:
         print('Invalid hostname (should be "samrpiN").')
-        return
+        return False
     updated = False
+    found = False
     new_bat0 = []
     with open(bat0) as file:
         for line in file:
             if match := address_re.fullmatch(line):
+                found = True
                 head, curr_ip, three_octs, last_oct, tail = match.groups()
                 new_ip = three_octs + hostnum  # update last octet
                 if new_ip != curr_ip:
@@ -287,6 +291,9 @@ def fix_ip():
                 new_bat0.append(head + new_ip + tail)
             else:
                 new_bat0.append(line)
+    if not found:
+        print(f'No address entry found in <{bat0}>.')
+        return False
     # rewrite the file and reboot if the IP needs to be updated
     if updated:
         print(f'Updating <{bat0}>...')
@@ -294,7 +301,8 @@ def fix_ip():
             file.writelines(new_bat0)
         print(f'IP address in <{bat0}> updated from <{curr_ip}> to <{new_ip}>.')
         print('Restarting...')
-        subprocess.run(['sudo', 'reboot'])
+        return not subprocess.run(['sudo', 'reboot']).returncode
+    return True
 
 
 @cmd(category='Network', admin=True, args_hint='[interface] [ssid] [password]')
@@ -304,7 +312,7 @@ def setup_hotspot(interface='wlan0', ssid='SIMOC', password='simoc123'):
     hotspot_nmconn = NM_DIR / f'{HOTSPOT_CONN}.nmconnection'
     if hotspot_nmconn.exists():
         print('Hotspot already set up.  Use `teardown-hotspot` to remove.')
-        return
+        return True
     repls = dict(
         conn_id=HOTSPOT_CONN, conn_uuid=uuid.uuid4(), conn_interface=interface,
         wifi_mode='ap', wifi_ssid=ssid, wifi_pass=password, wifi_extra='band=bg\n',
@@ -326,10 +334,10 @@ def setup_wifi(ssid=None, password=None, interface='wlan0'):
     wifi_nmconn = NM_DIR / f'{WIFI_CONN}.nmconnection'
     if wifi_nmconn.exists():
         print('WiFi connection already set up.  Use `teardown-wifi` to remove.')
-        return
+        return True
     if ssid is None or password is None:
         print('Please provide the SSID and the password.')
-        return
+        return False
     repls = dict(
         conn_id=WIFI_CONN, conn_uuid=uuid.uuid4(), conn_interface=interface,
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
@@ -379,22 +387,24 @@ def setup_mosquitto():
     mosquitto_conf_dest.chmod(0o644)
     os.chown(mosquitto_conf_dest, 0, 0)  # owner is now root
     print(f'Mosquitto configuration deployed to {mosquitto_conf_dest}')
-    if (run(['systemctl', 'enable', 'mosquitto']) and
-        run(['systemctl', 'restart', 'mosquitto'])):
+    success = (run(['systemctl', 'enable', 'mosquitto']) and
+               run(['systemctl', 'restart', 'mosquitto']))
+    if success:
         print('Mosquitto service enabled and started.')
     else:
         print('Failed to enable/start mosquitto service. Check logs with:')
         print('  journalctl -u mosquitto -n 50')
+    return success
 
 @cmd(category='Services', admin=True)
 @needs_root
 def teardown_mosquitto():
     """Revert the changes made by the setup-mosquitto command."""
-    run(['systemctl', 'stop', 'mosquitto'])
-    run(['systemctl', 'disable', 'mosquitto'])
-    print('Mosquitto service stopped and disabled.')
+    stopped = run(['systemctl', 'stop', 'mosquitto'])
+    disabled = run(['systemctl', 'disable', 'mosquitto'])
     mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
     mosquitto_conf_dest.unlink(missing_ok=True)
+    return stopped and disabled
 
 
 def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
@@ -412,19 +422,17 @@ def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
         unit_path.unlink()
     unit_path.symlink_to(target_path)
     print(f'Created symlink {unit_path} → {target_path}.')
-    if enable:
-        run(['systemctl', 'enable', unit_name])
-    if start:
-        run(['systemctl', 'restart', unit_name])
+    enabled = run(['systemctl', 'enable', unit_name]) if enable else True
+    started = run(['systemctl', 'restart', unit_name]) if start else True
+    return enabled and started
 
 def teardown_systemd_unit(name, unit_type='service', stop=True, disable=True):
     """Optionally stop/disable the unit and then remove the symlink."""
     unit_name = f'{name}.{unit_type}'
-    if stop:
-        run(['systemctl', 'stop', unit_name])
-    if disable:
-        run(['systemctl', 'disable', unit_name])
+    stopped = run(['systemctl', 'stop', unit_name]) if stop else True
+    disabled = run(['systemctl', 'disable', unit_name]) if disable else True
     pathlib.Path(SYSTEMD_DIR / unit_name).unlink(missing_ok=True)
+    return stopped and disabled
 
 
 def setup_or_teardown_sensors(function, sensors=None):
@@ -433,20 +441,19 @@ def setup_or_teardown_sensors(function, sensors=None):
         sensors = sensors.split(',')
     else:
         sensors = simoc_config.sensors
-    for sensor in sensors:
-        function(f'sensor-runner@{sensor}')
+    return all([function(f'sensor-runner@{sensor}') for sensor in sensors])
 
 @cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (blank = all from config)')
 @needs_root
 def setup_sensors(sensors=None):
     """Setup systemd services that run the sensors."""
-    setup_or_teardown_sensors(setup_systemd_unit, sensors)
+    return setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
 @cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (blank = all from config)')
 @needs_root
 def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command."""
-    setup_or_teardown_sensors(teardown_systemd_unit, sensors)
+    return setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
 def setup_or_teardown_display(function, display=None):
     """Setup/teardown systemd service that runs the display."""
@@ -454,58 +461,58 @@ def setup_or_teardown_display(function, display=None):
         display = simoc_config.display
     if not display:
         print('No display specified -- aborting.')
-        return
-    function(f'display-runner@{display}')
+        return False
+    return function(f'display-runner@{display}')
 
 @cmd(category='Services', admin=True, args_hint='display-name  (blank = from config)')
 @needs_root
 def setup_display(display=None):
     """Setup systemd service that runs the display."""
-    setup_or_teardown_display(setup_systemd_unit, display)
+    return setup_or_teardown_display(setup_systemd_unit, display)
 
 @cmd(category='Services', admin=True)
 @needs_root
 def teardown_display(display=None):
     """Revert the changes made by the setup-display command."""
-    setup_or_teardown_display(teardown_systemd_unit, display)
+    return setup_or_teardown_display(teardown_systemd_unit, display)
 
 
 @cmd(category='Services', admin=True)
 @needs_root
 def setup_siobridge():
     """Setup a systemd service that runs the siobridge."""
-    setup_systemd_unit('siobridge')
+    return setup_systemd_unit('siobridge')
 
 @cmd(category='Services', admin=True)
 @needs_root
 def teardown_siobridge():
     """Revert the changes made by the setup-siobridge command."""
-    teardown_systemd_unit('siobridge')
+    return teardown_systemd_unit('siobridge')
 
 
 @cmd(category='Services', admin=True)
 @needs_root
 def setup_csvwriter():
     """Setup a systemd service that runs the csvwriter."""
-    setup_systemd_unit('csvwriter')
+    return setup_systemd_unit('csvwriter')
 
 @cmd(category='Services', admin=True)
 @needs_root
 def teardown_csvwriter():
     """Revert the changes made by the setup-csvwriter command."""
-    teardown_systemd_unit('csvwriter')
+    return teardown_systemd_unit('csvwriter')
 
 @cmd(category='Services', admin=True)
 @needs_root
 def setup_sqlwriter():
     """Setup a systemd service that runs the sqlwriter."""
-    setup_systemd_unit('sqlwriter')
+    return setup_systemd_unit('sqlwriter')
 
 @cmd(category='Services', admin=True)
 @needs_root
 def teardown_sqlwriter():
     """Revert the changes made by the setup-sqlwriter command."""
-    teardown_systemd_unit('sqlwriter')
+    return teardown_systemd_unit('sqlwriter')
 
 
 @cmd(category='Frontend', admin=True)
@@ -554,30 +561,31 @@ def setup_nginx():
     if not run(['systemctl', 'is-enabled', 'nginx']):
         run(['systemctl', 'enable', 'nginx'])
     if not run(['systemctl', 'is-active', 'nginx']):
-        run(['systemctl', 'start', 'nginx'])
+        return run(['systemctl', 'start', 'nginx'])
     else:
-        run(['systemctl', 'reload', 'nginx'])  # reload to apply new config
+        return run(['systemctl', 'reload', 'nginx'])  # reload to apply new config
 
 @cmd(category='Frontend', admin=True)
 @needs_root
 def teardown_nginx():
     """Revert the changes made by the setup-nginx command."""
-    run(['systemctl', 'stop', 'nginx'])
-    run(['systemctl', 'disable', 'nginx'])
+    stopped = run(['systemctl', 'stop', 'nginx'])
+    disabled = run(['systemctl', 'disable', 'nginx'])
     pathlib.Path('/etc/nginx/sites-enabled/simoc_live').unlink(missing_ok=True)
+    return stopped and disabled
 
 
 @cmd(category='Services', admin=True)
 @needs_root
 def setup_flask():
     """Setup a systemd service that runs the Flask API."""
-    setup_systemd_unit('flaskapi')
+    return setup_systemd_unit('flaskapi')
 
 @cmd(category='Services', admin=True)
 @needs_root
 def teardown_flask():
     """Revert the changes made by the setup-flask command."""
-    teardown_systemd_unit('flaskapi')
+    return teardown_systemd_unit('flaskapi')
 
 
 @cmd(category='Frontend', admin=True)
@@ -588,21 +596,27 @@ def setup_frontend():
     dist_dir = simoc_config.simoc_web_dist_dir
     print(f'Copying {frontend_dir} to {dist_dir}...')
     shutil.copytree(frontend_dir, dist_dir, dirs_exist_ok=True)
-    setup_sqlwriter()
-    setup_nginx()
-    setup_flask()
-    print(f'\nFrontend available at: http://{HOSTNAME}.local/')
+    sqlwriter_ok = setup_sqlwriter()
+    nginx_ok = setup_nginx()
+    flask_ok = setup_flask()
+    success = sqlwriter_ok and nginx_ok and flask_ok
+    if success:
+        print(f'\nFrontend available at: http://{HOSTNAME}.local/')
+    else:
+        print('\nFrontend setup failed; see command output above.')
+    return success
 
 @cmd(category='Frontend', admin=True)
 @needs_root
 def teardown_frontend():
     """Revert the changes made by the setup-frontend command."""
-    teardown_flask()
-    teardown_nginx()
+    flask_ok = teardown_flask()
+    nginx_ok = teardown_nginx()
     dist_dir = simoc_config.simoc_web_dist_dir
     if dist_dir.exists():
         print(f'Removing {dist_dir}...')
         shutil.rmtree(dist_dir)
+    return flask_ok and nginx_ok
 
 
 @cmd
@@ -620,10 +634,10 @@ def test(test_path=None):
 def run_tmux(file='mqtt'):
     """Launch a tmux script (or attach to an existing session)."""
     if run(['tmux', 'has-session', '-t', TMUX_SNAME]):
-        run(['tmux', 'attach-session', '-t', TMUX_SNAME])  # attach to sessions
+        return run(['tmux', 'attach-session', '-t', TMUX_SNAME])  # attach to sessions
     else:
         tmux_path = SIMOC_SAM_DIR / 'tmux' / f'{file}.sh'
-        run([str(tmux_path), TMUX_SNAME])  # start new sessions
+        return run([str(tmux_path), TMUX_SNAME])  # start new sessions
 
 
 @cmd(category='Info', admin=True)
@@ -632,6 +646,7 @@ def info():
     """Print host info about the network and devices."""
     import hostinfo
     hostinfo.print_info()
+    return True
 
 @cmd(category='Info', admin=True)
 @needs_venv
@@ -639,6 +654,7 @@ def network_info():
     """Print info about the network (hostname, addresses)."""
     import hostinfo
     hostinfo.print_network_info()
+    return True
 
 @cmd(category='Info', admin=True)
 @needs_venv
@@ -646,18 +662,21 @@ def devices_info():
     """Print info about the connected I2C devices."""
     import hostinfo
     hostinfo.print_devices_info()
+    return True
 
 @cmd(category='Info', admin=True)
 def services_info():
     """Print status of SIMOC Live services and key system services."""
     import hostinfo
     hostinfo.print_services()
+    return True
 
 @cmd
 def hosts(target=None):
     """Print info about the other hosts in the network."""
     import netinfo
     netinfo.print_info(target)
+    return True
 
 
 VERNIER_USB_RULES = """\
@@ -705,24 +724,25 @@ def install_touchscreen():
         run(['sed', '-i', '-e', '/hdmi_cvt / s/480 320/960 640/',
              str(script_path)])  # update res (also: fbset -xres 960 -yres 640)
         run(['chmod', '-R', '775', str(repo_path)])  # fix permissions
-        run([str(script_path)])  # install the screen and reboot
+        return run([str(script_path)])  # install the screen and reboot
 
 @cmd
 def initial_setup():
     """Perform the initial setup of the Raspberry Pi."""
     print('Installing bash aliases...')
-    install_bash_aliases()
+    aliases_ok = install_bash_aliases()
     print('Removing empty home dirs...')
-    remove_home_dirs()
+    dirs_ok = remove_home_dirs()
     print('Enabling i2c...')
-    enable_i2c()
+    i2c_ok = enable_i2c()
     print('Setting up locale...')
-    setup_locale()
+    locale_ok = setup_locale()
     print('Updating apt packages...')
-    update_apt_packages()
+    apt_ok = update_apt_packages()
     print('Setting up virtualenv...')
-    create_venv()
+    venv_ok = create_venv()
     print('Initial setup complete.\n\nPlease reboot the system.\n')
+    return aliases_ok and dirs_ok and i2c_ok and locale_ok and apt_ok and venv_ok
 
 
 def install_bash_aliases():
@@ -732,6 +752,7 @@ def install_bash_aliases():
         (HOME / f'.{fname}').symlink_to(SIMOC_SAM_DIR / fname)
     except FileExistsError:
         print(f'<~/.{fname}> already exists!')
+    return True
 
 def remove_home_dirs():
     """Remove unused default directories from the user's home."""
@@ -742,6 +763,7 @@ def remove_home_dirs():
             (HOME / dir_name).rmdir()
         except (FileNotFoundError, OSError):
             pass  # skip missing dirs or dirs that are not empty
+    return True
 
 def update_apt_packages():
     """Remove, update, upgrade, and install apt packages."""
@@ -753,11 +775,12 @@ def update_apt_packages():
         run(['sudo', 'apt', 'install', '-y'] + APT_INSTALL, check=True)
     run(['sudo', 'apt', 'autoremove', '-y'], check=True)
     run(['sudo', 'apt', 'autoclean'], check=True)
+    return True
 
 def raspi_config(cmd, *args):
     """Run raspi-config with the specified command and arguments."""
-    return subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args],
-                          check=True)
+    return not subprocess.run(['sudo', 'raspi-config', 'nonint', cmd, *args],
+                              check=True).returncode
 
 @cmd
 def setup_locale(locale='en_US.UTF-8'):
@@ -767,7 +790,7 @@ def setup_locale(locale='en_US.UTF-8'):
 @cmd
 def enable_i2c():
     """Enable i2c using raspi-config."""
-    raspi_config('do_i2c', '0')
+    return raspi_config('do_i2c', '0')
 
 def parse_timestamp(timestamp):
     """Parse a timestamp string (ISO format or Unix timestamp)."""
@@ -886,14 +909,14 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
     config_path = simoc_config.config_path()
     if path:
         print(config_path)
-        return
+        return True
     if create:
         if config_path.exists():
             print(f'Config file already exists: {config_path}')
-            return
+            return True
         write_default_config(config_path)
         print(f'Created: {config_path}')
-        return
+        return True
     if clean:
         if config_path.exists():
             config_path.unlink()
@@ -902,7 +925,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
                 config_path.parent.rmdir()  # remove parent directory if empty
         else:
             print('No user config file found.')
-        return
+        return True
     if edit:
         if not config_path.exists():
             write_default_config(config_path)
@@ -918,11 +941,11 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
             else:
                 print('Config is valid.')
                 break
-        return
+        return True
     schema = simoc_config.get_schema()
     if defaults:
         simoc_config.print_defaults(schema)
-        return
+        return True
     if key is not None:
         key = key.replace('-', '_')   # accept both var-name and var_name
         if key not in schema:
@@ -933,7 +956,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
         user_overrides = simoc_config.read_user_overrides()
         if key is None:
             simoc_config.print_all(schema, user_overrides)
-            return
+            return True
         if reset:
             if key in user_overrides:
                 del user_overrides[key]
@@ -942,16 +965,17 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
                 print(f'Reset {key} to default: {default}')
             else:
                 print(f'{key} is already at its default value.')
-            return
+            return True
         if value is None:
             simoc_config.print_one(key, schema, user_overrides)
-            return
+            return True
         parsed = simoc_config.parse_value(value, schema[key])
         user_overrides[key] = parsed
         simoc_config.save_user_config(user_overrides)
         print(f'{key} = {simoc_config.format_value(parsed)}')
         for related in simoc_config.RELATED_COMMANDS.get(key, ()):
             print(f'  To apply: sam {related}')
+        return True
     except (simoc_config.InvalidConfig, ValueError, TypeError) as exc:
         print(f'Error: {exc}')
         return False
@@ -1021,10 +1045,15 @@ def main():
     call_kwargs = {k: v for k, v in vars(args).items() if k in func.params}
     call_args = [call_kwargs.pop(name) for name, param in func.params.items()
                  if param.default is inspect.Parameter.empty]
-    result = func(*call_args, **call_kwargs)
-    # Only treat False as failure (informational commands might return None)
-    sys.exit(0 if result is not False else 1)
+    try:
+        return func(*call_args, **call_kwargs)
+    except KeyboardInterrupt:
+        print('Aborted.')
+        return False
+    except Exception as exc:
+        print(exc)
+        return False
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(not main())
