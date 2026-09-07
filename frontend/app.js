@@ -627,7 +627,10 @@ async function loadAdmin() {
     if (!visibility.enabled) return;
     if (visibility.secure && !adminState.csrfToken) await loginAdmin();
     if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
-    await Promise.all([loadAdminConfig(), loadAdminCommands()]);
+    $('#admin-commands-panel').hidden = !visibility.allow_commands;
+    const tasks = [loadAdminConfig()];
+    if (visibility.allow_commands) tasks.push(loadAdminCommands());
+    await Promise.all(tasks);
     adminState.loaded = true;
     $('#btn-admin-logout').hidden = !visibility.secure;
   } catch (err) {
