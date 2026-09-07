@@ -26,12 +26,14 @@ class InvalidConfig(ValueError):
 
 
 _GROUPS: list[tuple[str, list[str]]] = [
-    ('Admin', ['admin_enabled', 'admin_secure', 'admin_visible']),
+    ('Admin', ['admin_enabled', 'admin_secure', 'admin_visible',
+               'admin_allow_commands', 'admin_allow_power']),
     ('HAB info', ['location', 'humans', 'volume']),
     ('Sensors', ['sensors', 'sensor_read_delay']),
     ('Display', ['display', 'display_refresh', 'display_format']),
     ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure',
               'mqtt_certs_dir', 'mqtt_reconnect_delay']),
+    ('SIMOC Live frontend', ['use_https']),
     ('SIMOC Web', ['sio_host', 'sio_port', 'data_source',
                    'mqtt_topic_sub', 'simoc_web_dist_dir']),
     ('Flask API', ['api_host', 'api_port']),
@@ -65,6 +67,10 @@ class SimocConfig:
     admin_enabled: bool = False
     admin_secure: bool = True
     admin_visible: bool = False
+    # generic "run any whitelisted command" and fixed reboot/shutdown actions --
+    # both off by default, independent of each other
+    admin_allow_commands: bool = False
+    admin_allow_power: bool = False
 
     # HAB info
     location: str | None = None
@@ -86,6 +92,11 @@ class SimocConfig:
     mqtt_secure: bool = False
     mqtt_certs_dir: pathlib.Path = pathlib.Path('~/.mqttcerts')
     mqtt_reconnect_delay: float = 5.0
+
+    # SIMOC Live frontend
+    # self-signed HTTPS causes browser warnings -- off by default since the
+    # sniffing risk on a local network is low compared to that UX cost
+    use_https: bool = False
 
     # SIMOC Web / SIO bridge
     sio_host: str = 'localhost'

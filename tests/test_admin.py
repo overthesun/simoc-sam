@@ -19,7 +19,9 @@ def client(tmp_path):
         admin._LOGIN_ATTEMPTS.clear()
     with patch.object(admin.sam_config, 'config_path', return_value=config_path), \
          patch.object(admin, '_admin_enabled', return_value=True), \
-         patch.object(admin, '_admin_secure', return_value=False):
+         patch.object(admin, '_admin_secure', return_value=False), \
+         patch.object(admin, '_admin_allow_commands', return_value=True), \
+         patch.object(admin, '_admin_allow_power', return_value=True):
         with app.test_client() as test_client:
             with test_client.session_transaction() as session:
                 session['csrf_token'] = 'test-csrf-token'
@@ -348,6 +350,69 @@ def test_post_run_executes_allowed_command(client):
         'stderr': '',
     }
     run_command.assert_called_once_with(command, ['valid-value'])
+
+
+def test_get_commands_disabled_by_default(client):
+    test_client, _ = client
+    with patch.object(admin, '_admin_allow_commands', return_value=False):
+        response = test_client.get('/api/admin/commands')
+    assert response.status_code == 403
+
+
+def test_post_run_disabled_by_default(client):
+    test_client, _ = client
+    command = {'name': 'safe-command', 'needs_root': False}
+    with patch.object(admin, '_admin_allow_commands', return_value=False), \
+         patch.dict(admin._ALL_COMMANDS, {'safe-command': command}):
+        response = test_client.post('/api/admin/run', json={'cmd': 'safe-command'})
+    assert response.status_code == 403
+
+
+def test_get_visibility_exposes_allow_flags(client):
+    test_client, config_path = client
+    config_path.write_text('admin_enabled = true\nadmin_allow_commands = true\n'
+                           'admin_allow_power = false\n')
+    response = test_client.get('/api/admin/visibility')
+    data = response.get_json()
+    assert data['allow_commands'] is True
+    assert data['allow_power'] is False
+
+
+def test_post_power_disabled_by_default(client):
+    test_client, _ = client
+    with patch.object(admin, '_admin_allow_power', return_value=False):
+        response = test_client.post('/api/admin/power', json={'action': 'reboot'})
+    assert response.status_code == 403
+
+
+def test_post_power_rejects_unknown_action(client):
+    test_client, _ = client
+    response = test_client.post('/api/admin/power', json={'action': 'nuke'})
+    assert response.status_code == 400
+
+
+def test_post_power_runs_reboot(client):
+    test_client, _ = client
+    completed = (True, '', '')
+    with patch.object(admin, '_run_command', return_value=completed) as run_command:
+        response = test_client.post('/api/admin/power', json={'action': 'reboot'})
+    assert response.status_code == 200
+    assert response.get_json()['success'] is True
+    command, extra_args = run_command.call_args.args
+    assert command['name'] == 'reboot'
+    assert extra_args == []
+
+
+def test_post_power_runs_shutdown(client):
+    test_client, _ = client
+    completed = (True, '', '')
+    with patch.object(admin, '_run_command', return_value=completed) as run_command:
+        response = test_client.post('/api/admin/power', json={'action': 'shutdown'})
+    assert response.status_code == 200
+    assert response.get_json()['success'] is True
+    command, extra_args = run_command.call_args.args
+    assert command['name'] == 'shutdown'
+    assert extra_args == []
 
 
 def test_run_command_builds_root_command():

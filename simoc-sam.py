@@ -514,18 +514,36 @@ def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
     if not shutil.which('nginx'):
         sys.exit('nginx not found. Install it with `sudo apt install nginx`.')
+    use_https = simoc_config.use_https
     # remove default site and add simoc_live site
     sites_enabled = pathlib.Path('/etc/nginx/sites-enabled/')
     default = sites_enabled / 'default'
     if default.exists():
         default.unlink()  # remove default site
+    if use_https:
+        if not shutil.which('openssl'):
+            sys.exit('openssl not found. Install it with `sudo apt install openssl`.')
+        ssl_dir = pathlib.Path('/etc/nginx/ssl')
+        ssl_dir.mkdir(parents=True, exist_ok=True)
+        certificate = ssl_dir / 'simoc-sam.crt'
+        private_key = ssl_dir / 'simoc-sam.key'
+        if not certificate.exists() or not private_key.exists():
+            subprocess.run([
+                'openssl', 'req', '-x509', '-nodes', '-newkey', 'rsa:2048',
+                '-days', '3650', '-keyout', str(private_key),
+                '-out', str(certificate), '-subj', f'/CN={HOSTNAME}',
+                '-addext', f'subjectAltName=DNS:{HOSTNAME},DNS:{HOSTNAME}.local,DNS:localhost,IP:127.0.0.1',
+            ], check=True)
+            private_key.chmod(0o600)
+            certificate.chmod(0o644)
     simoc_live_tmpl = CONFIGS_DIR / 'simoc_live.tmpl'
     simoc_live = CONFIGS_DIR / 'simoc_live'
     shutil.copy(simoc_live_tmpl, simoc_live)
     dist_dir = simoc_config.simoc_web_dist_dir
     write_template(simoc_live, dict(hostname=HOSTNAME, dist_dir=dist_dir,
                                     api_port=simoc_config.api_port,
-                                    sio_port=simoc_config.sio_port))
+                                    sio_port=simoc_config.sio_port,
+                                    use_https=use_https))
 
     simoc_live_link = sites_enabled / 'simoc_live'
     if simoc_live_link.exists() or simoc_live_link.is_symlink():
@@ -822,6 +840,19 @@ def write_default_config(config_path):
     """Write a fresh config template (all settings commented out) to config_path."""
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(simoc_config.generate_config())
+
+
+@cmd(category='System', admin=True)
+@needs_root
+def reboot():
+    """Reboot the system."""
+    return run(['systemctl', 'reboot'])
+
+@cmd(category='System', admin=True)
+@needs_root
+def shutdown():
+    """Shut down (power off) the system."""
+    return run(['systemctl', 'poweroff'])
 
 
 @cmd

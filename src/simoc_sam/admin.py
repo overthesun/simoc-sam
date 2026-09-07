@@ -202,6 +202,20 @@ def _admin_secure():
         return True
 
 
+def _admin_allow_commands():
+    try:
+        return sam_config.get_config().admin_allow_commands
+    except sam_config.InvalidConfig:
+        return False
+
+
+def _admin_allow_power():
+    try:
+        return sam_config.get_config().admin_allow_power
+    except sam_config.InvalidConfig:
+        return False
+
+
 def _login_required():
     if not _admin_secure() or not session.get('admin_authenticated', False):
         return _admin_secure()
@@ -263,6 +277,8 @@ def get_visibility():
         'enabled': cfg.admin_enabled,
         'visible': cfg.admin_enabled and cfg.admin_visible,
         'secure': cfg.admin_secure,
+        'allow_commands': cfg.admin_allow_commands,
+        'allow_power': cfg.admin_allow_power,
         'csrf_token': csrf_token if cfg.admin_enabled and not cfg.admin_secure else None,
     })
 
@@ -378,6 +394,8 @@ def post_config():
 @admin_bp.get('/commands')
 def get_commands():
     """Return the grouped command whitelist."""
+    if not _admin_allow_commands():
+        return jsonify({'error': 'Running commands is disabled'}), 403
     return jsonify({'commands': COMMANDS})
 
 
@@ -387,6 +405,8 @@ def post_run():
 
     Body: { cmd: str, args?: [str] }
     """
+    if not _admin_allow_commands():
+        return jsonify({'error': 'Running commands is disabled'}), 403
     payload = _json_object()
     command_name = payload.get('cmd', '')
     extra_args = payload.get('args', [])
@@ -404,4 +424,31 @@ def post_run():
     except ValueError:
         return jsonify({'error': 'Command arguments are invalid'}), 400
     success, stdout, stderr = _run_command(command, validated_args)
+    return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})
+
+
+# Fixed, no-argument power actions -- gated by admin_allow_power, independent
+# of admin_allow_commands, since a locked-down instance may still want a
+# safe way to reboot/shut down without exposing the full command whitelist.
+_POWER_ACTIONS = {'reboot': 'reboot', 'shutdown': 'shutdown'}
+
+
+@admin_bp.post('/power')
+def post_power():
+    """Run a fixed reboot/shutdown action.
+
+    Body: { action: 'reboot' | 'shutdown' }
+    """
+    if not _admin_allow_power():
+        return jsonify({'error': 'Power actions are disabled'}), 403
+    payload = _json_object()
+    action = payload.get('action')
+    command_name = _POWER_ACTIONS.get(action)
+    if command_name is None:
+        return jsonify({'error': f'Unknown action: {action!r}'}), 400
+    command = _ALL_COMMANDS.get(command_name)
+    if command is None:
+        LOGGER.error('Power action %r missing from the command registry', command_name)
+        return jsonify({'error': 'Command unavailable'}), 500
+    success, stdout, stderr = _run_command(command, [])
     return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})

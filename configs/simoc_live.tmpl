@@ -1,6 +1,24 @@
+{% if use_https %}
 server {
     listen 80 default_server;
     server_name {{hostname}};
+
+    return 301 https://$host$request_uri;
+}
+{% endif %}
+
+server {
+{% if use_https %}
+    listen 443 ssl default_server;
+    server_name {{hostname}};
+
+    ssl_certificate /etc/nginx/ssl/simoc-sam.crt;
+    ssl_certificate_key /etc/nginx/ssl/simoc-sam.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+{% else %}
+    listen 80 default_server;
+    server_name {{hostname}};
+{% endif %}
 
     root {{dist_dir}};
     index index.html;

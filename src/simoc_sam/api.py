@@ -47,6 +47,7 @@ def create_app(db_path=None):
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Strict',
+        SESSION_COOKIE_SECURE=True,
     )
     app.config['DB_PATH'] = db_path or config.db_path
 
