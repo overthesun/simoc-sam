@@ -246,10 +246,12 @@ def fix_ip():
         print('Invalid hostname (should be "samrpiN").')
         return False
     updated = False
+    found = False
     new_bat0 = []
     with open(bat0) as file:
         for line in file:
             if match := address_re.fullmatch(line):
+                found = True
                 head, curr_ip, three_octs, last_oct, tail = match.groups()
                 new_ip = three_octs + hostnum  # update last octet
                 if new_ip != curr_ip:
@@ -257,6 +259,9 @@ def fix_ip():
                 new_bat0.append(head + new_ip + tail)
             else:
                 new_bat0.append(line)
+    if not found:
+        print(f'No address entry found in <{bat0}>.')
+        return False
     # rewrite the file and reboot if the IP needs to be updated
     if updated:
         print(f'Updating <{bat0}>...')
@@ -264,7 +269,7 @@ def fix_ip():
             file.writelines(new_bat0)
         print(f'IP address in <{bat0}> updated from <{curr_ip}> to <{new_ip}>.')
         print('Restarting...')
-        subprocess.run(['sudo', 'reboot'])
+        return not subprocess.run(['sudo', 'reboot']).returncode
     return True
 
 
@@ -365,7 +370,6 @@ def teardown_mosquitto():
     """Revert the changes made by the setup-mosquitto command."""
     stopped = run(['systemctl', 'stop', 'mosquitto'])
     disabled = run(['systemctl', 'disable', 'mosquitto'])
-    print('Mosquitto service stopped and disabled.')
     mosquitto_conf_dest = MOSQUITTO_DIR / 'simoc-sam.conf'
     mosquitto_conf_dest.unlink(missing_ok=True)
     return stopped and disabled
@@ -545,8 +549,12 @@ def setup_frontend():
     sqlwriter_ok = setup_sqlwriter()
     nginx_ok = setup_nginx()
     flask_ok = setup_flask()
-    print(f'\nFrontend available at: http://{HOSTNAME}.local/')
-    return sqlwriter_ok and nginx_ok and flask_ok
+    success = sqlwriter_ok and nginx_ok and flask_ok
+    if success:
+        print(f'\nFrontend available at: http://{HOSTNAME}.local/')
+    else:
+        print('\nFrontend setup failed; see command output above.')
+    return success
 
 @cmd
 @needs_root
