@@ -108,6 +108,31 @@ def test_init_db_field_types(db_conn):
     assert scd_cols['temperature'] == 'REAL'
 
 
+def test_init_db_creates_indexes(db_conn):
+    for sensor_name in SENSOR_DATA:
+        indexes = {row[1]: row[2] for row in
+                   db_conn.execute(f'PRAGMA index_list({sensor_name})')}
+        assert f'idx_{sensor_name}_sensor_id_ts' in indexes
+        assert f'idx_{sensor_name}_ts' in indexes
+        ts_cols = [row[2] for row in
+                   db_conn.execute(f'PRAGMA index_info(idx_{sensor_name}_ts)')]
+        assert ts_cols == ['timestamp']
+        comp_cols = [row[2] for row in
+                     db_conn.execute(f'PRAGMA index_info(idx_{sensor_name}_sensor_id_ts)')]
+        assert comp_cols == ['sensor_id', 'timestamp']
+
+
+def test_timestamp_range_query_uses_ts_index(db_conn):
+    """Timestamp-only range queries must use the covering timestamp index
+    (without it they fall back to a full table scan; see idx_*_ts)."""
+    plan = ' '.join(row[3] for row in db_conn.execute(
+        'EXPLAIN QUERY PLAN '
+        'SELECT id FROM scd30 WHERE timestamp >= ? AND timestamp < ? '
+        'ORDER BY timestamp ASC LIMIT 1', ('2026-01-01', '2026-02-01')))
+    assert 'COVERING INDEX idx_scd30_ts' in plan
+    assert 'SCAN' not in plan
+
+
 # --- get_readings ---
 
 def test_get_readings_columnar_format(db_conn):
