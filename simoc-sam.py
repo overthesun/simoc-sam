@@ -974,9 +974,12 @@ def main():
     call_kwargs = {k: v for k, v in vars(args).items() if k in func.params}
     call_args = [call_kwargs.pop(name) for name, param in func.params.items()
                  if param.default is inspect.Parameter.empty]
-    result = func(*call_args, **call_kwargs)
-    sys.exit(not result)
+    try:
+        return func(*call_args, **call_kwargs)
+    except Exception as exc:
+        print(exc)
+        return False
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(not main())
