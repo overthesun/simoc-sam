@@ -514,7 +514,7 @@ def teardown_sqlwriter():
     """Revert the changes made by the setup-sqlwriter command."""
     return teardown_systemd_unit('sqlwriter')
 
-@cmd(category='Services', admin=True)
+@cmd(category='System', admin=True)
 @needs_root
 def delete_db():
     """Delete the database and all the sensor data collected."""
@@ -529,7 +529,7 @@ def delete_db():
     db_path.unlink(missing_ok=True)
     db_path.with_suffix('.db-wal').unlink(missing_ok=True)
     db_path.with_suffix('.db-shm').unlink(missing_ok=True)
-    print('[done]')
+    print('[done]\n')
     if sqlwriter_active:
         return setup_sqlwriter()
     return True
