@@ -518,7 +518,7 @@ def teardown_sqlwriter():
 @needs_root
 def delete_db():
     """Delete the database and all the sensor data collected."""
-    db_path = config.db_path
+    db_path = simoc_config.db_path
     if not db_path.exists():
         print('Database does not exist.')
         return True
