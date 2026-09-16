@@ -522,16 +522,17 @@ def delete_db():
     if not db_path.exists():
         print('Database does not exist.')
         return True
-    teardown_sqlwriter()
-    try:
-        print('Deleting db...', end=' ')
-        db_path.unlink(missing_ok=True)
-        db_path.with_suffix('.wal').unlink(missing_ok=True)
-        db_path.with_suffix('.shm').unlink(missing_ok=True)
-        print('[done]')
-    finally:
-        sqlwriter_ok = setup_sqlwriter()
-    return sqlwriter_ok
+    sqlwriter_active = run(['systemctl', 'is-active', 'sqlwriter'])
+    if sqlwriter_active:
+        teardown_sqlwriter()
+    print('Deleting db...', end=' ')
+    db_path.unlink(missing_ok=True)
+    db_path.with_suffix('.wal').unlink(missing_ok=True)
+    db_path.with_suffix('.shm').unlink(missing_ok=True)
+    print('[done]')
+    if sqlwriter_active:
+        return setup_sqlwriter()
+    return True
 
 
 @cmd(category='Frontend', admin=True)
