@@ -176,6 +176,16 @@ def update():
         print('Update failed: see error log above for details.')
     return success
 
+@cmd(category='System', admin=True)
+def change_branch(branch):
+    """Change the current git branch."""
+    if run(["git", "switch", branch], cwd=SIMOC_SAM_DIR):
+        return True  # switched successfully
+    if not run(["git", "fetch", "origin", branch], cwd=SIMOC_SAM_DIR):
+        return False  # branch doesn't exist on origin either
+    # try switching again after fetching successfully
+    return run(["git", "switch", branch], cwd=SIMOC_SAM_DIR)
+
 
 target_re = re.compile(r'^(?:([^@]+)@)?([^:]+)(?::([^:]+))?$')
 ipv4_re = re.compile(r'^\d+\.\d+\.\d+\.\d+$')  # does it look like an IPv4?
