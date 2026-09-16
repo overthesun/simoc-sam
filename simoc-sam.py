@@ -527,8 +527,8 @@ def delete_db():
         teardown_sqlwriter()
     print('Deleting db...', end=' ')
     db_path.unlink(missing_ok=True)
-    db_path.with_suffix('.wal').unlink(missing_ok=True)
-    db_path.with_suffix('.shm').unlink(missing_ok=True)
+    db_path.with_suffix('.db-wal').unlink(missing_ok=True)
+    db_path.with_suffix('.db-shm').unlink(missing_ok=True)
     print('[done]')
     if sqlwriter_active:
         return setup_sqlwriter()
