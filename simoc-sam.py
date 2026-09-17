@@ -144,7 +144,7 @@ def update():
         print('Update failed: see error log above for details.')
     return success
 
-@cmd(category='System', admin=True)
+@cmd
 def change_branch(branch):
     """Change the current git branch."""
     if run(["git", "switch", branch], cwd=SIMOC_SAM_DIR):
