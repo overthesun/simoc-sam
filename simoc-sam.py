@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import pwd
 import uuid
 import shlex
 import shutil
@@ -28,7 +29,18 @@ except ModuleNotFoundError:
     simoc_config = None
 
 
-HOME = pathlib.Path.home()
+SUDO_USER = os.environ.get('SUDO_USER')  # the original user who invoked sudo
+RUNNING_WITH_SUDO = os.geteuid() == 0 and bool(SUDO_USER)
+if RUNNING_WITH_SUDO:
+    # non-root user running the script with sudo
+    USER = SUDO_USER
+    HOME = pathlib.Path(pwd.getpwnam(USER).pw_dir)
+else:
+    # script is run without sudo, or by root directly
+    USER = os.environ.get('USER') or os.environ.get('LOGNAME')
+    HOME = pathlib.Path.home()
+HOSTNAME = socket.gethostname()
+
 SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parent
 CONFIGS_DIR = SIMOC_SAM_DIR / 'configs'
 RPI_CONFIG = pathlib.Path('/boot/firmware/config.txt')
@@ -43,7 +55,6 @@ VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = SIMOC_SAM_DIR / 'requirements.txt'
 DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
 TMUX_SNAME = 'SAM'  # tmux session name
-HOSTNAME = socket.gethostname()
 
 APT_INSTALL = ['nmap', 'vim', 'tcpdump', 'tmux', 'nginx', 'avahi-utils',
                'mosquitto', 'mosquitto-clients', 'util-linux-extra']
@@ -142,6 +153,7 @@ def update():
         print('Code updated successfully.')
     else:
         print('Update failed: see error log above for details.')
+    write_service_env_file()  # update .env file
     return success
 
 
@@ -154,7 +166,7 @@ def copy_repo(target, *, exclude_venv=True, exclude_git=True):
     user = user or 'pi'
     path = path or '/home/pi/simoc-sam'
     repo = f'{pathlib.Path(__file__).parent}/'  # rsync wants the trailing /
-    excludes = ['--exclude', '**/__pycache__']
+    excludes = ['--exclude', '**/__pycache__', '--exclude', '.env']
     if exclude_venv:
         excludes.extend(['--exclude', 'venv'])
     if exclude_git:
@@ -375,8 +387,27 @@ def teardown_mosquitto():
     return stopped and disabled
 
 
+def write_service_env_file():
+    """Create environment file for systemd services."""
+    env_vars = {
+        'VENV_PY': VENV_PY,
+    }
+    env_file = SIMOC_SAM_DIR / '.env'
+    content = ''.join(f'{k}={v}\n' for k, v in env_vars.items())
+    # write to a temp file in the same dir, then atomically replace
+    with tempfile.NamedTemporaryFile(mode='w', dir=SIMOC_SAM_DIR, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = pathlib.Path(tmp.name)
+    # ensure the file is accessible/editable by other commands without sudo
+    if RUNNING_WITH_SUDO:
+        pw = pwd.getpwnam(USER)
+        os.chown(tmp_path, pw.pw_uid, pw.pw_gid)
+    os.replace(tmp_path, env_file)
+    print(f'Service environment file written to {env_file}')
+
 def setup_systemd_unit(name, unit_type='service', enable=True, start=True):
     """Setup a systemd unit by creating symlink and optionally enabling/starting."""
+    write_service_env_file()
     unit_name = f'{name}.{unit_type}'
     if '@' in name:
         # handle templates, e.g. sensor-runner@scd30 -> sensor-runner@.service
