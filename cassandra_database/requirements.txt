@@ -1,0 +1,3 @@
+cassandra-driver
+python-dotenv
+pyyaml
