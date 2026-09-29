@@ -3,3 +3,4 @@ __pycache__
 *.diff
 config.py
 configs/simoc_live
+.env
