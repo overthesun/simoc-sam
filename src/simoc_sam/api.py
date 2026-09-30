@@ -41,50 +41,66 @@ def to_unix_ms(ts):
 
 
 def get_data_chunks(conn, sensor, factor=5):
-    """Return gap-separated timestamp bounds without loading sensor values."""
-    sql = f'SELECT timestamp FROM {sensor} ORDER BY timestamp'
-    intervals = []
-    previous_ms = None
-    for (timestamp,) in conn.execute(sql):
-        timestamp_ms = to_unix_ms(timestamp)
-        if previous_ms is not None:
-            intervals.append(timestamp_ms - previous_ms)
-        previous_ms = timestamp_ms
+    """Return gap-separated timestamp bounds using SQLite window queries."""
+    ordered = f'''
+        SELECT timestamp, unixepoch(timestamp) AS timestamp_seconds,
+               LAG(unixepoch(timestamp)) OVER (ORDER BY timestamp) AS previous_seconds
+        FROM {sensor}
+    '''
+    median_sql = f'''
+        WITH ordered AS ({ordered}),
+        gaps AS (
+            SELECT (timestamp_seconds - previous_seconds) * 1000 AS gap_ms
+            FROM ordered
+            WHERE previous_seconds IS NOT NULL
+        ),
+        ranked AS (
+            SELECT gap_ms,
+                   ROW_NUMBER() OVER (ORDER BY gap_ms) AS position,
+                   COUNT(*) OVER () AS total
+            FROM gaps
+        )
+        SELECT gap_ms FROM ranked
+        WHERE position = total / 2 + 1
+    '''
+    median_row = conn.execute(median_sql).fetchone()
+    threshold = (median_row[0] if median_row else 0) * factor
 
-    if previous_ms is None:
-        return []
-    threshold = 0
-    if intervals:
-        intervals.sort()
-        threshold = intervals[len(intervals) // 2] * factor
-
+    chunks_sql = f'''
+        WITH ordered AS ({ordered}),
+        marked AS (
+            SELECT timestamp,
+                   timestamp_seconds * 1000 AS timestamp_ms,
+                   SUM(CASE WHEN previous_seconds IS NOT NULL
+                                 AND (timestamp_seconds - previous_seconds) * 1000 > ?
+                            THEN 1 ELSE 0 END)
+                       OVER (ORDER BY timestamp ROWS UNBOUNDED PRECEDING) AS chunk_id
+            FROM ordered
+        ),
+        grouped AS (
+            SELECT chunk_id, MIN(timestamp) AS start, MAX(timestamp) AS end,
+                   MIN(timestamp_ms) AS start_ms, MAX(timestamp_ms) AS end_ms
+            FROM marked
+            GROUP BY chunk_id
+        )
+        SELECT start, end, LEAD(start) OVER (ORDER BY chunk_id) AS next_start,
+               start_ms, end_ms
+        FROM grouped
+        ORDER BY chunk_id
+    '''
+    rows = conn.execute(chunks_sql, (threshold,)).fetchall()
     chunks = []
-    start = end = None
-    previous_ms = None
-    for (timestamp,) in conn.execute(sql):
-        timestamp_ms = to_unix_ms(timestamp)
-        if previous_ms is not None and timestamp_ms - previous_ms > threshold:
-            chunks.append({
-                'start': start,
-                'end': end,
-                'end_exclusive': timestamp,
-                'start_ms': to_unix_ms(start),
-                'end_ms': to_unix_ms(end),
-            })
-            start = timestamp
-        elif start is None:
-            start = timestamp
-        end = timestamp
-        previous_ms = timestamp_ms
-
-    end_dt = parse_timestamp(end) + timedelta(microseconds=1)
-    chunks.append({
-        'start': start,
-        'end': end,
-        'end_exclusive': end_dt.isoformat(),
-        'start_ms': to_unix_ms(start),
-        'end_ms': to_unix_ms(end),
-    })
+    for start, end, next_start, start_ms, end_ms in rows:
+        end_exclusive = next_start or (
+            parse_timestamp(end) + timedelta(microseconds=1)
+        ).isoformat()
+        chunks.append({
+            'start': start,
+            'end': end,
+            'end_exclusive': end_exclusive,
+            'start_ms': start_ms,
+            'end_ms': end_ms,
+        })
     return chunks
 
 
