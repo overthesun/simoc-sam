@@ -48,6 +48,8 @@ let datePicker = null;
 let timeStartPicker = null;
 let timeEndPicker = null;
 let selectionUIReady = null;
+let exportChunksLoaded = false;
+let exportChunksLoading = null;
 let activeSensors = new Set();   // sensors known to have data (grow-only)
 let discoveryLastRun = 0;
 const DISCOVERY_TTL = 5 * 60 * 1000;  // re-check for new sensors every 5 minutes
@@ -109,6 +111,7 @@ async function showSection(name) {
   });
   $('#section-live').hidden = name !== 'live';
   $('#section-history').hidden = name !== 'history';
+  $('#section-export').hidden = name !== 'export';
   $('#section-admin').hidden = name !== 'admin';
   if (name === 'live') {
     startPolling();
@@ -120,6 +123,7 @@ async function showSection(name) {
     } else if (name === 'admin' && !adminState.loaded) {
       loadAdmin();
     }
+    if (name === 'export' && !exportChunksLoaded) loadExportChunks();
   }
 }
 
@@ -456,6 +460,198 @@ function prepareData(timestamps, values, factor = 5) {
     result.push(pts[i]);
   }
   return result;
+}
+
+function splitIntoChunks(timestamps) {
+  const chunks = [];
+  let current = [];
+  for (const point of prepareData(timestamps, timestamps)) {
+    if (point.y === null) {
+      if (current.length) chunks.push(current);
+      current = [];
+    } else {
+      current.push(point.x);
+    }
+  }
+  if (current.length) chunks.push(current);
+  return chunks.map((points) => ({start: points[0], end: points.at(-1), timestamps: points}));
+}
+
+async function loadExportChunks() {
+  if (exportChunksLoading) return exportChunksLoading;
+  exportChunksLoading = (async () => {
+    await selectionUIReady;
+    const sensors = Object.entries(state.sensors).filter(([, info]) =>
+      Object.keys(info.metrics).length
+    );
+    if (!sensors.length) {
+      $('#export-status').textContent = 'No sensor metadata available.';
+      return;
+    }
+    $('#export-status').textContent = 'Loading timestamps…';
+    try {
+      const selection = Object.fromEntries(sensors.map(([sensor, info]) => [
+        sensor, [Object.keys(info.metrics)[0]],
+      ]));
+      const data = await fetchJSON('/api/query', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({selection}),
+      });
+      const timestampsBySensor = Object.fromEntries(sensors.map(([sensor]) => [
+        sensor, data[sensor]?.timestamps || [],
+      ]));
+      const allTimestamps = [...new Set(Object.values(timestampsBySensor).flat())]
+        .sort((a, b) => a - b);
+      const chunks = splitIntoChunks(allTimestamps);
+      renderExportChunks(chunks, timestampsBySensor, sensors);
+      exportChunksLoaded = true;
+      $('#export-status').textContent = `${chunks.length} data chunks`;
+    } catch (err) {
+      $('#export-status').textContent = `Error loading chunks: ${err.message}`;
+    }
+  })();
+  try {
+    await exportChunksLoading;
+  } finally {
+    exportChunksLoading = null;
+  }
+}
+
+function renderExportChunks(chunks, timestampsBySensor, sensors) {
+  const container = $('#export-chunks');
+  container.replaceChildren();
+  if (!chunks.length) {
+    container.textContent = 'No sensor data available.';
+    return;
+  }
+  const timestampSets = Object.fromEntries(sensors.map(([sensor]) => [
+    sensor, new Set(timestampsBySensor[sensor]),
+  ]));
+  const table = document.createElement('table');
+  table.className = 'chunk-table';
+  const thead = document.createElement('thead');
+  const header = document.createElement('tr');
+  for (const title of ['Chunk', ...sensors.map(([, info]) => info.name), 'Actions']) {
+    const th = document.createElement('th');
+    th.textContent = title;
+    header.appendChild(th);
+  }
+  thead.appendChild(header);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  chunks.forEach((chunk, index) => {
+    const row = document.createElement('tr');
+    const range = document.createElement('td');
+    range.textContent = `${formatLocal(chunk.start)} – ${formatLocal(chunk.end)}`;
+    row.appendChild(range);
+    for (const [sensor] of sensors) {
+      const cell = document.createElement('td');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.dataset.sensor = sensor;
+      checkbox.setAttribute('aria-label', `Include ${state.sensors[sensor].name}`);
+      const present = chunk.timestamps.some((ts) =>
+        timestampSets[sensor].has(ts)
+      );
+      checkbox.disabled = !present;
+      if (!present) checkbox.title = 'No readings in this chunk';
+      cell.appendChild(checkbox);
+      row.appendChild(cell);
+    }
+    const actions = document.createElement('td');
+    const buttons = document.createElement('div');
+    buttons.className = 'chunk-actions';
+    for (const format of ['csv', 'json']) {
+      const button = document.createElement('button');
+      button.className = 'admin-cmd-btn';
+      button.type = 'button';
+      button.textContent = format.toUpperCase();
+      button.addEventListener('click', () => exportChunk(chunk, row, format, index));
+      buttons.appendChild(button);
+    }
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'admin-cmd-btn danger';
+    deleteButton.type = 'button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => deleteChunk(chunk, row));
+    buttons.appendChild(deleteButton);
+    actions.appendChild(buttons);
+    row.appendChild(actions);
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+function selectedChunkSensors(row) {
+  return [...row.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((checkbox) => checkbox.dataset.sensor);
+}
+
+function chunkSelection(row) {
+  const selected = selectedChunkSensors(row);
+  if (!selected.length) {
+    showModal('Select at least one sensor in this chunk.');
+    return null;
+  }
+  return Object.fromEntries(selected.map((sensor) => [
+    sensor, Object.keys(state.sensors[sensor].metrics),
+  ]));
+}
+
+async function exportChunk(chunk, row, format, index) {
+  const selection = chunkSelection(row);
+  if (!selection) return;
+  const response = await fetch('/api/export', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      selection,
+      start: new Date(chunk.start).toISOString(),
+      end: new Date(chunk.end + 1).toISOString(),
+      format,
+    }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    showModal(`Export failed: ${data.error || response.statusText}`);
+    return;
+  }
+  downloadBlob(await response.blob(), `sensor_data_chunk_${index + 1}.${format}`,
+               response.headers.get('Content-Type'));
+}
+
+async function deleteChunk(chunk, row) {
+  const sensors = selectedChunkSensors(row);
+  if (!sensors.length) {
+    showModal('Select at least one sensor in this chunk.');
+    return;
+  }
+  const names = sensors.map((sensor) => state.sensors[sensor].name).join(', ');
+  if (!window.confirm(`Delete ${names} data from ${formatLocal(chunk.start)} to ${formatLocal(chunk.end)}? This cannot be undone.`)) return;
+  try {
+    const visibility = await fetchJSON('/api/admin/visibility');
+    if (!visibility.enabled) throw new Error('Data deletion is disabled by the administrator.');
+    if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
+    const result = await fetchAdminJSON('/api/admin/data/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
+      body: JSON.stringify({
+        sensors,
+        start: new Date(chunk.start).toISOString(),
+        end: new Date(chunk.end + 1).toISOString(),
+      }),
+    });
+    showModal(`Deleted ${result.total} readings.`);
+    exportChunksLoaded = false;
+    await loadExportChunks();
+  } catch (err) {
+    showModal(`Delete failed: ${err.message}`);
+  }
 }
 
 function makeChartBox(sensor, metric, data, xMin, xMax) {
@@ -1095,6 +1291,10 @@ $('#view-mode-toggle').addEventListener('change', (e) => {
 $('#btn-query').addEventListener('click', runQuery);
 $('#btn-export-visible').addEventListener('click', exportVisible);
 $('#btn-export-full').addEventListener('click', exportFull);
+$('#btn-refresh-chunks').addEventListener('click', () => {
+  exportChunksLoaded = false;
+  loadExportChunks();
+});
 
 document.querySelectorAll('.quick-range [data-range]').forEach((btn) => {
   btn.addEventListener('click', () => applyQuickRange(btn.dataset.range));

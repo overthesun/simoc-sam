@@ -277,3 +277,67 @@ def test_export_no_decimation(client, db_conn):
     data = json.loads(response.data)
     # limit is ignored by export
     assert len(data['scd30']['co2']) == 10
+
+
+# --- /api/admin/data/delete ---
+
+@pytest.fixture
+def delete_client(client, monkeypatch):
+    from simoc_sam import admin
+    monkeypatch.setattr(admin, '_admin_enabled', lambda: True)
+    monkeypatch.setattr(admin, '_login_required', lambda: False)
+    return client
+
+
+def delete_data(client, *, sensors, start, end):
+    with client.session_transaction() as session:
+        session['csrf_token'] = 'test-csrf-token'
+    return client.post('/api/admin/data/delete', json={
+        'sensors': sensors,
+        'start': start,
+        'end': end,
+    }, headers={'X-CSRF-Token': 'test-csrf-token'})
+
+
+def test_delete_data_requires_csrf(delete_client):
+    response = delete_client.post('/api/admin/data/delete', json={
+        'sensors': ['scd30'],
+        'start': '2026-01-15T12:00:00+00:00',
+        'end': '2026-01-15T12:01:00+00:00',
+    })
+    assert response.status_code == 403
+
+
+def test_delete_data_removes_only_selected_sensor_and_range(delete_client, db_conn):
+    for i in range(3):
+        insert_row(db_conn, 'scd30', n=i,
+                   timestamp=f'2026-01-15T12:00:0{i}+00:00', co2=700+i)
+        insert_row(db_conn, 'bme688', n=i,
+                   timestamp=f'2026-01-15T12:00:0{i}+00:00', temperature=21+i)
+
+    response = delete_data(
+        delete_client,
+        sensors=['scd30'],
+        start='2026-01-15T12:00:01+00:00',
+        end='2026-01-15T12:00:03+00:00',
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {'deleted': {'scd30': 2}, 'total': 2}
+    assert db_conn.execute('SELECT co2 FROM scd30 ORDER BY timestamp').fetchall() == [(700.0,)]
+    assert db_conn.execute('SELECT COUNT(*) FROM bme688').fetchone() == (3,)
+
+
+def test_delete_data_rejects_invalid_sensor_or_range(delete_client):
+    invalid_sensor = delete_data(
+        delete_client, sensors=['missing'],
+        start='2026-01-15T12:00:00+00:00',
+        end='2026-01-15T12:01:00+00:00',
+    )
+    invalid_range = delete_data(
+        delete_client, sensors=['scd30'],
+        start='2026-01-15T12:01:00+00:00',
+        end='2026-01-15T12:00:00+00:00',
+    )
+    assert invalid_sensor.status_code == 400
+    assert invalid_range.status_code == 400

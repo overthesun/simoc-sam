@@ -12,15 +12,19 @@ import inspect
 import logging
 import pathlib
 import secrets
+import sqlite3
 import threading
 import subprocess
 import importlib.util
 
+from datetime import datetime, timezone
+
 from werkzeug.exceptions import BadRequest
 from werkzeug.security import check_password_hash
-from flask import Blueprint, abort, jsonify, request, session
+from flask import Blueprint, abort, current_app, jsonify, request, session
 
-from simoc_sam import config as sam_config
+from simoc_sam import config as sam_config, db
+from simoc_sam.sensors.utils import SENSOR_DATA
 
 
 # ─── paths ────────────────────────────────────────────────────────────────────
@@ -452,3 +456,46 @@ def post_power():
         return jsonify({'error': 'Command unavailable'}), 500
     success, stdout, stderr = _run_command(command, [])
     return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})
+
+
+@admin_bp.post('/data/delete')
+def post_delete_data():
+    """Delete readings for selected sensors within a half-open time range."""
+    payload = _json_object()
+    sensors = payload.get('sensors')
+    start = payload.get('start')
+    end = payload.get('end')
+    if (not isinstance(sensors, list) or not sensors
+            or any(not isinstance(sensor, str) or sensor not in SENSOR_DATA
+                   for sensor in sensors)):
+        return jsonify({'error': '"sensors" must contain known sensor names'}), 400
+    if len(set(sensors)) != len(sensors):
+        return jsonify({'error': '"sensors" must not contain duplicates'}), 400
+    try:
+        start_dt = datetime.fromisoformat(start)
+        end_dt = datetime.fromisoformat(end)
+        if start_dt.tzinfo is None or end_dt.tzinfo is None:
+            raise ValueError
+        start = start_dt.astimezone(timezone.utc).isoformat()
+        end = end_dt.astimezone(timezone.utc).isoformat()
+        if start_dt >= end_dt:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'error': '"start" and "end" must be valid, ordered ISO timestamps'}), 400
+
+    conn = db.connect(current_app.config['DB_PATH'])
+    try:
+        deleted = {}
+        for sensor in sensors:
+            cursor = conn.execute(
+                f'DELETE FROM {sensor} WHERE timestamp >= ? AND timestamp < ?',
+                (start, end),
+            )
+            deleted[sensor] = cursor.rowcount
+        conn.commit()
+    except sqlite3.OperationalError:
+        conn.rollback()
+        return jsonify({'error': 'Sensor data table is unavailable'}), 400
+    finally:
+        conn.close()
+    return jsonify({'deleted': deleted, 'total': sum(deleted.values())})
