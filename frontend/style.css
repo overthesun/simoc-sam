@@ -231,11 +231,13 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .table-box td:first-child, .table-box th:first-child { text-align: left; }
 
 /* chunk export / deletion table */
-.chunk-list { overflow-x: auto; }
+.chunk-list { min-width: 0; }
+.chunk-table-wrap { max-width: 100%; overflow-x: auto; margin-bottom: 1rem; }
 .chunk-table { border-collapse: collapse; width: 100%; min-width: max-content; font-size: 0.85rem; }
 .chunk-table th, .chunk-table td { border-bottom: 1px solid var(--border); padding: 0.45rem 0.6rem; text-align: center; }
 .chunk-table th { color: var(--accent); font-weight: normal; white-space: nowrap; }
 .chunk-table td:first-child { text-align: left; white-space: nowrap; }
+.chunk-table th:nth-child(-n+2), .chunk-table td:nth-child(-n+2) { width: 13rem; min-width: 13rem; white-space: nowrap; }
 .chunk-table input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
 .chunk-actions { display: flex; gap: 0.35rem; }
 .chunk-actions button { white-space: nowrap; }

@@ -508,6 +508,8 @@ function renderExportChunks(sensors, data) {
     const heading = document.createElement('h2');
     heading.textContent = info.name;
     container.appendChild(heading);
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'chunk-table-wrap';
     const table = document.createElement('table');
     table.className = 'chunk-table';
     const thead = document.createElement('thead');
@@ -558,7 +560,8 @@ function renderExportChunks(sensors, data) {
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
-    container.appendChild(table);
+    tableWrap.appendChild(table);
+    container.appendChild(tableWrap);
     if (!chunks.length) {
       const empty = document.createElement('p');
       empty.textContent = 'No data chunks available.';
