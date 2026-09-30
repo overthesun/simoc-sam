@@ -238,11 +238,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .chunk-table th { color: var(--accent); font-weight: normal; white-space: nowrap; }
 .chunk-table td:first-child { text-align: left; white-space: nowrap; }
 .chunk-table th:nth-child(-n+2), .chunk-table td:nth-child(-n+2),
-.chunk-table th:nth-last-child(-n+3), .chunk-table td:nth-last-child(-n+3) {
-  width: max-content;
-  min-width: max-content;
-  white-space: nowrap;
-}
+.chunk-table th:nth-last-child(-n+3), .chunk-table td:nth-last-child(-n+3) { width: 4rem; white-space: nowrap; }
 .chunk-table input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
 .chunk-action-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; }
 .chunk-action-btn svg { display: block; width: 1rem; height: 1rem; }
