@@ -30,6 +30,7 @@ _GROUPS: list[tuple[str, list[str]]] = [
     ('Display', ['display', 'display_refresh', 'display_format']),
     ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure',
               'mqtt_certs_dir', 'mqtt_reconnect_delay']),
+    ('SIMOC Live frontend', ['live_refresh']),
     ('SIMOC Web', ['sio_host', 'sio_port', 'data_source',
                    'mqtt_topic_sub', 'simoc_web_dist_dir']),
     ('Flask API', ['api_host', 'api_port']),
@@ -80,6 +81,9 @@ class SimocConfig:
     mqtt_certs_dir: pathlib.Path = pathlib.Path('~/.mqttcerts')
     mqtt_reconnect_delay: float = 5.0
 
+    # SIMOC Live frontend
+    live_refresh: float = 5.0
+
     # SIMOC Web / SIO bridge
     sio_host: str = 'localhost'
     sio_port: int = 8081
@@ -125,6 +129,8 @@ class SimocConfig:
         # Ensure display_refresh is positive
         if self.display_refresh <= 0:
             raise InvalidConfig(f"'display_refresh' must be > 0, got {self.display_refresh!r}")
+        if self.live_refresh <= 0:
+            raise InvalidConfig(f"'live_refresh' must be > 0, got {self.live_refresh!r}")
         if self.sensor_read_delay < 0:
             raise InvalidConfig(f"'sensor_read_delay' must be >= 0, "
                                 f"got {self.sensor_read_delay!r}")

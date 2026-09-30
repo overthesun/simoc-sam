@@ -2,7 +2,8 @@
 
 'use strict';
 
-const POLL_INTERVAL = 5000;  // live dashboard refresh (ms)
+const DEFAULT_POLL_INTERVAL = 5000;  // live dashboard refresh (ms)
+let pollInterval = DEFAULT_POLL_INTERVAL;
 const PLOT_LIMIT = 500;      // max points per sensor in plot/table mode
 
 const CHART_COLORS = ['#e28a2b', '#4488ff', '#3fae6a', '#ff5566',
@@ -85,6 +86,7 @@ async function showSection(name) {
   $('#section-live').hidden = name !== 'live';
   $('#section-history').hidden = name !== 'history';
   if (name === 'live') {
+    loadLiveConfig();
     startPolling();
   } else {
     stopPolling();
@@ -105,7 +107,25 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
 function startPolling() {
   if (pollTimer !== null) return;
   refreshLive();
-  pollTimer = setInterval(refreshLive, POLL_INTERVAL);
+  pollTimer = setInterval(refreshLive, pollInterval);
+}
+
+function setPollInterval(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  const nextInterval = seconds * 1000;
+  if (nextInterval === pollInterval) return;
+  pollInterval = nextInterval;
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(refreshLive, pollInterval);
+  }
+}
+
+async function loadLiveConfig() {
+  try {
+    const data = await fetchJSON('/api/config');
+    setPollInterval(data.live_refresh);
+  } catch {}
 }
 
 function stopPolling() {
@@ -599,4 +619,5 @@ selectionUIReady = buildSelectionUI()
   .catch((err) => {
     $('#history-status').textContent = `Error loading sensors: ${err.message}`;
   });
+loadLiveConfig();
 startPolling();
