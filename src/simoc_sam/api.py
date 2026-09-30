@@ -40,94 +40,113 @@ def to_unix_ms(ts):
     return int(parse_timestamp(ts).timestamp() * 1000)
 
 
+CHUNK_SAMPLE_LIMIT = 500
+
+
+def _sample_timestamps(conn, sensor, first_id, last_id, limit):
+    """Fetch a bounded, evenly-spaced sample from an inclusive rowid range."""
+    complete = last_id - first_id < limit
+    if complete:
+        rows = conn.execute(
+            f'SELECT id, timestamp FROM {sensor} WHERE id BETWEEN ? AND ? '
+            'ORDER BY timestamp', (first_id, last_id)
+        ).fetchall()
+    else:
+        target_ids = [
+            first_id + (last_id - first_id) * index // (limit - 1)
+            for index in range(limit)
+        ]
+        placeholders = ','.join('?' * len(target_ids))
+        rows = conn.execute(
+            f'SELECT id, timestamp FROM {sensor} WHERE id IN ({placeholders}) '
+            'ORDER BY timestamp', target_ids
+        ).fetchall()
+    return [
+        {'id': row_id, 'timestamp': timestamp, 'timestamp_ms': to_unix_ms(timestamp)}
+        for row_id, timestamp in rows
+    ], complete
+
+
+def _find_sample_gaps(samples, threshold):
+    return [
+        (previous, current)
+        for previous, current in zip(samples, samples[1:])
+        if current['timestamp_ms'] - previous['timestamp_ms'] > threshold
+    ]
+
+
+def _refine_data_gap(conn, sensor, left, right, threshold, limit):
+    if right['id'] - left['id'] <= 1:
+        return [(left, right)]
+    samples, complete = _sample_timestamps(
+        conn, sensor, left['id'], right['id'], limit
+    )
+    gaps = _find_sample_gaps(samples, threshold)
+    if complete:
+        return gaps
+    refined = []
+    for gap_left, gap_right in gaps:
+        if gap_left['id'] == left['id'] and gap_right['id'] == right['id']:
+            return [(left, right)]
+        refined.extend(_refine_data_gap(
+            conn, sensor, gap_left, gap_right, threshold, limit
+        ))
+    return refined
+
+
 def get_data_chunks(conn, sensor, factor=5):
-    """Return gap-separated timestamp bounds using sampled intervals."""
+    """Find likely gaps from a bounded sample and refine only their boundaries."""
     first_id, last_id = conn.execute(
         f'SELECT MIN(id), MAX(id) FROM {sensor}'
     ).fetchone()
-    if first_id is None or first_id == last_id:
-        if first_id is None:
-            return []
-        row = conn.execute(
-            f'SELECT timestamp FROM {sensor} WHERE id = ?', (first_id,)
-        ).fetchone()
-        timestamp = row[0]
-        timestamp_ms = to_unix_ms(timestamp)
-        return [{
-            'start': timestamp,
-            'end': timestamp,
-            'end_exclusive': (
-                parse_timestamp(timestamp) + timedelta(microseconds=1)
-            ).isoformat(),
-            'start_ms': timestamp_ms,
-            'end_ms': timestamp_ms,
-        }]
+    if first_id is None:
+        return []
 
-    sample_count = min(64, last_id - first_id)
-    sample_ids = ({last_id} if sample_count == 1 else {
-        first_id + 1 + (last_id - first_id - 1) * index // (sample_count - 1)
-        for index in range(sample_count)
-    })
-    sample_values = ', '.join('( ? )' for _ in sample_ids)
-    sample_sql = f'''
-        WITH sample_ids(id) AS (VALUES {sample_values})
-        SELECT
-            (SELECT timestamp FROM {sensor}
-             WHERE id < sample_ids.id ORDER BY id DESC LIMIT 1),
-            (SELECT timestamp FROM {sensor}
-             WHERE id >= sample_ids.id ORDER BY id LIMIT 1)
-        FROM sample_ids
-    '''
+    samples, complete = _sample_timestamps(
+        conn, sensor, first_id, last_id, CHUNK_SAMPLE_LIMIT
+    )
+    if not samples:
+        return []
     intervals = [
-        to_unix_ms(after) - to_unix_ms(before)
-        for before, after in conn.execute(sample_sql, tuple(sorted(sample_ids)))
-        if before and after
+        current['timestamp_ms'] - previous['timestamp_ms']
+        for previous, current in zip(samples, samples[1:])
     ]
-
     intervals.sort()
     median_interval = intervals[len(intervals) // 2] if intervals else 0
     threshold = median_interval * factor
 
-    ordered = f'''
-        SELECT timestamp, unixepoch(timestamp) AS timestamp_seconds,
-               LAG(unixepoch(timestamp)) OVER (ORDER BY timestamp) AS previous_seconds
-        FROM {sensor}
-    '''
-    chunks_sql = f'''
-        WITH ordered AS ({ordered}),
-        marked AS (
-            SELECT timestamp,
-                   timestamp_seconds * 1000 AS timestamp_ms,
-                   SUM(CASE WHEN previous_seconds IS NOT NULL
-                                 AND (timestamp_seconds - previous_seconds) * 1000 > ?
-                            THEN 1 ELSE 0 END)
-                       OVER (ORDER BY timestamp ROWS UNBOUNDED PRECEDING) AS chunk_id
-            FROM ordered
-        ),
-        grouped AS (
-            SELECT chunk_id, MIN(timestamp) AS start, MAX(timestamp) AS end,
-                   MIN(timestamp_ms) AS start_ms, MAX(timestamp_ms) AS end_ms
-            FROM marked
-            GROUP BY chunk_id
-        )
-        SELECT start, end, LEAD(start) OVER (ORDER BY chunk_id) AS next_start,
-               start_ms, end_ms
-        FROM grouped
-        ORDER BY chunk_id
-    '''
-    rows = conn.execute(chunks_sql, (threshold,)).fetchall()
+    candidate_gaps = _find_sample_gaps(samples, threshold)
+    if not complete:
+        exact_gaps = []
+        for left, right in candidate_gaps:
+            exact_gaps.extend(_refine_data_gap(
+                conn, sensor, left, right, threshold, CHUNK_SAMPLE_LIMIT
+            ))
+        candidate_gaps = exact_gaps
+
+    first_timestamp = samples[0]['timestamp']
+    last_timestamp = samples[-1]['timestamp']
     chunks = []
-    for start, end, next_start, start_ms, end_ms in rows:
-        end_exclusive = next_start or (
-            parse_timestamp(end) + timedelta(microseconds=1)
-        ).isoformat()
+    chunk_start = first_timestamp
+    for gap_left, gap_right in candidate_gaps:
+        end = gap_left['timestamp']
         chunks.append({
-            'start': start,
+            'start': chunk_start,
             'end': end,
-            'end_exclusive': end_exclusive,
-            'start_ms': start_ms,
-            'end_ms': end_ms,
+            'end_exclusive': gap_right['timestamp'],
+            'start_ms': to_unix_ms(chunk_start),
+            'end_ms': gap_left['timestamp_ms'],
         })
+        chunk_start = gap_right['timestamp']
+    chunks.append({
+        'start': chunk_start,
+        'end': last_timestamp,
+        'end_exclusive': (
+            parse_timestamp(last_timestamp) + timedelta(microseconds=1)
+        ).isoformat(),
+        'start_ms': to_unix_ms(chunk_start),
+        'end_ms': to_unix_ms(last_timestamp),
+    })
     return chunks
 
 

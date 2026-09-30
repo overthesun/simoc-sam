@@ -303,6 +303,35 @@ def test_chunks_two_rows_uses_their_interval_as_median(client, db_conn):
     assert chunks[0]['end'] == '2026-01-15T12:00:10+00:00'
 
 
+def test_chunks_refines_sampled_gap_to_exact_neighboring_rows(client, db_conn):
+    start = datetime(2026, 1, 15, 12, 0, tzinfo=timezone.utc)
+    rows = []
+    for index in range(1200):
+        offset = index + (3600 if index >= 600 else 0)
+        timestamp = (start + timedelta(seconds=offset)).isoformat(timespec='seconds')
+        rows.append((
+            'lab.rpi1.scd30', 'lab', 'rpi1', index, timestamp,
+            700.0 + index, 21.0, 45.0,
+        ))
+    db_conn.executemany(
+        'INSERT INTO scd30 '
+        '(sensor_id, location, host, n, timestamp, co2, temperature, humidity) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        rows,
+    )
+    db_conn.commit()
+
+    response = client.post('/api/chunks', json={'sensors': ['scd30']})
+
+    assert response.status_code == 200
+    chunks = response.get_json()['chunks']['scd30']
+    assert len(chunks) == 2
+    assert chunks[0]['end'] == rows[599][4]
+    assert chunks[0]['end_exclusive'] == rows[600][4]
+    assert chunks[1]['start'] == rows[600][4]
+    assert chunks[1]['end'] == rows[-1][4]
+
+
 # --- /api/export ---
 
 def export(client, **kwargs):
