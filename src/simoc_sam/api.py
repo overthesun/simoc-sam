@@ -41,31 +41,58 @@ def to_unix_ms(ts):
 
 
 def get_data_chunks(conn, sensor, factor=5):
-    """Return gap-separated timestamp bounds using SQLite window queries."""
+    """Return gap-separated timestamp bounds using sampled intervals."""
+    first_id, last_id = conn.execute(
+        f'SELECT MIN(id), MAX(id) FROM {sensor}'
+    ).fetchone()
+    if first_id is None or first_id == last_id:
+        if first_id is None:
+            return []
+        row = conn.execute(
+            f'SELECT timestamp FROM {sensor} WHERE id = ?', (first_id,)
+        ).fetchone()
+        timestamp = row[0]
+        timestamp_ms = to_unix_ms(timestamp)
+        return [{
+            'start': timestamp,
+            'end': timestamp,
+            'end_exclusive': (
+                parse_timestamp(timestamp) + timedelta(microseconds=1)
+            ).isoformat(),
+            'start_ms': timestamp_ms,
+            'end_ms': timestamp_ms,
+        }]
+
+    sample_count = min(64, last_id - first_id)
+    sample_ids = ({last_id} if sample_count == 1 else {
+        first_id + 1 + (last_id - first_id - 1) * index // (sample_count - 1)
+        for index in range(sample_count)
+    })
+    sample_values = ', '.join('( ? )' for _ in sample_ids)
+    sample_sql = f'''
+        WITH sample_ids(id) AS (VALUES {sample_values})
+        SELECT
+            (SELECT timestamp FROM {sensor}
+             WHERE id < sample_ids.id ORDER BY id DESC LIMIT 1),
+            (SELECT timestamp FROM {sensor}
+             WHERE id >= sample_ids.id ORDER BY id LIMIT 1)
+        FROM sample_ids
+    '''
+    intervals = [
+        to_unix_ms(after) - to_unix_ms(before)
+        for before, after in conn.execute(sample_sql, tuple(sorted(sample_ids)))
+        if before and after
+    ]
+
+    intervals.sort()
+    median_interval = intervals[len(intervals) // 2] if intervals else 0
+    threshold = median_interval * factor
+
     ordered = f'''
         SELECT timestamp, unixepoch(timestamp) AS timestamp_seconds,
                LAG(unixepoch(timestamp)) OVER (ORDER BY timestamp) AS previous_seconds
         FROM {sensor}
     '''
-    median_sql = f'''
-        WITH ordered AS ({ordered}),
-        gaps AS (
-            SELECT (timestamp_seconds - previous_seconds) * 1000 AS gap_ms
-            FROM ordered
-            WHERE previous_seconds IS NOT NULL
-        ),
-        ranked AS (
-            SELECT gap_ms,
-                   ROW_NUMBER() OVER (ORDER BY gap_ms) AS position,
-                   COUNT(*) OVER () AS total
-            FROM gaps
-        )
-        SELECT gap_ms FROM ranked
-        WHERE position = total / 2 + 1
-    '''
-    median_row = conn.execute(median_sql).fetchone()
-    threshold = (median_row[0] if median_row else 0) * factor
-
     chunks_sql = f'''
         WITH ordered AS ({ordered}),
         marked AS (

@@ -288,6 +288,21 @@ def test_chunks_validates_sensors_and_handles_empty_tables(client):
     assert invalid.status_code == 400
 
 
+def test_chunks_two_rows_uses_their_interval_as_median(client, db_conn):
+    insert_row(db_conn, 'scd30', n=0,
+               timestamp='2026-01-15T12:00:00+00:00', co2=700)
+    insert_row(db_conn, 'scd30', n=1,
+               timestamp='2026-01-15T12:00:10+00:00', co2=710)
+
+    response = client.post('/api/chunks', json={'sensors': ['scd30']})
+
+    assert response.status_code == 200
+    chunks = response.get_json()['chunks']['scd30']
+    assert len(chunks) == 1
+    assert chunks[0]['start'] == '2026-01-15T12:00:00+00:00'
+    assert chunks[0]['end'] == '2026-01-15T12:00:10+00:00'
+
+
 # --- /api/export ---
 
 def export(client, **kwargs):
