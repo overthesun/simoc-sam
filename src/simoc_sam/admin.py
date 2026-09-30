@@ -33,6 +33,11 @@ _LOGIN_LIMIT = 5
 _LOGIN_WINDOW = 60.0
 _LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 _LOGIN_LOCK = threading.Lock()
+_HIDDEN_CONFIG_FIELDS = {
+    'location', 'humans', 'volume',
+    'use_https', 'admin_enabled', 'admin_secure', 'admin_visible',
+    'admin_allow_commands', 'admin_allow_power',
+}
 
 
 # ─── command loading ─────────────────────────────────────────────────────────
@@ -323,16 +328,21 @@ def logout():
 @admin_bp.get('/config')
 def get_config():
     """Return the config schema, current values, and I2C-detected devices."""
-    schema = sam_config.get_schema()
-    cfg = sam_config.get_config(sam_config.read_user_overrides())
-    values = {name: _json_safe(getattr(cfg, name)) for name in schema}
-    path = sam_config.config_path()
     # Best-effort I2C scan; returns None when not running on RPi hardware.
     try:
         from simoc_sam.utils import get_i2c_names
         i2c_devices = get_i2c_names()
     except Exception:
         i2c_devices = None
+    schema = {
+        name: info for name, info in sam_config.get_schema().items()
+        if name not in _HIDDEN_CONFIG_FIELDS
+        and (info['group'] != 'BNO085'
+             or i2c_devices is not None and 'bno085' in i2c_devices)
+    }
+    cfg = sam_config.get_config(sam_config.read_user_overrides())
+    values = {name: _json_safe(getattr(cfg, name)) for name in schema}
+    path = sam_config.config_path()
     return jsonify({
         'schema': [{'name': name, **info} for name, info in schema.items()],
         'values': values,
