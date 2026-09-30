@@ -202,6 +202,12 @@ def test_simoc_config_display_refresh_validation():
         SimocConfig(display_refresh=-1.0)
 
 
+@pytest.mark.parametrize('interval', [0, -1])
+def test_simoc_config__must_be_positive(interval):
+    with pytest.raises(config.InvalidConfig, match='live_refresh'):
+        SimocConfig(live_refresh=interval)
+
+
 def test_simoc_config_data_source_validation():
     with pytest.raises(config.InvalidConfig, match='data_source'):
         SimocConfig(data_source='invalid')
@@ -352,6 +358,7 @@ def test_get_schema_groups():
     assert schema['display']['group'] == 'Display'
     assert schema['mqtt_host']['group'] == 'MQTT'
     assert schema['log_dir']['group'] == 'Verbosity and logging'
+    assert schema['live_refresh']['group'] == 'SIMOC Live frontend'
 
 
 def test_get_schema_is_cached():

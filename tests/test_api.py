@@ -1,5 +1,6 @@
 import json
 
+from unittest.mock import patch
 from datetime import datetime, timezone, timedelta
 
 import pytest
@@ -49,6 +50,16 @@ def test_parse_timestamp_naive_assumed_utc():
 
 def test_to_unix_ms():
     assert to_unix_ms('1970-01-01T00:00:01+00:00') == 1000
+
+
+# --- /api/config ---
+
+def test_config_returns_live_refresh(client):
+    with patch('simoc_sam.api.config.get_config') as get_config:
+        get_config.return_value.live_refresh = 2.5
+        data = client.get('/api/config').get_json()
+
+    assert data == {'live_refresh': 2.5}
 
 
 # --- /api/sensors ---
