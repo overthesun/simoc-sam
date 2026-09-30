@@ -320,6 +320,12 @@ def test_get_schema_entries_have_required_keys():
         assert 'type' in info, f'{name}: missing type'
         assert 'group' in info, f'{name}: missing group'
         assert 'options' in info, f'{name}: missing options'
+        assert 'description' in info, f'{name}: missing description'
+
+
+def test_get_schema_entries_have_nonempty_description():
+    for name, info in get_schema().items():
+        assert info['description'], f'{name}: missing description text'
 
 
 def test_get_schema_literal_fields_have_options():

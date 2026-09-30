@@ -752,8 +752,15 @@ function renderConfigForm() {
       row.className = 'admin-config-row';
       const label = document.createElement('label');
       label.className = 'admin-config-label';
-      label.textContent = field.name;
+      label.append(field.name);
       label.htmlFor = `cfg-${field.name}`;
+      if (field.description) {
+        const help = document.createElement('span');
+        help.className = 'admin-config-help';
+        help.textContent = '?';
+        help.title = field.description;
+        label.appendChild(help);
+      }
       row.appendChild(label);
       row.appendChild(makeConfigInput(field));
       fs.appendChild(row);

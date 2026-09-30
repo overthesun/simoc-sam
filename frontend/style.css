@@ -358,6 +358,23 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
 .admin-config-row:last-child { border-bottom: none; }
 .admin-config-label { color: var(--muted); font-size: 0.85rem; font-family: monospace; }
 
+.admin-config-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.3rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-family: system-ui, sans-serif;
+  cursor: help;
+  user-select: none;
+}
+.admin-config-help:hover { border-color: var(--accent); color: var(--accent); }
+
 .admin-config-input {
   background: var(--bg);
   color: var(--text);
