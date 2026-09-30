@@ -204,6 +204,25 @@ def test_query_returns_data(client, db_conn):
     # non-selected metrics are not included
     assert 'temperature' not in data['scd30']
 
+
+def test_query_all_sensor_metrics_returns_full_unbounded_data(client, db_conn):
+    from simoc_sam.sensors.utils import SENSOR_DATA
+
+    insert_row(db_conn, 'scd30', n=0,
+               timestamp='2026-01-15T12:00:00+00:00', co2=700, temperature=21.5)
+    insert_row(db_conn, 'scd30', n=1,
+               timestamp='2026-01-15T12:00:10+00:00', co2=710, temperature=21.6)
+    metrics = list(SENSOR_DATA['scd30'].data)
+
+    response = query(client, selection={'scd30': metrics})
+
+    assert response.status_code == 200
+    data = response.get_json()['scd30']
+    assert set(data) == {'timestamps', *metrics}
+    assert len(data['timestamps']) == 2
+    assert data['co2'] == [700, 710]
+    assert data['temperature'] == [21.5, 21.6]
+
 def test_query_multiple_sensors(client, db_conn):
     insert_row(db_conn, 'scd30', co2=700)
     insert_row(db_conn, 'bme688', pressure=1013.2)
@@ -318,8 +337,8 @@ def test_delete_data_removes_only_selected_sensor_and_range(delete_client, db_co
     response = delete_data(
         delete_client,
         sensors=['scd30'],
-        start='2026-01-15T12:00:01+00:00',
-        end='2026-01-15T12:00:03+00:00',
+        start='2026-01-15T12:00:01.000Z',
+        end='2026-01-15T12:00:03.000Z',
     )
 
     assert response.status_code == 200
