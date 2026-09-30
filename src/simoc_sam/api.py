@@ -40,6 +40,54 @@ def to_unix_ms(ts):
     return int(parse_timestamp(ts).timestamp() * 1000)
 
 
+def get_data_chunks(conn, sensor, factor=5):
+    """Return gap-separated timestamp bounds without loading sensor values."""
+    sql = f'SELECT timestamp FROM {sensor} ORDER BY timestamp'
+    intervals = []
+    previous_ms = None
+    for (timestamp,) in conn.execute(sql):
+        timestamp_ms = to_unix_ms(timestamp)
+        if previous_ms is not None:
+            intervals.append(timestamp_ms - previous_ms)
+        previous_ms = timestamp_ms
+
+    if previous_ms is None:
+        return []
+    threshold = 0
+    if intervals:
+        intervals.sort()
+        threshold = intervals[len(intervals) // 2] * factor
+
+    chunks = []
+    start = end = None
+    previous_ms = None
+    for (timestamp,) in conn.execute(sql):
+        timestamp_ms = to_unix_ms(timestamp)
+        if previous_ms is not None and timestamp_ms - previous_ms > threshold:
+            chunks.append({
+                'start': start,
+                'end': end,
+                'end_exclusive': timestamp,
+                'start_ms': to_unix_ms(start),
+                'end_ms': to_unix_ms(end),
+            })
+            start = timestamp
+        elif start is None:
+            start = timestamp
+        end = timestamp
+        previous_ms = timestamp_ms
+
+    end_dt = parse_timestamp(end) + timedelta(microseconds=1)
+    chunks.append({
+        'start': start,
+        'end': end,
+        'end_exclusive': end_dt.isoformat(),
+        'start_ms': to_unix_ms(start),
+        'end_ms': to_unix_ms(end),
+    })
+    return chunks
+
+
 def create_app(db_path=None):
     """Create and return the Flask app (db_path overrides config.db_path)."""
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path='')
@@ -210,6 +258,27 @@ def create_app(db_path=None):
         result = query_selection(conn, start, end, selection, limit)
         count = sum(len(data['timestamps']) for data in result.values())
         return jsonify({'count': count, **result})
+
+    @app.post('/api/chunks')
+    def api_chunks():
+        """Return timestamp-only gap boundaries for the requested sensors."""
+        payload = request.get_json(silent=True)
+        sensors = payload.get('sensors') if isinstance(payload, dict) else None
+        if (not isinstance(sensors, list) or not sensors
+                or any(not isinstance(sensor, str) or sensor not in SENSOR_DATA
+                       for sensor in sensors)):
+            return jsonify({'error': '"sensors" must contain known sensor names'}), 400
+        if len(set(sensors)) != len(sensors):
+            return jsonify({'error': '"sensors" must not contain duplicates'}), 400
+
+        conn = get_db()
+        chunks = {}
+        for sensor in sensors:
+            try:
+                chunks[sensor] = get_data_chunks(conn, sensor)
+            except sqlite3.OperationalError:
+                chunks[sensor] = []
+        return jsonify({'chunks': chunks})
 
     @app.post('/api/export')
     def api_export():

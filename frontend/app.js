@@ -77,12 +77,6 @@ function formatLocal(tsMs) {
   return `${d.toLocaleDateString('en-CA')} ${d.toLocaleTimeString('en-GB')}`;
 }
 
-function formatApiTimestamp(tsMs) {
-  return new Date(tsMs).toISOString()
-    .replace(/\.000Z$/, '+00:00')
-    .replace(/Z$/, '+00:00');
-}
-
 function formatTimeNow() {
   return new Date().toLocaleTimeString('en-GB');
 }
@@ -468,21 +462,6 @@ function prepareData(timestamps, values, factor = 5) {
   return result;
 }
 
-function splitIntoChunks(timestamps) {
-  const chunks = [];
-  let current = [];
-  for (const point of prepareData(timestamps, timestamps)) {
-    if (point.y === null) {
-      if (current.length) chunks.push(current);
-      current = [];
-    } else {
-      current.push(point.x);
-    }
-  }
-  if (current.length) chunks.push(current);
-  return chunks.map((points) => ({start: points[0], end: points.at(-1), timestamps: points}));
-}
-
 async function loadExportChunks() {
   if (exportChunksLoading) return exportChunksLoading;
   exportChunksLoading = (async () => {
@@ -498,15 +477,12 @@ async function loadExportChunks() {
     }
     $('#export-status').textContent = 'Loading sensor data…';
     try {
-      const selection = Object.fromEntries(sensors.map(([sensor, info]) => [
-        sensor, Object.keys(info.metrics),
-      ]));
-      const data = await fetchJSON('/api/query', {
+      const data = await fetchJSON('/api/chunks', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({selection}),
+        body: JSON.stringify({sensors: sensors.map(([sensor]) => sensor)}),
       });
-      const chunkCount = renderExportChunks(sensors, data);
+      const chunkCount = renderExportChunks(sensors, data.chunks);
       exportChunksLoaded = true;
       $('#export-status').textContent = `${sensors.length} active sensors, ${chunkCount} data chunks`;
     } catch (err) {
@@ -525,10 +501,8 @@ function renderExportChunks(sensors, data) {
   container.replaceChildren();
   let chunkCount = 0;
   for (const [sensor, info] of sensors) {
-    const sensorData = data[sensor];
     const metrics = Object.keys(info.metrics);
-    const sourceMetric = metrics.find((metric) => sensorData?.[metric]?.length);
-    const chunks = sourceMetric ? splitIntoChunks(sensorData.timestamps) : [];
+    const chunks = data[sensor] || [];
     chunkCount += chunks.length;
 
     const heading = document.createElement('h2');
@@ -548,7 +522,7 @@ function renderExportChunks(sensors, data) {
     const tbody = document.createElement('tbody');
     chunks.forEach((chunk) => {
       const row = document.createElement('tr');
-      for (const timestamp of [chunk.start, chunk.end]) {
+      for (const timestamp of [chunk.start_ms, chunk.end_ms]) {
         const cell = document.createElement('td');
         cell.textContent = formatLocal(timestamp);
         row.appendChild(cell);
@@ -611,8 +585,8 @@ async function exportChunk(sensor, chunk, row, format) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         selection: {[sensor]: metrics},
-        start: formatApiTimestamp(chunk.start),
-        end: formatApiTimestamp(chunk.end + 1),
+        start: chunk.start,
+        end: chunk.end_exclusive,
         format,
       }),
     });
@@ -642,8 +616,8 @@ async function deleteChunk(sensor, chunk) {
       },
       body: JSON.stringify({
         sensors: [sensor],
-        start: formatApiTimestamp(chunk.start),
-        end: formatApiTimestamp(chunk.end + 1),
+        start: chunk.start,
+        end: chunk.end_exclusive,
       }),
     });
     showModal(`Deleted ${result.total} readings.`);

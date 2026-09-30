@@ -250,6 +250,44 @@ def test_query_limit_decimates(client, db_conn):
     assert len(data['scd30']['co2']) == 5
 
 
+# --- /api/chunks ---
+
+def test_chunks_returns_exact_timestamp_boundaries_only(client, db_conn):
+    timestamps = [
+        '2026-01-15T12:00:00+00:00',
+        '2026-01-15T12:00:10+00:00',
+        '2026-01-15T12:00:20+00:00',
+        '2026-01-15T12:03:20+00:00',
+        '2026-01-15T12:03:30+00:00',
+    ]
+    for index, timestamp in enumerate(timestamps):
+        insert_row(db_conn, 'scd30', n=index, timestamp=timestamp, co2=700+index)
+
+    response = client.post('/api/chunks', json={'sensors': ['scd30']})
+
+    assert response.status_code == 200
+    chunks = response.get_json()['chunks']['scd30']
+    assert [(chunk['start'], chunk['end']) for chunk in chunks] == [
+        (timestamps[0], timestamps[2]),
+        (timestamps[3], timestamps[4]),
+    ]
+    assert [chunk['end_exclusive'] for chunk in chunks] == [
+        timestamps[3], '2026-01-15T12:03:30.000001+00:00',
+    ]
+    assert chunks[0]['start_ms'] == to_unix_ms(timestamps[0])
+    assert chunks[0]['end_ms'] == to_unix_ms(timestamps[2])
+    assert set(chunks[0]) == {'start', 'end', 'end_exclusive', 'start_ms', 'end_ms'}
+
+
+def test_chunks_validates_sensors_and_handles_empty_tables(client):
+    empty = client.post('/api/chunks', json={'sensors': ['scd30']})
+    invalid = client.post('/api/chunks', json={'sensors': ['missing']})
+
+    assert empty.status_code == 200
+    assert empty.get_json() == {'chunks': {'scd30': []}}
+    assert invalid.status_code == 400
+
+
 # --- /api/export ---
 
 def export(client, **kwargs):
