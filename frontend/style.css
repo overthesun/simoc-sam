@@ -239,10 +239,10 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .chunk-table td:first-child { text-align: left; white-space: nowrap; }
 .chunk-table th:nth-child(-n+2), .chunk-table td:nth-child(-n+2) { width: 13rem; min-width: 13rem; white-space: nowrap; }
 .chunk-table input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
-.chunk-actions { display: flex; gap: 0.35rem; }
-.chunk-actions button { white-space: nowrap; }
-.chunk-actions .danger { border-color: #5a2a2a; color: #cc6666; }
-.chunk-actions .danger:hover:not(:disabled) { border-color: #cc4444; color: #ff8080; }
+.chunk-action-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; }
+.chunk-action-btn svg { display: block; width: 1rem; height: 1rem; }
+.chunk-action-btn.danger { border-color: #5a2a2a; color: #cc6666; }
+.chunk-action-btn.danger:hover:not(:disabled) { border-color: #cc4444; color: #ff8080; }
 
 /* modal */
 

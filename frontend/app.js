@@ -541,19 +541,13 @@ function renderExportChunks(sensors, data) {
       }
       for (const format of ['csv', 'json']) {
         const cell = document.createElement('td');
-        const button = document.createElement('button');
-        button.className = 'admin-cmd-btn';
-        button.type = 'button';
-        button.textContent = format.toUpperCase();
+        const button = createChunkActionButton('download', `Download ${format.toUpperCase()}`);
         button.addEventListener('click', () => exportChunk(sensor, chunk, row, format));
         cell.appendChild(button);
         row.appendChild(cell);
       }
       const deleteCell = document.createElement('td');
-      const deleteButton = document.createElement('button');
-      deleteButton.className = 'admin-cmd-btn danger';
-      deleteButton.type = 'button';
-      deleteButton.textContent = 'Delete';
+      const deleteButton = createChunkActionButton('trash', 'Delete chunk', true);
       deleteButton.addEventListener('click', () => deleteChunk(sensor, chunk));
       deleteCell.appendChild(deleteButton);
       row.appendChild(deleteCell);
@@ -569,6 +563,32 @@ function renderExportChunks(sensors, data) {
     }
   }
   return chunkCount;
+}
+
+function createChunkActionButton(icon, label, danger = false) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `admin-cmd-btn chunk-action-btn${danger ? ' danger' : ''}`;
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  const paths = icon === 'download'
+    ? ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm7 10 5 5 5-5', 'M12 15V3']
+    : ['M3 6h18', 'M8 6V4h8v2', 'm19 6-1 14H6L5 6', 'M10 11v6', 'M14 11v6'];
+  for (const pathData of paths) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+    svg.appendChild(path);
+  }
+  button.appendChild(svg);
+  return button;
 }
 
 function selectedChunkMetrics(row) {
