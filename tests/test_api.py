@@ -214,6 +214,25 @@ def test_query_returns_data(client, db_conn):
     # non-selected metrics are not included
     assert 'temperature' not in data['scd30']
 
+
+def test_query_all_sensor_metrics_returns_full_unbounded_data(client, db_conn):
+    from simoc_sam.sensors.utils import SENSOR_DATA
+
+    insert_row(db_conn, 'scd30', n=0,
+               timestamp='2026-01-15T12:00:00+00:00', co2=700, temperature=21.5)
+    insert_row(db_conn, 'scd30', n=1,
+               timestamp='2026-01-15T12:00:10+00:00', co2=710, temperature=21.6)
+    metrics = list(SENSOR_DATA['scd30'].data)
+
+    response = query(client, selection={'scd30': metrics})
+
+    assert response.status_code == 200
+    data = response.get_json()['scd30']
+    assert set(data) == {'timestamps', *metrics}
+    assert len(data['timestamps']) == 2
+    assert data['co2'] == [700, 710]
+    assert data['temperature'] == [21.5, 21.6]
+
 def test_query_multiple_sensors(client, db_conn):
     insert_row(db_conn, 'scd30', co2=700)
     insert_row(db_conn, 'bme688', pressure=1013.2)
@@ -239,6 +258,88 @@ def test_query_limit_decimates(client, db_conn):
                    timestamp=f'2026-01-15T12:00:{i:02}+00:00', co2=700+i)
     data = query(client, selection={'scd30': ['co2']}, limit=5).get_json()
     assert len(data['scd30']['co2']) == 5
+
+
+# --- /api/chunks ---
+
+def test_chunks_returns_exact_timestamp_boundaries_only(client, db_conn):
+    timestamps = [
+        '2026-01-15T12:00:00+00:00',
+        '2026-01-15T12:00:10+00:00',
+        '2026-01-15T12:00:20+00:00',
+        '2026-01-15T12:03:20+00:00',
+        '2026-01-15T12:03:30+00:00',
+    ]
+    for index, timestamp in enumerate(timestamps):
+        insert_row(db_conn, 'scd30', n=index, timestamp=timestamp, co2=700+index)
+
+    response = client.post('/api/chunks', json={'sensors': ['scd30']})
+
+    assert response.status_code == 200
+    chunks = response.get_json()['chunks']['scd30']
+    assert [(chunk['start'], chunk['end']) for chunk in chunks] == [
+        (timestamps[0], timestamps[2]),
+        (timestamps[3], timestamps[4]),
+    ]
+    assert [chunk['end_exclusive'] for chunk in chunks] == [
+        timestamps[3], '2026-01-15T12:03:30.000001+00:00',
+    ]
+    assert chunks[0]['start_ms'] == to_unix_ms(timestamps[0])
+    assert chunks[0]['end_ms'] == to_unix_ms(timestamps[2])
+    assert set(chunks[0]) == {'start', 'end', 'end_exclusive', 'start_ms', 'end_ms'}
+
+
+def test_chunks_validates_sensors_and_handles_empty_tables(client):
+    empty = client.post('/api/chunks', json={'sensors': ['scd30']})
+    invalid = client.post('/api/chunks', json={'sensors': ['missing']})
+
+    assert empty.status_code == 200
+    assert empty.get_json() == {'chunks': {'scd30': []}}
+    assert invalid.status_code == 400
+
+
+def test_chunks_two_rows_uses_their_interval_as_median(client, db_conn):
+    insert_row(db_conn, 'scd30', n=0,
+               timestamp='2026-01-15T12:00:00+00:00', co2=700)
+    insert_row(db_conn, 'scd30', n=1,
+               timestamp='2026-01-15T12:00:10+00:00', co2=710)
+
+    response = client.post('/api/chunks', json={'sensors': ['scd30']})
+
+    assert response.status_code == 200
+    chunks = response.get_json()['chunks']['scd30']
+    assert len(chunks) == 1
+    assert chunks[0]['start'] == '2026-01-15T12:00:00+00:00'
+    assert chunks[0]['end'] == '2026-01-15T12:00:10+00:00'
+
+
+def test_chunks_refines_sampled_gap_to_exact_neighboring_rows(client, db_conn):
+    start = datetime(2026, 1, 15, 12, 0, tzinfo=timezone.utc)
+    rows = []
+    for index in range(1200):
+        offset = index + (3600 if index >= 600 else 0)
+        timestamp = (start + timedelta(seconds=offset)).isoformat(timespec='seconds')
+        rows.append((
+            'lab.rpi1.scd30', 'lab', 'rpi1', index, timestamp,
+            700.0 + index, 21.0, 45.0,
+        ))
+    db_conn.executemany(
+        'INSERT INTO scd30 '
+        '(sensor_id, location, host, n, timestamp, co2, temperature, humidity) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        rows,
+    )
+    db_conn.commit()
+
+    response = client.post('/api/chunks', json={'sensors': ['scd30']})
+
+    assert response.status_code == 200
+    chunks = response.get_json()['chunks']['scd30']
+    assert len(chunks) == 2
+    assert chunks[0]['end'] == rows[599][4]
+    assert chunks[0]['end_exclusive'] == rows[600][4]
+    assert chunks[1]['start'] == rows[600][4]
+    assert chunks[1]['end'] == rows[-1][4]
 
 
 # --- /api/export ---
@@ -287,3 +388,67 @@ def test_export_no_decimation(client, db_conn):
     data = json.loads(response.data)
     # limit is ignored by export
     assert len(data['scd30']['co2']) == 10
+
+
+# --- /api/admin/data/delete ---
+
+@pytest.fixture
+def delete_client(client, monkeypatch):
+    from simoc_sam import admin
+    monkeypatch.setattr(admin, '_admin_enabled', lambda: True)
+    monkeypatch.setattr(admin, '_login_required', lambda: False)
+    return client
+
+
+def delete_data(client, *, sensors, start, end):
+    with client.session_transaction() as session:
+        session['csrf_token'] = 'test-csrf-token'
+    return client.post('/api/admin/data/delete', json={
+        'sensors': sensors,
+        'start': start,
+        'end': end,
+    }, headers={'X-CSRF-Token': 'test-csrf-token'})
+
+
+def test_delete_data_requires_csrf(delete_client):
+    response = delete_client.post('/api/admin/data/delete', json={
+        'sensors': ['scd30'],
+        'start': '2026-01-15T12:00:00+00:00',
+        'end': '2026-01-15T12:01:00+00:00',
+    })
+    assert response.status_code == 403
+
+
+def test_delete_data_removes_only_selected_sensor_and_range(delete_client, db_conn):
+    for i in range(3):
+        insert_row(db_conn, 'scd30', n=i,
+                   timestamp=f'2026-01-15T12:00:0{i}+00:00', co2=700+i)
+        insert_row(db_conn, 'bme688', n=i,
+                   timestamp=f'2026-01-15T12:00:0{i}+00:00', temperature=21+i)
+
+    response = delete_data(
+        delete_client,
+        sensors=['scd30'],
+        start='2026-01-15T12:00:01.000Z',
+        end='2026-01-15T12:00:03.000Z',
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {'deleted': {'scd30': 2}, 'total': 2}
+    assert db_conn.execute('SELECT co2 FROM scd30 ORDER BY timestamp').fetchall() == [(700.0,)]
+    assert db_conn.execute('SELECT COUNT(*) FROM bme688').fetchone() == (3,)
+
+
+def test_delete_data_rejects_invalid_sensor_or_range(delete_client):
+    invalid_sensor = delete_data(
+        delete_client, sensors=['missing'],
+        start='2026-01-15T12:00:00+00:00',
+        end='2026-01-15T12:01:00+00:00',
+    )
+    invalid_range = delete_data(
+        delete_client, sensors=['scd30'],
+        start='2026-01-15T12:01:00+00:00',
+        end='2026-01-15T12:00:00+00:00',
+    )
+    assert invalid_sensor.status_code == 400
+    assert invalid_range.status_code == 400

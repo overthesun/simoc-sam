@@ -230,6 +230,21 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 }
 .table-box td:first-child, .table-box th:first-child { text-align: left; }
 
+/* chunk export / deletion table */
+.chunk-list { min-width: 0; }
+.chunk-table-wrap { max-width: 100%; overflow-x: auto; margin-bottom: 1rem; }
+.chunk-table { border-collapse: collapse; width: 100%; min-width: max-content; font-size: 0.85rem; }
+.chunk-table th, .chunk-table td { border-bottom: 1px solid var(--border); padding: 0.45rem 0.6rem; text-align: center; }
+.chunk-table th { color: var(--accent); font-weight: normal; white-space: nowrap; }
+.chunk-table td:first-child { text-align: left; white-space: nowrap; }
+.chunk-table th:nth-child(-n+2), .chunk-table td:nth-child(-n+2),
+.chunk-table th:nth-last-child(-n+3), .chunk-table td:nth-last-child(-n+3) { width: 4rem; white-space: nowrap; }
+.chunk-table input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+.chunk-action-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; }
+.chunk-action-btn svg { display: block; width: 1rem; height: 1rem; }
+.chunk-action-btn.danger { border-color: #5a2a2a; color: #cc6666; }
+.chunk-action-btn.danger:hover:not(:disabled) { border-color: #cc4444; color: #ff8080; }
+
 /* modal */
 
 dialog {
@@ -466,6 +481,7 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
   cursor: pointer;
   font-size: 0.8rem;
 }
+.admin-cmd-btn.chunk-action-btn { padding: 0; }
 .admin-cmd-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .admin-cmd-btn.needs-root { border-color: #5a3a2a; color: #cc8855; }
 .admin-cmd-btn.needs-root:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
