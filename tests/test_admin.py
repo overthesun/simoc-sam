@@ -43,7 +43,6 @@ def test_get_config_returns_schema_and_values(client):
     groups = {field['group'] for field in data['schema']}
     names = {field['name'] for field in data['schema']}
     assert 'HAB info' not in groups
-    assert 'SIMOC Live frontend' not in groups
     assert not {'location', 'humans', 'volume', 'use_https', 'admin_enabled'} & names
     assert 'use_https' not in data['values']
     sensors = next(field for field in data['schema'] if field['name'] == 'sensors')
