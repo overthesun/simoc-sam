@@ -97,15 +97,13 @@ class SimocConfig:
     mqtt_reconnect_delay: float = f(5.0, help='MQTT reconnect delay in seconds.')
 
     # SIMOC Live frontend
+    live_refresh: float = f(5.0, help='Seconds between live tab refreshes.')
     use_https: bool = f(False, help='Use a self-signed to serve the frontend over HTTPS.')
     admin_enabled: bool = f(False, help='Enable the web admin interface.')
     admin_secure: bool = f(True, help='Require a password to access the admin interface.')
     admin_visible: bool = f(False, help='Make the "Admin" button visible.')
     admin_allow_commands: bool = f(False, help='Allow running simoc-sam.py commands.')
     admin_allow_power: bool = f(False, help='Allow restarting or shutting down the system.')
-
-    # SIMOC Live frontend
-    live_refresh: float = 5.0
 
     # SIMOC Web / SIO bridge
     sio_host: str = f('localhost', help='SIO bridge server hostname/IP.')
