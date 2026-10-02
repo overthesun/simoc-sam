@@ -243,6 +243,12 @@ def create_app(db_path=None):
         app.logger.info('query_selection total: %.3fs', time.perf_counter() - t_total)
         return result
 
+    @app.get('/api/config')
+    def api_config():
+        """Return public frontend settings used to configure the live view."""
+        cfg = config.get_config()
+        return jsonify({'live_refresh': cfg.live_refresh})
+
     @app.get('/api/sensors')
     def api_sensors():
         """Return static sensor metadata from sensors.toml (no DB queries).

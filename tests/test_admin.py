@@ -40,9 +40,33 @@ def test_get_config_returns_schema_and_values(client):
     assert data['user_config_path'] == str(config_path)
     assert 'raw' not in data
     assert data['values']['mqtt_port'] == 1883
+    groups = {field['group'] for field in data['schema']}
+    names = {field['name'] for field in data['schema']}
+    assert 'HAB info' not in groups
+    assert 'SIMOC Live frontend' not in groups
+    assert not {'location', 'humans', 'volume', 'use_https', 'admin_enabled'} & names
+    assert 'use_https' not in data['values']
     sensors = next(field for field in data['schema'] if field['name'] == 'sensors')
     assert sensors['type'] == 'list'
     assert 'bme688' in sensors['options']
+
+
+@pytest.mark.parametrize(('i2c_devices', 'visible'), [
+    ([], False),
+    (['bno085'], True),
+    (None, False),
+])
+def test_bno_config_visibility_follows_i2c_detection(client, i2c_devices, visible):
+    test_client, _ = client
+
+    with patch('simoc_sam.utils.get_i2c_names', return_value=i2c_devices):
+        response = test_client.get('/api/admin/config')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    groups = {field['group'] for field in data['schema']}
+    assert ('BNO085' in groups) is visible
+    assert ('bno085_enabled_features' in data['values']) is visible
 
 
 @pytest.mark.parametrize('payload', [[], 'text', 1])

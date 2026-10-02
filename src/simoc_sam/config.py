@@ -31,7 +31,8 @@ _GROUPS: list[tuple[str, list[str]]] = [
     ('Display', ['display', 'display_refresh', 'display_format']),
     ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure',
               'mqtt_certs_dir', 'mqtt_reconnect_delay']),
-    ('SIMOC Live frontend', ['use_https', 'admin_enabled', 'admin_secure', 'admin_visible',
+    ('SIMOC Live frontend', ['live_refresh', 'use_https',
+                             'admin_enabled', 'admin_secure', 'admin_visible',
                              'admin_allow_commands', 'admin_allow_power']),
     ('SIMOC Web', ['sio_host', 'sio_port', 'data_source',
                    'mqtt_topic_sub', 'simoc_web_dist_dir']),
@@ -103,6 +104,9 @@ class SimocConfig:
     admin_allow_commands: bool = f(False, help='Allow running simoc-sam.py commands.')
     admin_allow_power: bool = f(False, help='Allow restarting or shutting down the system.')
 
+    # SIMOC Live frontend
+    live_refresh: float = 5.0
+
     # SIMOC Web / SIO bridge
     sio_host: str = f('localhost', help='SIO bridge server hostname/IP.')
     sio_port: int = f(8081, help='SIO bridge server port.')
@@ -151,6 +155,8 @@ class SimocConfig:
         # Ensure display_refresh is positive
         if self.display_refresh <= 0:
             raise InvalidConfig(f"'display_refresh' must be > 0, got {self.display_refresh!r}")
+        if self.live_refresh <= 0:
+            raise InvalidConfig(f"'live_refresh' must be > 0, got {self.live_refresh!r}")
         if self.sensor_read_delay < 0:
             raise InvalidConfig(f"'sensor_read_delay' must be >= 0, "
                                 f"got {self.sensor_read_delay!r}")
