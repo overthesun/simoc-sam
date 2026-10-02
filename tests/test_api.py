@@ -8,6 +8,17 @@ import pytest
 from simoc_sam.api import create_app, parse_timestamp, to_unix_ms
 
 
+def test_session_cookie_secure_follows_use_https(tmp_path):
+    # a Secure cookie is dropped by browsers over plain HTTP -- the admin
+    # session/CSRF token must still work when use_https is off (the default)
+    with patch('simoc_sam.api.config.use_https', False):
+        app = create_app(db_path=tmp_path / 'test.db')
+    assert app.config['SESSION_COOKIE_SECURE'] is False
+    with patch('simoc_sam.api.config.use_https', True):
+        app = create_app(db_path=tmp_path / 'test2.db')
+    assert app.config['SESSION_COOKIE_SECURE'] is True
+
+
 def make_timestamp(offset_seconds=0):
     """Return a UTC ISO timestamp offset from now by the given seconds."""
     dt = datetime.now(timezone.utc) + timedelta(seconds=offset_seconds)

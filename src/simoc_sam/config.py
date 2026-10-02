@@ -14,6 +14,7 @@ import typing
 import socket
 import pathlib
 import tomllib
+import secrets
 import functools
 import dataclasses
 
@@ -30,7 +31,9 @@ _GROUPS: list[tuple[str, list[str]]] = [
     ('Display', ['display', 'display_refresh', 'display_format']),
     ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure',
               'mqtt_certs_dir', 'mqtt_reconnect_delay']),
-    ('SIMOC Live frontend', ['live_refresh']),
+    ('SIMOC Live frontend', ['live_refresh', 'use_https',
+                             'admin_enabled', 'admin_secure', 'admin_visible',
+                             'admin_allow_commands', 'admin_allow_power']),
     ('SIMOC Web', ['sio_host', 'sio_port', 'data_source',
                    'mqtt_topic_sub', 'simoc_web_dist_dir']),
     ('Flask API', ['api_host', 'api_port']),
@@ -60,56 +63,77 @@ A-z: {bno085_linear_accel_z:.2f}
 class SimocConfig:
     """All SIMOC Live settings with defaults."""
 
+    def f(default=dataclasses.MISSING, *, default_factory=dataclasses.MISSING, help=''):
+        """Shorthand for a dataclasses.field() with a help-text description."""
+        kwargs = {'metadata': {'description': help}}
+        if default_factory is not dataclasses.MISSING:
+            kwargs['default_factory'] = default_factory
+        else:
+            kwargs['default'] = default
+        return dataclasses.field(**kwargs)
+
     # HAB info
-    location: str | None = None
-    humans: int = 0
-    volume: int = 0
+    location: str | None = f(None, help="Sensor location (used in sensor IDs).")
+    humans: int = f(0, help='Number of humans.')
+    volume: int = f(0, help='Location volume in liters.')
 
     # Sensors
-    sensors: list[str] = dataclasses.field(default_factory=lambda: ['bme688', 'scd30', 'sgp30'])
-    sensor_read_delay: float = 10.0
+    sensors: list[str] = f(default_factory=lambda: ['bme688', 'scd30', 'sgp30'],
+                           help='Names of the sensors to run.')
+    sensor_read_delay: float = f(10.0, help='Seconds to wait between sensor readings.')
 
     # Display
-    display: str = 'ssd1306'
-    display_refresh: float = 1.0
-    display_format: str = _DEFAULT_DISPLAY_FORMAT
+    display: str = f('ssd1306', help='Name of the physical display.')
+    display_refresh: float = f(1.0, help='Seconds between display refreshes.')
+    display_format: str = f(_DEFAULT_DISPLAY_FORMAT,
+                            help='Template string used to format display values.')
 
     # MQTT
-    mqtt_host: str = 'localhost'
-    mqtt_port: int = 1883
-    mqtt_secure: bool = False
-    mqtt_certs_dir: pathlib.Path = pathlib.Path('~/.mqttcerts')
-    mqtt_reconnect_delay: float = 5.0
+    mqtt_host: str = f('localhost', help='MQTT broker hostname/IP.')
+    mqtt_port: int = f(1883, help='MQTT broker port.')
+    mqtt_secure: bool = f(False, help='Use TLS to connect to the MQTT broker.')
+    mqtt_certs_dir: pathlib.Path = f(pathlib.Path('~/.mqttcerts'),
+                                     help='MQTT TLS certificates directory.')
+    mqtt_reconnect_delay: float = f(5.0, help='MQTT reconnect delay in seconds.')
 
     # SIMOC Live frontend
-    live_refresh: float = 5.0
+    live_refresh: float = f(5.0, help='Seconds between live tab refreshes.')
+    use_https: bool = f(False, help='Use a self-signed to serve the frontend over HTTPS.')
+    admin_enabled: bool = f(False, help='Enable the web admin interface.')
+    admin_secure: bool = f(True, help='Require a password to access the admin interface.')
+    admin_visible: bool = f(False, help='Make the "Admin" button visible.')
+    admin_allow_commands: bool = f(False, help='Allow running simoc-sam.py commands.')
+    admin_allow_power: bool = f(False, help='Allow restarting or shutting down the system.')
 
     # SIMOC Web / SIO bridge
-    sio_host: str = 'localhost'
-    sio_port: int = 8081
-    data_source: typing.Literal['mqtt', 'logs'] = 'mqtt'
-    mqtt_topic_sub: str = '#'
-    simoc_web_dist_dir: pathlib.Path = pathlib.Path('/var/www/simoc')
+    sio_host: str = f('localhost', help='SIO bridge server hostname/IP.')
+    sio_port: int = f(8081, help='SIO bridge server port.')
+    data_source: typing.Literal['mqtt', 'logs'] = f('mqtt', help='Data source for the SIO bridge.')
+    mqtt_topic_sub: str = f('#', help='MQTT topic SIO bridge subscribes to.')
+    simoc_web_dist_dir: pathlib.Path = f(pathlib.Path('/var/www/simoc'),
+                                         help='Directory nginx serves the built frontend from.')
 
     # Flask API
-    api_host: str = 'localhost'
-    api_port: int = 8082
+    api_host: str = f('localhost', help='Hostname or IP the Flask API binds to.')
+    api_port: int = f(8082, help='Port the Flask API listens on.')
 
     # Verbosity and logging
-    verbose_sensor: bool = False
-    verbose_mqtt: bool = False
-    enable_jsonl_logging: bool = True
-    log_dir: pathlib.Path = pathlib.Path('~/logs')
-    data_dir: pathlib.Path = pathlib.Path('~/data')
-    db_path: pathlib.Path = pathlib.Path('~/data/sensor_data.db')
+    verbose_sensor: bool = f(False, help='Print sensor readings to the console.')
+    verbose_mqtt: bool = f(False, help='Print MQTT connection/publish messages to the console.')
+    enable_jsonl_logging: bool = f(True, help='Log sensor readings to JSONL files in log_dir.')
+    log_dir: pathlib.Path = f(pathlib.Path('~/logs'), help='JSONL sensor logs directory.')
+    data_dir: pathlib.Path = f(pathlib.Path('~/data'), help='CSV logs directory.')
+    db_path: pathlib.Path = f(pathlib.Path('~/data/sensor_data.db'), help='SQLite database path.')
 
     # BNO085
-    bno085_default_err_value: int = 0
-    bno085_enabled_features: list[str] = dataclasses.field(default_factory=lambda: [
+    bno085_default_err_value: int = f(0, help="Value used for failed BNO085 reads.")
+    bno085_enabled_features: list[str] = f(default_factory=lambda: [
         'RAW_ACCELEROMETER', 'RAW_GYROSCOPE', 'RAW_MAGNETOMETER',
         'ACCELEROMETER', 'GYROSCOPE', 'MAGNETOMETER',
         'LINEAR_ACCELERATION', 'ROTATION_VECTOR', 'GAME_ROTATION_VECTOR',
-    ])
+    ], help='BNO085 features to enable.')
+
+    del f  # was only needed to define the fields above
 
     def __post_init__(self) -> None:
         # Validate field types and options against the schema
@@ -212,9 +236,9 @@ def validate_fields(values: dict) -> None:
 def get_schema() -> dict[str, dict]:
     """Return a schema dict for every config field (result is cached).
 
-    Each entry has ``default``, ``type``, ``group``, and ``options``.
-    *type* is one of: ``str``, ``multiline_str``, ``nullable_str``,
-    ``bool``, ``int``, ``float``, ``list``, ``literal``.
+    Each entry has ``default``, ``type``, ``group``, ``options``, and
+    ``description``. *type* is one of: ``str``, ``multiline_str``,
+    ``nullable_str``, ``bool``, ``int``, ``float``, ``list``, ``literal``.
     """
     hints = typing.get_type_hints(SimocConfig)
     schema: dict[str, dict] = {}
@@ -230,6 +254,7 @@ def get_schema() -> dict[str, dict]:
             'type': field_type,
             'group': _GROUP_MAP.get(f.name, 'General'),
             'options': options,
+            'description': f.metadata.get('description', ''),
         }
     # set options for fields that depend on runtime data
     from simoc_sam.sensors.utils import SENSOR_DATA
@@ -283,6 +308,29 @@ def generate_config(overrides: dict = {}) -> str:
 def config_path() -> pathlib.Path:
     """Return the config file path."""
     return pathlib.Path.home() / '.config/simoc-sam/config.toml'
+
+
+def admin_password_path() -> pathlib.Path:
+    """Return the path to the local admin password hash."""
+    return config_path().parent / 'admin-password.hash'
+
+
+def admin_session_secret_path() -> pathlib.Path:
+    """Return the path to the Flask admin session secret."""
+    return config_path().parent / 'admin-session.secret'
+
+
+def get_admin_session_secret() -> bytes:
+    """Read or atomically create the Flask admin session secret."""
+    path = admin_session_secret_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open('xb') as secret_file:
+            secret_file.write(secrets.token_bytes(32))
+        path.chmod(0o600)
+    except FileExistsError:
+        pass
+    return path.read_bytes()
 
 
 def read_user_overrides() -> dict:
