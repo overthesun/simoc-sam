@@ -49,6 +49,8 @@ let datePicker = null;
 let timeStartPicker = null;
 let timeEndPicker = null;
 let selectionUIReady = null;
+let exportChunksLoaded = false;
+let exportChunksLoading = null;
 let activeSensors = new Set();   // sensors known to have data (grow-only)
 let discoveryLastRun = 0;
 const DISCOVERY_TTL = 5 * 60 * 1000;  // re-check for new sensors every 5 minutes
@@ -110,6 +112,7 @@ async function showSection(name) {
   });
   $('#section-live').hidden = name !== 'live';
   $('#section-history').hidden = name !== 'history';
+  $('#section-export').hidden = name !== 'export';
   $('#section-admin').hidden = name !== 'admin';
   if (name === 'live') {
     loadLiveConfig();
@@ -122,6 +125,7 @@ async function showSection(name) {
     } else if (name === 'admin' && !adminState.loaded) {
       loadAdmin();
     }
+    if (name === 'export' && !exportChunksLoaded) loadExportChunks();
   }
 }
 
@@ -476,6 +480,195 @@ function prepareData(timestamps, values, factor = 5) {
     result.push(pts[i]);
   }
   return result;
+}
+
+async function loadExportChunks() {
+  if (exportChunksLoading) return exportChunksLoading;
+  exportChunksLoading = (async () => {
+    await selectionUIReady;
+    const sensors = [...activeSensors]
+      .filter((sensor) => state.sensors[sensor]
+        && Object.keys(state.sensors[sensor].metrics).length)
+      .map((sensor) => [sensor, state.sensors[sensor]]);
+    if (!sensors.length) {
+      $('#export-chunks').replaceChildren();
+      $('#export-status').textContent = 'No active sensors have data.';
+      return;
+    }
+    $('#export-status').textContent = 'Loading sensor data…';
+    try {
+      const data = await fetchJSON('/api/chunks', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sensors: sensors.map(([sensor]) => sensor)}),
+      });
+      const chunkCount = renderExportChunks(sensors, data.chunks);
+      exportChunksLoaded = true;
+      $('#export-status').textContent = `${sensors.length} active sensors, ${chunkCount} data chunks`;
+    } catch (err) {
+      $('#export-status').textContent = `Error loading chunks: ${err.message}`;
+    }
+  })();
+  try {
+    await exportChunksLoading;
+  } finally {
+    exportChunksLoading = null;
+  }
+}
+
+function renderExportChunks(sensors, data) {
+  const container = $('#export-chunks');
+  container.replaceChildren();
+  let chunkCount = 0;
+  for (const [sensor, info] of sensors) {
+    const metrics = Object.keys(info.metrics);
+    const chunks = data[sensor] || [];
+    chunkCount += chunks.length;
+
+    const heading = document.createElement('h2');
+    heading.textContent = info.name;
+    container.appendChild(heading);
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'chunk-table-wrap';
+    const table = document.createElement('table');
+    table.className = 'chunk-table';
+    const thead = document.createElement('thead');
+    const header = document.createElement('tr');
+    for (const title of ['Start', 'End', ...metrics.map((metric) => info.metrics[metric].label), 'CSV', 'JSON', 'Delete']) {
+      const th = document.createElement('th');
+      th.textContent = title;
+      header.appendChild(th);
+    }
+    thead.appendChild(header);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    chunks.forEach((chunk) => {
+      const row = document.createElement('tr');
+      for (const timestamp of [chunk.start_ms, chunk.end_ms]) {
+        const cell = document.createElement('td');
+        cell.textContent = formatLocal(timestamp);
+        row.appendChild(cell);
+      }
+      for (const metric of metrics) {
+        const cell = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.dataset.metric = metric;
+        checkbox.setAttribute('aria-label', `Include ${info.metrics[metric].label}`);
+        cell.appendChild(checkbox);
+        row.appendChild(cell);
+      }
+      for (const format of ['csv', 'json']) {
+        const cell = document.createElement('td');
+        const button = createChunkActionButton('download', `Download ${format.toUpperCase()}`);
+        button.addEventListener('click', () => exportChunk(sensor, chunk, row, format));
+        cell.appendChild(button);
+        row.appendChild(cell);
+      }
+      const deleteCell = document.createElement('td');
+      const deleteButton = createChunkActionButton('trash', 'Delete chunk', true);
+      deleteButton.addEventListener('click', () => deleteChunk(sensor, chunk));
+      deleteCell.appendChild(deleteButton);
+      row.appendChild(deleteCell);
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    container.appendChild(tableWrap);
+    if (!chunks.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No data chunks available.';
+      container.appendChild(empty);
+    }
+  }
+  return chunkCount;
+}
+
+function createChunkActionButton(icon, label, danger = false) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `admin-cmd-btn chunk-action-btn${danger ? ' danger' : ''}`;
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  const paths = icon === 'download'
+    ? ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm7 10 5 5 5-5', 'M12 15V3']
+    : ['M3 6h18', 'M8 6V4h8v2', 'm19 6-1 14H6L5 6', 'M10 11v6', 'M14 11v6'];
+  for (const pathData of paths) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+    svg.appendChild(path);
+  }
+  button.appendChild(svg);
+  return button;
+}
+
+function selectedChunkMetrics(row) {
+  return [...row.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((checkbox) => checkbox.dataset.metric);
+}
+
+async function exportChunk(sensor, chunk, row, format) {
+  const metrics = selectedChunkMetrics(row);
+  if (!metrics.length) {
+    showModal('Select at least one reading to export.');
+    return;
+  }
+  try {
+    const response = await fetch('/api/export', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        selection: {[sensor]: metrics},
+        start: chunk.start,
+        end: chunk.end_exclusive,
+        format,
+      }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error || response.statusText);
+    }
+    downloadBlob(await response.blob(), `${sensor}_${formatLocal(chunk.start).replace(/[^0-9]/g, '')}_${format}.${format}`,
+                 response.headers.get('Content-Type'));
+  } catch (err) {
+    showModal(`Export failed: ${err.message}`);
+  }
+}
+
+async function deleteChunk(sensor, chunk) {
+  const sensorName = state.sensors[sensor].name;
+  if (!window.confirm(`Delete ${sensorName} data from ${formatLocal(chunk.start)} to ${formatLocal(chunk.end)}? This cannot be undone.`)) return;
+  try {
+    const visibility = await fetchJSON('/api/admin/visibility');
+    if (!visibility.enabled) throw new Error('Data deletion is disabled by the administrator.');
+    if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
+    const result = await fetchAdminJSON('/api/admin/data/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminState.csrfToken ? {'X-CSRF-Token': adminState.csrfToken} : {}),
+      },
+      body: JSON.stringify({
+        sensors: [sensor],
+        start: chunk.start,
+        end: chunk.end_exclusive,
+      }),
+    });
+    showModal(`Deleted ${result.total} readings.`);
+    exportChunksLoaded = false;
+    await loadExportChunks();
+  } catch (err) {
+    showModal(`Delete failed: ${err.message}`);
+  }
 }
 
 function makeChartBox(sensor, metric, data, xMin, xMax) {
@@ -1115,6 +1308,10 @@ $('#view-mode-toggle').addEventListener('change', (e) => {
 $('#btn-query').addEventListener('click', runQuery);
 $('#btn-export-visible').addEventListener('click', exportVisible);
 $('#btn-export-full').addEventListener('click', exportFull);
+$('#btn-refresh-chunks').addEventListener('click', () => {
+  exportChunksLoaded = false;
+  loadExportChunks();
+});
 
 document.querySelectorAll('.quick-range [data-range]').forEach((btn) => {
   btn.addEventListener('click', () => applyQuickRange(btn.dataset.range));

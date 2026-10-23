@@ -14,6 +14,7 @@
     <nav>
       <button id="nav-live" class="nav-btn active" data-section="live">Live</button>
       <button id="nav-history" class="nav-btn" data-section="history">History</button>
+      <button id="nav-export" class="nav-btn" data-section="export">Export / Delete</button>
       <button id="nav-admin" class="nav-btn" data-section="admin" hidden>Admin</button>
     </nav>
   </header>
@@ -81,6 +82,15 @@
         </div>
       </div>
       <div id="history-results"></div>
+    </section>
+
+    <!-- Chunk Export and Deletion -->
+    <section id="section-export" hidden>
+      <div class="status-row">
+        <div id="export-status" class="status-line"></div>
+        <button id="btn-refresh-chunks" class="toggle" type="button">Refresh chunks</button>
+      </div>
+      <div id="export-chunks" class="chunk-list"></div>
     </section>
 
     <!-- Admin Interface -->
