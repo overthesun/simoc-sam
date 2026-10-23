@@ -7,10 +7,10 @@ read connection (WAL mode allows safe concurrent reads with the writer).
 import io
 import csv
 import json
-import logging
 import time
 import pathlib
 import sqlite3
+import logging
 
 from datetime import datetime, timezone, timedelta
 
@@ -18,6 +18,7 @@ from flask import Flask, jsonify, request, g, Response
 from werkzeug.exceptions import HTTPException
 
 from simoc_sam import config, db
+from simoc_sam.admin import admin_bp
 from simoc_sam.sensors.utils import SENSOR_DATA
 
 
@@ -42,6 +43,15 @@ def to_unix_ms(ts):
 def create_app(db_path=None):
     """Create and return the Flask app (db_path overrides config.db_path)."""
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path='')
+    app.secret_key = config.get_admin_session_secret()
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Strict',
+        # Secure cookies are dropped by browsers over plain HTTP -- without
+        # this, the admin session/CSRF token never persists when use_https
+        # is off (the default)
+        SESSION_COOKIE_SECURE=config.use_https,
+    )
     app.config['DB_PATH'] = db_path or config.db_path
 
     # When running under Gunicorn, inherit its log handlers and level so
@@ -66,6 +76,8 @@ def create_app(db_path=None):
         conn = g.pop('db_conn', None)
         if conn is not None:
             conn.close()
+
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
     @app.errorhandler(Exception)
     def handle_unexpected_error(err):
