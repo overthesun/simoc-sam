@@ -934,6 +934,14 @@ async function loadAdminCommands() {
 function renderCommandGroups(commands) {
   const container = $('#admin-command-groups');
   container.replaceChildren();
+  const appendCommandButton = (parent, cmd, meta) => {
+    const btn = document.createElement('button');
+    btn.className = 'admin-cmd-btn' + (meta.needs_root ? ' needs-root' : '');
+    btn.textContent = cmd;
+    btn.title = meta.doc + (meta.args_hint ? `\nArgs: ${meta.args_hint}` : '');
+    btn.addEventListener('click', () => runAdminCommand(cmd, meta, btn));
+    parent.appendChild(btn);
+  };
   for (const [group, cmds] of Object.entries(commands)) {
     const section = document.createElement('div');
     section.className = 'admin-cmd-group';
@@ -942,13 +950,25 @@ function renderCommandGroups(commands) {
     section.appendChild(h3);
     const btns = document.createElement('div');
     btns.className = 'admin-cmd-btns';
+    const commandNames = new Set(Object.keys(cmds));
+    const renderedCommands = new Set();
     for (const [cmd, meta] of Object.entries(cmds)) {
-      const btn = document.createElement('button');
-      btn.className = 'admin-cmd-btn' + (meta.needs_root ? ' needs-root' : '');
-      btn.textContent = cmd;
-      btn.title = meta.doc + (meta.args_hint ? `\nArgs: ${meta.args_hint}` : '');
-      btn.addEventListener('click', () => runAdminCommand(cmd, meta, btn));
-      btns.appendChild(btn);
+      if (renderedCommands.has(cmd)) continue;
+      const setupCmd = cmd.startsWith('setup-') ? cmd :
+        (cmd.startsWith('teardown-') ? `setup-${cmd.slice('teardown-'.length)}` : null);
+      const teardownCmd = setupCmd ? `teardown-${setupCmd.slice('setup-'.length)}` : null;
+      if (setupCmd && teardownCmd && commandNames.has(setupCmd) && commandNames.has(teardownCmd)) {
+        const pair = document.createElement('div');
+        pair.className = 'admin-cmd-pair';
+        appendCommandButton(pair, setupCmd, cmds[setupCmd]);
+        appendCommandButton(pair, teardownCmd, cmds[teardownCmd]);
+        btns.appendChild(pair);
+        renderedCommands.add(setupCmd);
+        renderedCommands.add(teardownCmd);
+      } else {
+        appendCommandButton(btns, cmd, meta);
+        renderedCommands.add(cmd);
+      }
     }
     section.appendChild(btns);
     container.appendChild(section);
