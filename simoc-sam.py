@@ -895,13 +895,13 @@ def write_default_config(config_path):
     config_path.write_text(simoc_config.generate_config())
 
 
-@cmd(category='System', admin=True)
+@cmd(category='Power', admin=True)
 @needs_root
 def reboot():
     """Reboot the system."""
     return run(['systemctl', 'reboot'])
 
-@cmd(category='System', admin=True)
+@cmd(category='Power', admin=True)
 @needs_root
 def shutdown():
     """Shut down (power off) the system."""

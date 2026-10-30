@@ -647,10 +647,10 @@ async function loadAdmin() {
     if (!visibility.enabled) return;
     if (visibility.secure && !adminState.csrfToken) await loginAdmin();
     if (!visibility.secure) adminState.csrfToken = visibility.csrf_token;
-    $('#admin-commands-panel').hidden = !visibility.allow_commands;
-    $('#admin-power-panel').hidden = !visibility.allow_power;
+    const showCommands = visibility.allow_commands || visibility.allow_power;
+    $('#admin-commands-panel').hidden = !showCommands;
     const tasks = [loadAdminConfig()];
-    if (visibility.allow_commands) tasks.push(loadAdminCommands());
+    if (showCommands) tasks.push(loadAdminCommands());
     await Promise.all(tasks);
     adminState.loaded = true;
     $('#btn-admin-logout').hidden = !visibility.secure;
@@ -925,26 +925,37 @@ async function saveAdminConfig() {
 async function loadAdminCommands() {
   try {
     const data = await fetchAdminJSON('/api/admin/commands');
-    renderCommandGroups(data.commands);
+    renderCommandGroups(data.commands, data.group_order);
   } catch (err) {
     $('#admin-commands-status').textContent = `Error loading commands: ${err.message}`;
   }
 }
 
-function renderCommandGroups(commands) {
+function renderCommandGroups(commands, groupOrder) {
   const container = $('#admin-command-groups');
   container.replaceChildren();
-  const appendCommandButton = (parent, cmd, meta) => {
+  const appendCommandButton = (parent, cmd, meta, isPowerCommand) => {
     const btn = document.createElement('button');
-    btn.className = 'admin-cmd-btn' + (meta.needs_root ? ' needs-root' : '');
-    btn.textContent = cmd;
+    btn.className = 'admin-cmd-btn' +
+      (meta.needs_root ? ' needs-root' : '') +
+      (isPowerCommand ? ' danger' : '');
+    btn.textContent = isPowerCommand
+      ? (cmd === 'reboot' ? 'Restart' : 'Shut down')
+      : cmd;
     btn.title = meta.doc + (meta.args_hint ? `\nArgs: ${meta.args_hint}` : '');
-    btn.addEventListener('click', () => runAdminCommand(cmd, meta, btn));
+    btn.addEventListener('click', () => isPowerCommand
+      ? runAdminPower(cmd, btn)
+      : runAdminCommand(cmd, meta, btn));
     parent.appendChild(btn);
   };
-  for (const [group, cmds] of Object.entries(commands)) {
+  const orderedGroups = [
+    ...groupOrder.filter((group) => Object.hasOwn(commands, group)),
+    ...Object.keys(commands).filter((group) => !groupOrder.includes(group)),
+  ];
+  for (const group of orderedGroups) {
+    const cmds = commands[group];
     const section = document.createElement('div');
-    section.className = 'admin-cmd-group';
+    section.className = 'admin-cmd-group' + (group === 'Power' ? ' admin-cmd-group-power' : '');
     const h3 = document.createElement('h3');
     h3.textContent = group;
     section.appendChild(h3);
@@ -960,13 +971,13 @@ function renderCommandGroups(commands) {
       if (setupCmd && teardownCmd && commandNames.has(setupCmd) && commandNames.has(teardownCmd)) {
         const pair = document.createElement('div');
         pair.className = 'admin-cmd-pair';
-        appendCommandButton(pair, setupCmd, cmds[setupCmd]);
-        appendCommandButton(pair, teardownCmd, cmds[teardownCmd]);
+        appendCommandButton(pair, setupCmd, cmds[setupCmd], false);
+        appendCommandButton(pair, teardownCmd, cmds[teardownCmd], false);
         btns.appendChild(pair);
         renderedCommands.add(setupCmd);
         renderedCommands.add(teardownCmd);
       } else {
-        appendCommandButton(btns, cmd, meta);
+        appendCommandButton(btns, cmd, meta, group === 'Power');
         renderedCommands.add(cmd);
       }
     }
@@ -979,7 +990,6 @@ const CONFIRM_CMDS = new Set([
   'teardown-sensors', 'teardown-display', 'teardown-siobridge',
   'teardown-csvwriter', 'teardown-sqlwriter', 'teardown-mosquitto',
   'teardown-frontend', 'teardown-nginx', 'teardown-hotspot', 'teardown-wifi',
-  'reboot', 'shutdown',
 ]);
 
 function commandArgs(cmd, meta) {
@@ -1086,13 +1096,13 @@ async function runAdminCommand(cmd, meta, btn) {
 $('#admin-config-form').addEventListener('input',  () => setDirty(true));
 $('#admin-config-form').addEventListener('change', () => setDirty(true));
 
-async function runAdminPower(action) {
+async function runAdminPower(action, button) {
   const label = action === 'reboot' ? 'restart' : 'shut down';
   if (!window.confirm(`Are you sure you want to ${label} the system?`)) return;
-  const statusEl = $('#admin-power-status');
+  const statusEl = $('#admin-commands-status');
   statusEl.textContent = `${label === 'restart' ? 'Restarting' : 'Shutting down'}\u2026`;
-  $('#btn-admin-reboot').disabled = true;
-  $('#btn-admin-shutdown').disabled = true;
+  const buttons = [...button.closest('.admin-cmd-group').querySelectorAll('button')];
+  buttons.forEach((powerButton) => { powerButton.disabled = true; });
   try {
     const data = await fetchAdminJSON('/api/admin/power', {
       method: 'POST',
@@ -1108,13 +1118,9 @@ async function runAdminPower(action) {
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   } finally {
-    $('#btn-admin-reboot').disabled = false;
-    $('#btn-admin-shutdown').disabled = false;
+    buttons.forEach((powerButton) => { powerButton.disabled = false; });
   }
 }
-
-$('#btn-admin-reboot').addEventListener('click', () => runAdminPower('reboot'));
-$('#btn-admin-shutdown').addEventListener('click', () => runAdminPower('shutdown'));
 
 $('#btn-save-config').addEventListener('click', saveAdminConfig);
 $('#btn-admin-logout').addEventListener('click', logoutAdmin);

@@ -310,12 +310,18 @@ def test_get_commands_exposes_argument_metadata(client):
     response = test_client.get('/api/admin/commands')
 
     assert response.status_code == 200
-    setup_wifi = response.get_json()['commands']['Network']['setup-wifi']
+    commands = response.get_json()['commands']
+    setup_wifi = commands['Network']['setup-wifi']
     assert [param['name'] for param in setup_wifi['params']] == [
         'ssid', 'password', 'interface',
     ]
     assert setup_wifi['params'][1]['secret'] is True
     assert setup_wifi['params'][2]['default'] == 'wlan0'
+    assert {'reboot', 'shutdown'} <= commands['Power'].keys()
+    actual = [group for group in response.get_json()['group_order'] if group in commands]
+    expected = [group for group in admin._GROUP_ORDER if group in admin.COMMANDS]
+    assert actual == expected
+    assert response.get_json()['group_order'] == admin._GROUP_ORDER
 
 
 @pytest.mark.parametrize('payload', [
@@ -377,9 +383,30 @@ def test_post_run_executes_allowed_command(client):
 
 def test_get_commands_disabled_by_default(client):
     test_client, _ = client
-    with patch.object(admin, '_admin_allow_commands', return_value=False):
+    with patch.object(admin, '_admin_allow_commands', return_value=False), \
+         patch.object(admin, '_admin_allow_power', return_value=False):
         response = test_client.get('/api/admin/commands')
     assert response.status_code == 403
+
+
+def test_get_commands_includes_only_power_group_when_commands_disabled(client):
+    test_client, _ = client
+    with patch.object(admin, '_admin_allow_commands', return_value=False), \
+         patch.object(admin, '_admin_allow_power', return_value=True):
+        response = test_client.get('/api/admin/commands')
+
+    assert response.status_code == 200
+    assert list(response.get_json()['commands']) == ['Power']
+
+
+def test_get_commands_hides_power_group_when_power_disabled(client):
+    test_client, _ = client
+    with patch.object(admin, '_admin_allow_commands', return_value=True), \
+         patch.object(admin, '_admin_allow_power', return_value=False):
+        response = test_client.get('/api/admin/commands')
+
+    assert response.status_code == 200
+    assert 'Power' not in response.get_json()['commands']
 
 
 def test_post_run_disabled_by_default(client):
@@ -389,6 +416,16 @@ def test_post_run_disabled_by_default(client):
          patch.dict(admin._ALL_COMMANDS, {'safe-command': command}):
         response = test_client.post('/api/admin/run', json={'cmd': 'safe-command'})
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize('command', ['reboot', 'shutdown'])
+def test_post_run_requires_power_endpoint_for_power_actions(client, command):
+    test_client, _ = client
+
+    response = test_client.post('/api/admin/run', json={'cmd': command})
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'Unknown or disallowed command'
 
 
 def test_get_visibility_exposes_allow_flags(client):

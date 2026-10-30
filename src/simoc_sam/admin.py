@@ -43,7 +43,8 @@ _HIDDEN_CONFIG_FIELDS = {
 # ─── command loading ─────────────────────────────────────────────────────────
 
 # Preferred display order for command groups in the admin UI.
-_GROUP_ORDER = ['Info', 'Services', 'Frontend', 'Network', 'System']
+_POWER_GROUP = 'Power'
+_GROUP_ORDER = ['Info', 'Services', 'Frontend', 'Network', 'System', _POWER_GROUP]
 
 
 def _load_commands():
@@ -401,12 +402,28 @@ def post_config():
     })
 
 
+# Fixed, no-argument power actions -- gated by admin_allow_power, independent
+# of admin_allow_commands, since a locked-down instance may still want a
+# safe way to reboot/shut down without exposing the full command whitelist.
+_POWER_ACTIONS = {'reboot': 'reboot', 'shutdown': 'shutdown'}
+
+
 @admin_bp.get('/commands')
 def get_commands():
-    """Return the grouped command whitelist."""
-    if not _admin_allow_commands():
+    """Return command groups allowed by the admin command and power settings."""
+    allow_commands = _admin_allow_commands()
+    allow_power = _admin_allow_power()
+    if not allow_commands and not allow_power:
         return jsonify({'error': 'Running commands is disabled'}), 403
-    return jsonify({'commands': COMMANDS})
+
+    command_groups = {}
+    for category, commands in COMMANDS.items():
+        if category == _POWER_GROUP:
+            if allow_power:
+                command_groups[category] = commands
+        elif allow_commands:
+            command_groups[category] = commands
+    return jsonify({'commands': command_groups, 'group_order': _GROUP_ORDER})
 
 
 @admin_bp.post('/run')
@@ -426,6 +443,8 @@ def post_run():
         return jsonify({'error': '"args" must be an array of strings'}), 400
     if not all(isinstance(arg, str) for arg in extra_args):
         return jsonify({'error': '"args" must be an array of strings'}), 400
+    if command_name in _POWER_ACTIONS.values():
+        return jsonify({'error': 'Unknown or disallowed command'}), 400
     command = _ALL_COMMANDS.get(command_name)
     if command is None:
         return jsonify({'error': 'Unknown or disallowed command'}), 400
@@ -435,12 +454,6 @@ def post_run():
         return jsonify({'error': 'Command arguments are invalid'}), 400
     success, stdout, stderr = _run_command(command, validated_args)
     return jsonify({'success': success, 'stdout': stdout, 'stderr': stderr})
-
-
-# Fixed, no-argument power actions -- gated by admin_allow_power, independent
-# of admin_allow_commands, since a locked-down instance may still want a
-# safe way to reboot/shut down without exposing the full command whitelist.
-_POWER_ACTIONS = {'reboot': 'reboot', 'shutdown': 'shutdown'}
 
 
 @admin_bp.post('/power')
