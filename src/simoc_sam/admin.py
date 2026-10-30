@@ -44,7 +44,7 @@ _HIDDEN_CONFIG_FIELDS = {
 
 # Preferred display order for command groups in the admin UI.
 _POWER_GROUP = 'Power'
-_GROUP_ORDER = ['Info', 'Services', 'Frontend', 'Network', 'System', _POWER_GROUP]
+_GROUP_ORDER = ['Info', 'Devices', 'Services', 'Frontend', 'Network', 'System', _POWER_GROUP]
 
 
 def _load_commands():

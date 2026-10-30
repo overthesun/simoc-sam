@@ -453,13 +453,13 @@ def setup_or_teardown_sensors(function, sensors=None):
         sensors = simoc_config.sensors
     return all([function(f'sensor-runner@{sensor}') for sensor in sensors])
 
-@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
+@cmd(category='Devices', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
 @needs_root
 def setup_sensors(sensors=None):
     """Setup systemd services that run the sensors (no value = use config values)."""
     return setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
-@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
+@cmd(category='Devices', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
 @needs_root
 def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command (no value = use config values)."""
@@ -474,13 +474,13 @@ def setup_or_teardown_display(function, display=None):
         return False
     return function(f'display-runner@{display}')
 
-@cmd(category='Services', admin=True, args_hint='display-name  (no value = use config value)')
+@cmd(category='Devices', admin=True, args_hint='display-name  (no value = use config value)')
 @needs_root
 def setup_display(display=None):
     """Setup systemd service that runs the display (no value = use config value)."""
     return setup_or_teardown_display(setup_systemd_unit, display)
 
-@cmd(category='Services', admin=True)
+@cmd(category='Devices', admin=True)
 @needs_root
 def teardown_display(display=None, args_hint='display-name  (no value = use config value)'):
     """Revert the changes made by the setup-display command (no value = use config value)."""
@@ -605,13 +605,13 @@ def teardown_nginx():
     return stopped and disabled
 
 
-@cmd(category='Services', admin=True)
+@cmd(category='Frontend', admin=True)
 @needs_root
 def setup_flask():
     """Setup a systemd service that runs the Flask API."""
     return setup_systemd_unit('flaskapi')
 
-@cmd(category='Services', admin=True)
+@cmd(category='Frontend', admin=True)
 @needs_root
 def teardown_flask():
     """Revert the changes made by the setup-flask command."""
@@ -844,7 +844,7 @@ def set_rtc_time(timestamp=None):
     return (run(['sudo', 'hwclock', '--set', '--date', formatted]) and
             run(['timedatectl', 'status']))
 
-@cmd(category='System', admin=True)
+@cmd(category='Devices', admin=True)
 @needs_root
 def setup_rtc():
     """Setup PCF8523 RTC by adding dtoverlay to config.txt."""
@@ -867,7 +867,7 @@ def setup_rtc():
     print('After reboot, use the `set-rtc-time` command to set the RTC time.')
     return True
 
-@cmd(category='System', admin=True)
+@cmd(category='Devices', admin=True)
 @needs_root
 def teardown_rtc():
     """Revert the changes made by the setup-rtc command."""
