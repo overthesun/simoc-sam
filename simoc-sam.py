@@ -453,16 +453,16 @@ def setup_or_teardown_sensors(function, sensors=None):
         sensors = simoc_config.sensors
     return all([function(f'sensor-runner@{sensor}') for sensor in sensors])
 
-@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (blank = all from config)')
+@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
 @needs_root
 def setup_sensors(sensors=None):
-    """Setup systemd services that run the sensors."""
+    """Setup systemd services that run the sensors (no value = use config values)."""
     return setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
-@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (blank = all from config)')
+@cmd(category='Services', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
 @needs_root
 def teardown_sensors(sensors=None):
-    """Revert the changes made by the setup-sensors command."""
+    """Revert the changes made by the setup-sensors command (no value = use config values)."""
     return setup_or_teardown_sensors(teardown_systemd_unit, sensors)
 
 def setup_or_teardown_display(function, display=None):
@@ -474,16 +474,16 @@ def setup_or_teardown_display(function, display=None):
         return False
     return function(f'display-runner@{display}')
 
-@cmd(category='Services', admin=True, args_hint='display-name  (blank = from config)')
+@cmd(category='Services', admin=True, args_hint='display-name  (no value = use config value)')
 @needs_root
 def setup_display(display=None):
-    """Setup systemd service that runs the display."""
+    """Setup systemd service that runs the display (no value = use config value)."""
     return setup_or_teardown_display(setup_systemd_unit, display)
 
 @cmd(category='Services', admin=True)
 @needs_root
-def teardown_display(display=None):
-    """Revert the changes made by the setup-display command."""
+def teardown_display(display=None, args_hint='display-name  (no value = use config value)'):
+    """Revert the changes made by the setup-display command (no value = use config value)."""
     return setup_or_teardown_display(teardown_systemd_unit, display)
 
 
@@ -834,7 +834,7 @@ def parse_timestamp(timestamp):
             print('Use ISO format (YYYY-MM-DD HH:MM:SS) or Unix timestamp.')
             return
 
-@cmd(category='System', admin=True, args_hint='timestamp (ISO or Unix, blank = now)')
+@cmd(category='System', admin=True, args_hint='timestamp (ISO or Unix, no value = now)')
 def set_rtc_time(timestamp=None):
     """Set the RTC time to the specified timestamp (ISO or Unix)."""
     dt = parse_timestamp(timestamp) if timestamp else datetime.datetime.now()
