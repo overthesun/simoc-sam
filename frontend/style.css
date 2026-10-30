@@ -455,13 +455,23 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
   letter-spacing: 0.06em;
 }
 
-.admin-cmd-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.admin-cmd-btns {
+  --admin-cmd-button-height: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
 .admin-cmd-pair {
   display: flex;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: 0;
   padding: 0.2rem;
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+.admin-cmd-pair .admin-cmd-btn {
+  box-sizing: border-box;
+  height: var(--admin-cmd-button-height);
 }
 
 .admin-cmd-btn {
@@ -472,6 +482,10 @@ span.flatpickr-weekday { background: var(--panel); color: var(--muted); fill: va
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8rem;
+}
+.admin-cmd-btns > .admin-cmd-btn {
+  box-sizing: border-box;
+  height: calc(2 * var(--admin-cmd-button-height) + 0.4rem + 2px);
 }
 .admin-cmd-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .admin-cmd-btn.danger { border-color: #5a2a2a; color: #cc6666; }
