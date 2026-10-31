@@ -297,11 +297,20 @@ def read_user_overrides() -> dict:
         raise InvalidConfig(f'Invalid TOML syntax in <{path}>: {exc}') from exc
 
 
+def _set_module_attrs(cfg: SimocConfig) -> None:
+    """Expose the config values as module-level attributes."""
+    module = sys.modules[__name__]
+    for field in dataclasses.fields(cfg):
+        if not field.name.startswith('_'):
+            setattr(module, field.name, getattr(cfg, field.name))
+
+
 def save_user_config(overrides: dict) -> None:
     """Write the config template with overrides as live TOML values."""
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(generate_config(overrides))
+    path.write_text(generate_config(overrides))  # update config.toml
+    _set_module_attrs(get_config(read_user_overrides()))  # update module attrs
 
 
 def get_config(overrides: dict | None = None) -> SimocConfig:
@@ -432,6 +441,4 @@ try:
 except InvalidConfig as exc:
     print(f'Warning: {exc}', file=sys.stderr)
 else:
-    for _f in dataclasses.fields(_cfg):
-        if not _f.name.startswith('_'):
-            setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))
+    _set_module_attrs(_cfg)

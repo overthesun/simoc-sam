@@ -424,6 +424,15 @@ def test_save_and_load_roundtrip(user_config):
     assert loaded['mqtt_secure'] is False
 
 
+def test_save_user_config_updates_module_vars(user_config):
+    initial_port = config.mqtt_port
+    assert initial_port == get_schema()['mqtt_port']['default']
+
+    save_user_config({'mqtt_port': 123456})  # override the default
+    assert config.mqtt_port != initial_port
+    assert config.mqtt_port == 123456
+
+
 def test_save_user_config_creates_directory(tmp_path):
     save_user_config({'mqtt_port': 9999})
     assert (tmp_path / '.config' / 'simoc-sam' / 'config.toml').exists()
