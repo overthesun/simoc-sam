@@ -251,9 +251,26 @@ def test_post_config_structured_removes_values_reset_to_defaults(client):
 
     assert response.status_code == 200
     data = response.get_json()
-    assert data['changed_fields'] == []
-    assert data['related_commands'] == []
+    assert data['changed_fields'] == ['humans', 'sensors']
+    assert data['related_commands'] == ['setup-sensors']
     assert admin.sam_config.read_user_overrides() == {}
+
+
+def test_post_config_updates_and_resets_related_fields_atomically(client):
+    test_client, _ = client
+    admin.sam_config.update_config_values({'data_source': 'logs'})
+
+    response = test_client.post('/api/admin/config', json={
+        'fields': {
+            'data_source': 'mqtt',
+            'enable_jsonl_logging': False,
+        },
+    })
+
+    assert response.status_code == 200
+    assert admin.sam_config.read_user_overrides() == {
+        'enable_jsonl_logging': False,
+    }
 
 
 def test_post_config_structured_rejects_unknown_field(client):
@@ -290,6 +307,19 @@ def test_post_config_rejects_invalid_existing_config(client):
 
     assert response.status_code == 400
     assert response.get_json()['error'] == 'Config values are invalid or inconsistent'
+
+
+def test_post_config_cannot_repair_invalid_existing_field(client):
+    test_client, config_path = client
+    config_path.write_text('mqtt_port = "not an integer"\n')
+
+    response = test_client.post('/api/admin/config', json={
+        'fields': {'mqtt_port': 1884},
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'Config values are invalid or inconsistent'
+    assert admin.sam_config.read_user_overrides() == {'mqtt_port': 'not an integer'}
 
 
 def test_post_run_rejects_unknown_command(client):

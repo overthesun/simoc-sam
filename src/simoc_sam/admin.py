@@ -368,27 +368,10 @@ def post_config():
         if not sam_config.validate_field(name, value, info['type'], info['options']):
             return jsonify({'error': f'Invalid value for {name!r}: {value!r}'}), 400
     try:
-        current_overrides = sam_config.read_user_overrides()
-        current_config = sam_config.get_config(current_overrides)
-        desired_values = {
-            name: getattr(current_config, name)
-            for name in schema
-        }
-        desired_values.update(submitted)
-        desired_config = sam_config.get_config(desired_values)
-        default_config = sam_config.get_config({})
+        changed_fields = sam_config.update_config_values(submitted)
     except sam_config.InvalidConfig:
-        LOGGER.warning('Rejected config update because the current or desired config is invalid')
+        LOGGER.warning('Rejected config update because the desired config is invalid')
         return jsonify({'error': 'Config values are invalid or inconsistent'}), 400
-    changed_fields = [
-        name for name in schema
-        if getattr(desired_config, name) != getattr(default_config, name)
-    ]
-    overrides = {
-        name: submitted.get(name, current_overrides.get(name))
-        for name in changed_fields
-    }
-    sam_config.save_user_config(overrides)
     related_commands = sorted({
         command
         for name in changed_fields

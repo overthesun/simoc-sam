@@ -349,29 +349,45 @@ def _set_module_attrs(cfg: SimocConfig) -> None:
         setattr(module, field.name, getattr(cfg, field.name))
 
 
-def _apply_overrides(overrides: dict) -> None:
-    """Write the overrides in the file and update the module attributes."""
-    content = generate_config(overrides)
+def _apply_overrides(overrides: dict) -> list[str]:
+    """Write overrides and return fields changed from the previous config."""
+    previous_config = get_config()
+    config = get_config(overrides)
+    defaults = get_config({})
+    # Keep only meaningful overrides; defaults are supplied by SimocConfig.
+    normalized_overrides = {
+        name: value for name, value in overrides.items()
+        if getattr(config, name) != getattr(defaults, name)
+    }
+    content = generate_config(normalized_overrides)
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
-    _set_module_attrs(get_config(read_user_overrides()))
+    _set_module_attrs(config)
+    # Compare effective config values, not raw overrides, to include resets.
+    return [
+        field.name for field in dataclasses.fields(config)
+        if getattr(previous_config, field.name) != getattr(config, field.name)
+    ]
 
 
-def update_config_values(overrides: dict) -> None:
-    """Update config values in both the file and module."""
+def update_config_values(overrides: dict) -> list[str]:
+    """Update config values and return the effective fields that changed."""
     merged_overrides = read_user_overrides()
     merged_overrides.update(overrides)
-    _apply_overrides(merged_overrides)
+    return _apply_overrides(merged_overrides)
 
 
-def reset_config_value(name: str) -> None:
-    """Reset a config value to its default in both the file and module."""
+def reset_config_value(name: str) -> bool:
+    """Reset a config value and return whether its effective value changed."""
     if name not in get_schema():
         raise InvalidConfig(f'{name!r} is not a known config field')
     overrides = read_user_overrides()
-    overrides.pop(name, None)
+    if name not in overrides:
+        return False
+    overrides.pop(name)
     _apply_overrides(overrides)
+    return True
 
 
 def get_config(overrides: dict | None = None) -> SimocConfig:
