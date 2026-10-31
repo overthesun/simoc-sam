@@ -351,24 +351,19 @@ def _set_module_attrs(cfg: SimocConfig) -> None:
 
 def _apply_overrides(overrides: dict) -> list[str]:
     """Write overrides and return fields changed from the previous config."""
-    previous_config = get_config()
-    config = get_config(overrides)
-    defaults = get_config({})
-    # Keep only meaningful overrides; defaults are supplied by SimocConfig.
-    normalized_overrides = {
-        name: value for name, value in overrides.items()
-        if getattr(config, name) != getattr(defaults, name)
-    }
-    content = generate_config(normalized_overrides)
+    old_config = get_config()  # old config with user overrides applied
+    new_config = get_config(overrides)  # new config with user overrides applied
+    defaults = get_config({})  # default config with no user overrides
+    actual_overrides = {name: value for name, value in overrides.items()
+                        if getattr(new_config, name) != getattr(defaults, name)}
+    content = generate_config(actual_overrides)  # only write non-default values
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
-    _set_module_attrs(config)
-    # Compare effective config values, not raw overrides, to include resets.
-    return [
-        field.name for field in dataclasses.fields(config)
-        if getattr(previous_config, field.name) != getattr(config, field.name)
-    ]
+    _set_module_attrs(new_config)
+    # return all fields that changed from the previous config
+    return [field.name for field in dataclasses.fields(new_config)
+            if getattr(old_config, field.name) != getattr(new_config, field.name)]
 
 
 def update_config_values(overrides: dict) -> list[str]:
