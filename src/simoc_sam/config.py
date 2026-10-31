@@ -137,8 +137,7 @@ class SimocConfig:
 
     def __post_init__(self) -> None:
         # Validate field types and options against the schema
-        current = {f.name: getattr(self, f.name) for f in dataclasses.fields(self)
-                   if not f.name.startswith('_')}
+        current = {f.name: getattr(self, f.name) for f in dataclasses.fields(self)}
         validate_fields(current)
 
         # Expand ~ and absolutize all path fields (accepts both str and Path input)
@@ -243,8 +242,6 @@ def get_schema() -> dict[str, dict]:
     hints = typing.get_type_hints(SimocConfig)
     schema: dict[str, dict] = {}
     for f in dataclasses.fields(SimocConfig):
-        if f.name.startswith('_'):
-            continue
         default = get_field_default(f)
         field_type, options = get_field_type(hints[f.name], default)
         if isinstance(default, pathlib.Path):
@@ -349,8 +346,7 @@ def _set_module_attrs(cfg: SimocConfig) -> None:
     """Expose the config values as module-level attributes."""
     module = sys.modules[__name__]
     for field in dataclasses.fields(cfg):
-        if not field.name.startswith('_'):
-            setattr(module, field.name, getattr(cfg, field.name))
+        setattr(module, field.name, getattr(cfg, field.name))
 
 
 def _apply_overrides(overrides: dict) -> None:
