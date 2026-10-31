@@ -900,14 +900,14 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
             print('Run `sam config` to see all available keys.')
             return False
     try:
-        user_overrides = simoc_config.read_user_overrides()
+        if key is None or reset or value is None:
+            user_overrides = simoc_config.read_user_overrides()
         if key is None:
             simoc_config.print_all(schema, user_overrides)
             return True
         if reset:
             if key in user_overrides:
-                del user_overrides[key]
-                simoc_config.save_user_config(user_overrides)
+                simoc_config.reset_config_value(key)
                 default = simoc_config.format_value(schema[key]['default'])
                 print(f'Reset {key} to default: {default}')
             else:
@@ -917,8 +917,7 @@ def config(key=None, value=None, *, path=False, create=False, clean=False,
             simoc_config.print_one(key, schema, user_overrides)
             return True
         parsed = simoc_config.parse_value(value, schema[key])
-        user_overrides[key] = parsed
-        simoc_config.save_user_config(user_overrides)
+        simoc_config.update_config_values({key: parsed})
         print(f'{key} = {simoc_config.format_value(parsed)}')
         for related in simoc_config.RELATED_COMMANDS.get(key, ()):
             print(f'  To apply: sam {related}')
