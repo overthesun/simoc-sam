@@ -525,13 +525,13 @@ def setup_or_teardown_sensors(function, sensors=None):
         sensors = simoc_config.sensors
     return all([function(f'sensor-runner@{sensor}') for sensor in sensors])
 
-@cmd(category='Devices', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
+@cmd(category='Devices', admin=True, args_hint='sensor1,sensor2 (no value = use config values)')
 @needs_root
 def setup_sensors(sensors=None):
     """Setup systemd services that run the sensors (no value = use config values)."""
     return setup_or_teardown_sensors(setup_systemd_unit, sensors)
 
-@cmd(category='Devices', admin=True, args_hint='sensor1,sensor2  (no value = use config values)')
+@cmd(category='Devices', admin=True, args_hint='sensor1,sensor2 (no value = use config values)')
 @needs_root
 def teardown_sensors(sensors=None):
     """Revert the changes made by the setup-sensors command (no value = use config values)."""
@@ -546,15 +546,15 @@ def setup_or_teardown_display(function, display=None):
         return False
     return function(f'display-runner@{display}')
 
-@cmd(category='Devices', admin=True, args_hint='display-name  (no value = use config value)')
+@cmd(category='Devices', admin=True, args_hint='display-name (no value = use config value)')
 @needs_root
 def setup_display(display=None):
     """Setup systemd service that runs the display (no value = use config value)."""
     return setup_or_teardown_display(setup_systemd_unit, display)
 
-@cmd(category='Devices', admin=True)
+@cmd(category='Devices', admin=True, args_hint='display-name (no value = use config value)')
 @needs_root
-def teardown_display(display=None, args_hint='display-name  (no value = use config value)'):
+def teardown_display(display=None):
     """Revert the changes made by the setup-display command (no value = use config value)."""
     return setup_or_teardown_display(teardown_systemd_unit, display)
 
