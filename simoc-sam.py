@@ -565,7 +565,8 @@ def delete_db():
 def setup_nginx():
     """Setup nginx to serve the frontend and the socketio backend."""
     if not shutil.which('nginx'):
-        sys.exit('nginx not found. Install it with `sudo apt install nginx`.')
+        print('nginx not found. Install it with `sudo apt install nginx`.')
+        return False
     use_https = simoc_config.use_https
     # remove default site and add simoc_live site
     sites_enabled = pathlib.Path('/etc/nginx/sites-enabled/')
@@ -574,7 +575,8 @@ def setup_nginx():
         default.unlink()  # remove default site
     if use_https:
         if not shutil.which('openssl'):
-            sys.exit('openssl not found. Install it with `sudo apt install openssl`.')
+            print('openssl not found. Install it with `sudo apt install openssl`.')
+            return False
         ssl_dir = pathlib.Path('/etc/nginx/ssl')
         ssl_dir.mkdir(parents=True, exist_ok=True)
         certificate = ssl_dir / 'simoc-sam.crt'
@@ -601,7 +603,8 @@ def setup_nginx():
     if simoc_live_link.exists() or simoc_live_link.is_symlink():
         simoc_live_link.unlink()
     simoc_live_link.symlink_to(simoc_live)
-    assert run(['nginx', '-t'])  # ensure that the config is valid
+    if not run(['nginx', '-t']):  # ensure that the config is valid
+        return False
     # enable/start/reload nginx
     if not run(['systemctl', 'is-enabled', 'nginx']):
         run(['systemctl', 'enable', 'nginx'])
