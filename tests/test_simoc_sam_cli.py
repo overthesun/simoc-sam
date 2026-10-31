@@ -104,6 +104,7 @@ def test_parser_help_shows_commands(capsys):
     assert 'setup-hotspot' in out
     assert 'setup-sensors' in out
     assert 'services-info' in out
+    assert 'set-admin-password' in out
 
 
 def test_parser_bool_keyword_only_conversion():
@@ -122,6 +123,12 @@ def test_parser_bool_keyword_only_conversion():
 
     args = parser.parse_args(['copy-repo', 'pi@host', '--exclude-git=0'])
     assert args.exclude_git is False
+
+
+def test_set_admin_password_command_registered():
+    assert simoc_sam_cli.COMMANDS['set_admin_password'] is simoc_sam_cli.set_admin_password
+    args = simoc_sam_cli.create_parser().parse_args(['set-admin-password'])
+    assert args.cmd == 'set-admin-password'
 
 
 def test_subcommand_help_shows_description(capsys):
@@ -399,6 +406,36 @@ def test_config_two_standalone_flags_rejected(mock_config):
         simoc_sam_cli.config(path=True, clean=True)
     assert 'cannot be used together' in str(exc_info.value)
     mock_config.read_user_overrides.assert_not_called()
+
+
+def test_set_admin_password_retries_after_mismatch(mock_config, tmp_path, capsys):
+    password_path = tmp_path / 'admin-password.hash'
+    mock_config.admin_password_path.return_value = password_path
+
+    with patch.object(simoc_sam_cli.getpass, 'getpass',
+                      side_effect=['wrong', 'different', 'secret', 'secret']):
+        assert simoc_sam_cli.set_admin_password() is True
+
+    from werkzeug.security import check_password_hash
+    assert check_password_hash(password_path.read_text(), 'secret')
+    assert 'Please try again' in capsys.readouterr().out
+
+
+def test_setup_admin_password_mismatch_after_three_attempts_does_not_save(
+        mock_config, tmp_path, capsys):
+    mock_config.admin_password_path.return_value = tmp_path / 'admin-password.hash'
+    with patch('builtins.input', side_effect=['y', 'y', 'y']), \
+            patch.object(simoc_sam_cli.getpass, 'getpass',
+                         side_effect=[
+                             'secret', 'different',
+                             'secret', 'different',
+                             'secret', 'different',
+                         ]):
+        assert simoc_sam_cli.setup_admin() is False
+
+    mock_config.update_config_values.assert_not_called()
+    mock_config.admin_password_path.assert_not_called()
+    assert 'after 3 attempts' in capsys.readouterr().out
 
 
 def test_config_standalone_flag_with_reset_rejected(mock_config):

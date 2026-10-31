@@ -132,19 +132,25 @@ def write_template(path, replacements):
 
 
 @cmd
-def admin_password():
+def set_admin_password():
     """Set or replace the local admin password used by the web interface."""
-    from werkzeug.security import generate_password_hash
-    first = getpass.getpass('Admin password: ')
-    second = getpass.getpass('Repeat admin password: ')
-    if not first or first != second:
-        print('Passwords are empty or do not match.')
+    for _ in range(3):
+        password = getpass.getpass('Admin password: ')
+        repeated = getpass.getpass('Repeat admin password: ')
+        if password and password == repeated:
+            break
+        print('Passwords are empty or do not match. Please try again.')
+    else:
+        print('Admin password was not set after 3 attempts.')
         return False
+
+    from werkzeug.security import generate_password_hash
     path = simoc_config.admin_password_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(generate_password_hash(first))
+    path.write_text(generate_password_hash(password))
     path.chmod(0o600)
     print(f'Admin password saved to {path}')
+    return True
 
 @cmd
 def create_venv():
