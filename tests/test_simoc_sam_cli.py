@@ -125,6 +125,11 @@ def test_parser_bool_keyword_only_conversion():
     assert args.exclude_git is False
 
 
+def test_parser_setup_admin_unsafe_flag():
+    args = simoc_sam_cli.create_parser().parse_args(['setup-admin', '--unsafe'])
+    assert args.unsafe is True
+
+
 def test_set_admin_password_command_registered():
     assert simoc_sam_cli.COMMANDS['set_admin_password'] is simoc_sam_cli.set_admin_password
     args = simoc_sam_cli.create_parser().parse_args(['set-admin-password'])
@@ -408,6 +413,64 @@ def test_config_two_standalone_flags_rejected(mock_config):
     mock_config.read_user_overrides.assert_not_called()
 
 
+def test_setup_admin_unsafe_applies_requested_settings(mock_config, capsys):
+    assert simoc_sam_cli.setup_admin(unsafe=True) is True
+
+    mock_config.update_config_values.assert_called_once_with({
+        'admin_enabled': True,
+        'admin_secure': False,
+        'admin_visible': True,
+        'admin_allow_commands': True,
+        'admin_allow_power': True,
+    })
+    assert 'WARNING' in capsys.readouterr().out
+
+
+def test_setup_admin_interactive_saves_password_and_choices(
+        mock_config, tmp_path, capsys):
+    password_path = tmp_path / 'admin-password.hash'
+    mock_config.admin_password_path.return_value = password_path
+
+    with patch('builtins.input', side_effect=['y', 'y', 'y', 'y', 'n', 'y']), \
+            patch.object(simoc_sam_cli.getpass, 'getpass',
+                         side_effect=['secret', 'secret']), \
+            patch.object(simoc_sam_cli, 'setup_nginx', return_value=True) as setup_nginx:
+        assert simoc_sam_cli.setup_admin() is True
+    setup_nginx.assert_called_once_with()
+
+    mock_config.update_config_values.assert_called_once_with({
+        'admin_enabled': True,
+        'admin_secure': True,
+        'admin_visible': True,
+        'admin_allow_commands': True,
+        'admin_allow_power': False,
+        'use_https': True,
+    })
+    from werkzeug.security import check_password_hash
+    assert check_password_hash(password_path.read_text(), 'secret')
+    assert password_path.stat().st_mode & 0o777 == 0o600
+    assert 'Admin interface configured.' in capsys.readouterr().out
+
+
+def test_setup_admin_reports_nginx_setup_failure(mock_config, capsys):
+    with patch('builtins.input', side_effect=['y', 'y', 'n', 'n', 'n', 'y']), \
+            patch.object(simoc_sam_cli, 'setup_nginx', return_value=False) as setup_nginx:
+        assert simoc_sam_cli.setup_admin() is False
+
+    setup_nginx.assert_called_once_with()
+    mock_config.update_config_values.assert_called_once_with({
+        'admin_enabled': True,
+        'admin_secure': False,
+        'admin_visible': True,
+        'admin_allow_commands': False,
+        'admin_allow_power': False,
+        'use_https': True,
+    })
+    output = capsys.readouterr().out
+    assert 'Reloading nginx to apply HTTPS configuration:' in output
+    assert 'nginx setup failed' in output
+
+
 def test_set_admin_password_retries_after_mismatch(mock_config, tmp_path, capsys):
     password_path = tmp_path / 'admin-password.hash'
     mock_config.admin_password_path.return_value = password_path
@@ -436,6 +499,14 @@ def test_setup_admin_password_mismatch_after_three_attempts_does_not_save(
     mock_config.update_config_values.assert_not_called()
     mock_config.admin_password_path.assert_not_called()
     assert 'after 3 attempts' in capsys.readouterr().out
+
+
+def test_setup_admin_can_leave_interface_disabled(mock_config, capsys):
+    with patch('builtins.input', return_value='n'):
+        assert simoc_sam_cli.setup_admin() is True
+
+    mock_config.update_config_values.assert_called_once_with({'admin_enabled': False})
+    assert 'Admin interface disabled' in capsys.readouterr().out
 
 
 def test_config_standalone_flag_with_reset_rejected(mock_config):

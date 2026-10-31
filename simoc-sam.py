@@ -152,6 +152,57 @@ def set_admin_password():
     print(f'Admin password saved to {path}')
     return True
 
+
+@cmd
+def setup_admin(*, unsafe=False):
+    """Configure the web admin interface interactively."""
+    if unsafe:
+        print('WARNING: Enabling an unsafe admin interface: no password is '
+              'required, and commands and power actions are allowed.')
+        simoc_config.update_config_values({
+            'admin_enabled': True,
+            'admin_secure': False,
+            'admin_visible': True,
+            'admin_allow_commands': True,
+            'admin_allow_power': True,
+        })
+        print('Admin enabled without authentication. Do not expose this '
+              'interface to an untrusted network.')
+        return True
+    if not confirm('Enable the admin interface in the web frontend?'):
+        simoc_config.update_config_values({'admin_enabled': False})
+        print('Admin interface disabled.')
+        return True
+    visible = confirm('Show the Admin button?')
+    secure = confirm('Require an admin password?')
+    if secure and not set_admin_password():
+        print('Admin setup cancelled.')
+        return False
+    allow_commands = confirm('Allow running system commands?')
+    allow_power = confirm('Allow rebooting and shutting down?')
+    use_https = confirm('Enable HTTPS with a self-signed certificate?')
+    simoc_config.update_config_values({
+        'admin_enabled': True,
+        'admin_secure': secure,
+        'admin_visible': visible,
+        'admin_allow_commands': allow_commands,
+        'admin_allow_power': allow_power,
+        'use_https': use_https,
+    })
+    if not secure:
+        print('WARNING: Admin access has no password. Anyone who can reach '
+              'the admin interface can use its enabled features.')
+    if secure and not use_https:
+        print('WARNING: HTTPS is disabled; admin credentials are sent over '
+              'an unencrypted connection.')
+    if use_https:
+        print('Reloading nginx to apply HTTPS configuration:')
+        if not setup_nginx():
+            print('Admin settings were saved, but nginx setup failed.')
+            return False
+    print('Admin interface configured.')
+    return True
+
 @cmd
 def create_venv():
     """Create and set up a virtualenv."""
