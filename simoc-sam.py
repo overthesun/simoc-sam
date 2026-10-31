@@ -71,15 +71,6 @@ def cmd(func=None, *, category=None, admin=False, args_hint=None):
         return decorator(func)
     return decorator
 
-def run(args, **kwargs):
-    print('>>', ' '.join(args))
-    print('-'*80)
-    result = subprocess.run(args, **kwargs)
-    print('-'*80)
-    print('<<', result)
-    print()
-    return not result.returncode
-
 def needs_venv(func):
     """Ensure that the venv exist before calling func."""
     @functools.wraps(func)
@@ -109,6 +100,30 @@ def needs_root(func):
             return func(*args, **kwargs)
     inner.needs_root = True
     return inner
+
+def run(args, **kwargs):
+    print('>>', ' '.join(args))
+    print('-'*80)
+    result = subprocess.run(args, **kwargs)
+    print('-'*80)
+    print('<<', result)
+    print()
+    return not result.returncode
+
+
+def confirm(question, *, default=True):
+    """Prompt for a yes/no answer, accepting the indicated default."""
+    choices = 'Y/n' if default else 'y/N'
+    while True:
+        answer = input(f'{question} [{choices}] ').strip().lower()
+        if not answer:
+            return default
+        if answer in ('y', 'yes'):
+            return True
+        if answer in ('n', 'no'):
+            return False
+        print('Please answer yes or no.')
+
 
 def write_template(path, replacements):
     """Replace {{placeholders}} in a file with the given replacements."""
