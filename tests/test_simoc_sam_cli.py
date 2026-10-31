@@ -541,7 +541,7 @@ def test_config_reset_when_overridden(mock_config, capsys):
     mock_config.read_user_overrides.return_value = {'mqtt_port': 9999}
     mock_config.format_value.return_value = '1883'
     simoc_sam_cli.config(key='mqtt_port', reset=True)
-    mock_config.save_user_config.assert_called_once_with({})  # key removed
+    mock_config.reset_config_value.assert_called_once_with('mqtt_port')
     assert 'Reset mqtt_port to default: 1883' in capsys.readouterr().out
 
 
@@ -549,7 +549,7 @@ def test_config_reset_when_not_overridden(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
     mock_config.read_user_overrides.return_value = {}
     simoc_sam_cli.config(key='mqtt_port', reset=True)
-    mock_config.save_user_config.assert_not_called()
+    mock_config.reset_config_value.assert_not_called()
     assert 'already at its default value' in capsys.readouterr().out
 
 
@@ -560,7 +560,7 @@ def test_config_set_value_success(mock_config, capsys):
     mock_config.format_value.return_value = '9999'
     mock_config.RELATED_COMMANDS = {'mqtt_port': ('setup-sensors', 'setup-siobridge')}
     simoc_sam_cli.config(key='mqtt_port', value='9999')
-    mock_config.save_user_config.assert_called_once_with({'mqtt_port': 9999})
+    mock_config.update_config_values.assert_called_once_with({'mqtt_port': 9999})
     out = capsys.readouterr().out
     assert 'mqtt_port = 9999' in out
     assert 'sam setup-sensors' in out
@@ -573,7 +573,7 @@ def test_config_set_value_parse_error_returns_false(mock_config, capsys):
     mock_config.parse_value.side_effect = ValueError('not an int')
     result = simoc_sam_cli.config(key='mqtt_port', value='not_a_number')
     assert result is False
-    mock_config.save_user_config.assert_not_called()
+    mock_config.update_config_values.assert_not_called()
     assert 'Error: not an int' in capsys.readouterr().out
 
 
@@ -583,7 +583,7 @@ def test_config_save_error_reported_without_crashing(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_secure': {'default': False}}
     mock_config.read_user_overrides.return_value = {}
     mock_config.parse_value.return_value = True
-    mock_config.save_user_config.side_effect = InvalidConfig("Set 'mqtt_certs_dir'")
+    mock_config.update_config_values.side_effect = InvalidConfig("Set 'mqtt_certs_dir'")
     result = simoc_sam_cli.config(key='mqtt_secure', value='true')
     assert result is False
     assert "Error: Set 'mqtt_certs_dir'" in capsys.readouterr().out

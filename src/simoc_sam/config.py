@@ -1,8 +1,8 @@
 """SIMOC Live configuration: schema, loading, saving, and module-level vars.
 
 The ``sam config`` CLI command and the web admin interface use :func:`get_schema`,
-:func:`get_config`, :func:`save_user_config`, :func:`parse_value`, and the
-``print_*`` helpers defined here.
+:func:`get_config`, :func:`update_config_values`, :func:`reset_config_value`,
+:func:`parse_value`, and the ``print_*`` helpers defined here.
 
 User overrides are stored as TOML at ``~/.config/simoc-sam/config.toml``.
 Only changed fields are written; everything else falls back to defaults.
@@ -345,11 +345,37 @@ def read_user_overrides() -> dict:
         raise InvalidConfig(f'Invalid TOML syntax in <{path}>: {exc}') from exc
 
 
-def save_user_config(overrides: dict) -> None:
-    """Write the config template with overrides as live TOML values."""
+def _set_module_attrs(cfg: SimocConfig) -> None:
+    """Expose the config values as module-level attributes."""
+    module = sys.modules[__name__]
+    for field in dataclasses.fields(cfg):
+        if not field.name.startswith('_'):
+            setattr(module, field.name, getattr(cfg, field.name))
+
+
+def _apply_overrides(overrides: dict) -> None:
+    """Write the overrides in the file and update the module attributes."""
+    content = generate_config(overrides)
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(generate_config(overrides))
+    path.write_text(content)
+    _set_module_attrs(get_config(read_user_overrides()))
+
+
+def update_config_values(overrides: dict) -> None:
+    """Update config values in both the file and module."""
+    merged_overrides = read_user_overrides()
+    merged_overrides.update(overrides)
+    _apply_overrides(merged_overrides)
+
+
+def reset_config_value(name: str) -> None:
+    """Reset a config value to its default in both the file and module."""
+    if name not in get_schema():
+        raise InvalidConfig(f'{name!r} is not a known config field')
+    overrides = read_user_overrides()
+    overrides.pop(name, None)
+    _apply_overrides(overrides)
 
 
 def get_config(overrides: dict | None = None) -> SimocConfig:
@@ -480,6 +506,4 @@ try:
 except InvalidConfig as exc:
     print(f'Warning: {exc}', file=sys.stderr)
 else:
-    for _f in dataclasses.fields(_cfg):
-        if not _f.name.startswith('_'):
-            setattr(sys.modules[__name__], _f.name, getattr(_cfg, _f.name))
+    _set_module_attrs(_cfg)
