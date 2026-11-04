@@ -45,6 +45,7 @@ def create_app(db_path=None):
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path='')
     app.secret_key = config.get_admin_session_secret()
     app.config.update(
+        SESSION_COOKIE_NAME='simoc_sam_session',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Strict',
         # Secure cookies are dropped by browsers over plain HTTP -- without
