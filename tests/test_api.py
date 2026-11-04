@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 from unittest.mock import patch
 from datetime import datetime, timezone, timedelta
@@ -6,6 +7,48 @@ from datetime import datetime, timezone, timedelta
 import pytest
 
 from simoc_sam.api import create_app, parse_timestamp, to_unix_ms
+
+
+def test_session_cookie_secure_follows_use_https(tmp_path):
+    # a Secure cookie is dropped by browsers over plain HTTP -- the admin
+    # session/CSRF token must still work when use_https is off (the default)
+    with patch('simoc_sam.api.config.use_https', False):
+        app = create_app(db_path=tmp_path / 'test.db')
+    assert app.config['SESSION_COOKIE_SECURE'] is False
+    with patch('simoc_sam.api.config.use_https', True):
+        app = create_app(db_path=tmp_path / 'test2.db')
+    assert app.config['SESSION_COOKIE_SECURE'] is True
+
+
+def test_admin_uses_dedicated_session_cookie_name(tmp_path):
+    current_config = SimpleNamespace(
+        use_https=False,
+        admin_enabled=True,
+        admin_secure=False,
+        admin_visible=True,
+        admin_allow_commands=True,
+        admin_allow_power=True,
+    )
+    with patch('simoc_sam.api.config.use_https', False), \
+         patch('simoc_sam.api.config.get_config', return_value=current_config), \
+         patch('simoc_sam.api.config.get_admin_session_secret', return_value=b'test-secret'), \
+         patch('simoc_sam.api.config.db_path', tmp_path / 'test.db'):
+        app = create_app()
+        client = app.test_client()
+        client.set_cookie('session', 'stale-secure-session', secure=True)
+
+        visibility = client.get('/api/admin/visibility')
+
+        assert visibility.status_code == 200
+        assert 'simoc_sam_session=' in visibility.headers['Set-Cookie']
+        assert 'Secure' not in visibility.headers['Set-Cookie']
+
+        response = client.post(
+            '/api/admin/logout',
+            headers={'X-CSRF-Token': visibility.get_json()['csrf_token']},
+        )
+
+    assert response.status_code == 200
 
 
 def make_timestamp(offset_seconds=0):
