@@ -72,7 +72,8 @@ def needs_venv(func):
     def inner(*args, **kwargs):
         if not VENV_DIR.exists():
             print('venv dir missing -- creating it')
-            create_venv()
+            if not setup_venv():
+                return False
         return func(*args, **kwargs)
     return inner
 
@@ -100,11 +101,8 @@ def write_template(path, replacements):
     path.write_text(template.render(replacements))
 
 @cmd
-def create_venv():
-    """Create and set up a virtualenv."""
-    if VENV_DIR.exists():
-        print('venv already exists -- use `clean-venv` to remove it.')
-        return True
+def setup_venv():
+    """Create or update the virtualenv and install its dependencies."""
     return (
         run([sys.executable, '-m', 'venv', str(VENV_DIR)]) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
@@ -114,10 +112,10 @@ def create_venv():
     )
 
 @cmd
-def clean_venv():
-    """Remove the venv dir."""
+def teardown_venv():
+    """Remove the virtualenv."""
     if not VENV_DIR.exists():
-        print(f'No venv dir found.')
+        print('No venv dir found.')
         return True
     print(f'Removing venv dir: {VENV_DIR}')
     shutil.rmtree(VENV_DIR)
@@ -700,7 +698,7 @@ def initial_setup():
     print('Updating apt packages...')
     apt_ok = update_apt_packages()
     print('Setting up virtualenv...')
-    venv_ok = create_venv()
+    venv_ok = setup_venv()
     print('Initial setup complete.\n\nPlease reboot the system.\n')
     return aliases_ok and dirs_ok and i2c_ok and locale_ok and apt_ok and venv_ok
 
