@@ -52,6 +52,30 @@ def test_cmd_decorator(clean_commands):
     assert simoc_sam_cli.COMMANDS['test_func'] is test_func
 
 
+def test_setup_venv_installs_dependencies():
+    venv_dir = pathlib.Path('/repo/venv')
+    with (
+        patch.object(simoc_sam_cli, 'VENV_DIR', venv_dir),
+        patch.object(simoc_sam_cli, 'VENV_PY', '/repo/venv/bin/python3'),
+        patch.object(simoc_sam_cli, 'DEPS', pathlib.Path('/repo/requirements.txt')),
+        patch.object(simoc_sam_cli, 'DEV_DEPS', pathlib.Path('/repo/dev-requirements.txt')),
+        patch.object(simoc_sam_cli, 'SIMOC_SAM_DIR', pathlib.Path('/repo')),
+        patch.object(simoc_sam_cli.sys, 'executable', '/usr/bin/python3'),
+        patch.object(simoc_sam_cli, 'run', return_value=True) as mock_run,
+    ):
+        assert simoc_sam_cli.setup_venv() is True
+
+    assert mock_run.call_args_list == [
+        call(['/usr/bin/python3', '-m', 'venv', str(venv_dir)]),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '--upgrade', 'pip']),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '-r',
+              '/repo/requirements.txt']),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '-r',
+              '/repo/dev-requirements.txt']),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '-e', '/repo']),
+    ]
+
+
 def test_parser_positional_args():
     """Test that positional args are parsed into named attributes."""
     parser = simoc_sam_cli.create_parser()
@@ -100,7 +124,8 @@ def test_parser_help_shows_commands(capsys):
         parser.parse_args(['--help'])
     out = capsys.readouterr().out
     # Spot-check a few commands from different parts of the file
-    assert 'create-venv' in out
+    assert 'setup-venv' in out
+    assert 'teardown-venv' in out
     assert 'setup-hotspot' in out
     assert 'setup-sensors' in out
     assert 'services-info' in out
