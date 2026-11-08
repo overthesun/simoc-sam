@@ -1,4 +1,4 @@
-python-socketio==5.17.0
+python-socketio==5.18.0
 aiohttp==3.14.5
 aiomqtt==2.5.1
 paho-mqtt==2.1.0
@@ -10,7 +10,7 @@ gunicorn==26.2.0
 
 # sensor-related deps
 hidapi==0.15.0
-Adafruit-Blinka==10.0.0
+Adafruit-Blinka==9.1.0
 adafruit-circuitpython-scd30==2.3.0
 adafruit-circuitpython-scd4x==1.4.13
 adafruit-circuitpython-sgp30==3.0.16

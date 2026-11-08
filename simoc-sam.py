@@ -43,6 +43,7 @@ VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = SIMOC_SAM_DIR / 'requirements.txt'
 DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
+PYPROJECT = SIMOC_SAM_DIR / 'pyproject.toml'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
@@ -77,7 +78,8 @@ def needs_venv(func):
     def inner(*args, **kwargs):
         if not VENV_DIR.exists():
             print('venv dir missing -- creating it')
-            create_venv()
+            if not setup_venv():
+                return False
         return func(*args, **kwargs)
     inner.needs_venv = True
     return inner
@@ -204,11 +206,8 @@ def setup_admin(*, unsafe=False):
     return True
 
 @cmd
-def create_venv():
-    """Create and set up a virtualenv."""
-    if VENV_DIR.exists():
-        print('venv already exists -- use `clean-venv` to remove it.')
-        return True
+def setup_venv():
+    """Create or update the virtualenv and install its dependencies."""
     return (
         run([sys.executable, '-m', 'venv', str(VENV_DIR)]) and
         run([VENV_PY, '-m', 'pip', 'install', '--upgrade', 'pip']) and
@@ -218,10 +217,10 @@ def create_venv():
     )
 
 @cmd
-def clean_venv():
-    """Remove the venv dir."""
+def teardown_venv():
+    """Remove the virtualenv."""
     if not VENV_DIR.exists():
-        print(f'No venv dir found.')
+        print('No venv dir found.')
         return True
     print(f'Removing venv dir: {VENV_DIR}')
     shutil.rmtree(VENV_DIR)
@@ -231,21 +230,39 @@ def clean_venv():
 
 @cmd(category='System', admin=True)
 def update():
-    """Update the code to the latest version."""
-    # get the current branch
+    """Update the code and apply setup changes from the latest version."""
+    check_output = subprocess.check_output
     try:
-        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                                         cwd=SIMOC_SAM_DIR, text=True).strip()
+        branch = check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                              cwd=SIMOC_SAM_DIR, text=True).strip()
     except subprocess.CalledProcessError:
-        print(f'Error: Failed to get the current branch.')
+        print('Error: Failed to get the current branch.')
         return False
-    # perform git pull
+
     print(f'Updating code to the latest version (current branch: {branch!r}).')
-    success = run(['git', 'pull', 'origin', branch], cwd=SIMOC_SAM_DIR)
+    if not run(['git', 'pull', 'origin', branch], cwd=SIMOC_SAM_DIR):
+        print('Update failed: see output above for details.')
+        return False
+    try:
+        changed = check_output(['git', 'diff', '--name-only', 'ORIG_HEAD', 'HEAD'],
+                               cwd=SIMOC_SAM_DIR, text=True).splitlines()
+    except subprocess.CalledProcessError:
+        print('Update was pulled, but failed to inspect the changed files.')
+        return False
+    success = True
+    if {DEPS.name, DEV_DEPS.name, PYPROJECT.name}.intersection(changed):
+        print('Dependency files changed; updating the virtual environment...')
+        if not setup_venv():
+            print('Dependency update failed; see output above for details.')
+            success = False
+    if any(path.startswith('frontend/') or path == 'configs/simoc_live.tmpl'
+           for path in changed):
+        print('Frontend files changed; updating the frontend deployment...')
+        if not setup_frontend():
+            print('Frontend update failed; see output above for details.')
+            success = False
     if success:
-        print('Code updated successfully.')
-    else:
-        print('Update failed: see error log above for details.')
+        print('Update performed successfully.')
     return success
 
 @cmd(category='System', admin=True)
@@ -845,7 +862,7 @@ def initial_setup():
     print('Updating apt packages...')
     apt_ok = update_apt_packages()
     print('Setting up virtualenv...')
-    venv_ok = create_venv()
+    venv_ok = setup_venv()
     print('Initial setup complete.\n\nPlease reboot the system.\n')
     return aliases_ok and dirs_ok and i2c_ok and locale_ok and apt_ok and venv_ok
 
