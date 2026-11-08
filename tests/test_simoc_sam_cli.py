@@ -76,6 +76,62 @@ def test_setup_venv_installs_dependencies():
     ]
 
 
+def test_update_applies_dependency_and_frontend_changes():
+    with (
+        patch.object(simoc_sam_cli.subprocess, 'check_output', side_effect=[
+            'main\n', 'requirements.txt\nfrontend/app.js\n',
+        ]) as mock_check_output,
+        patch.object(simoc_sam_cli, 'SIMOC_SAM_DIR', pathlib.Path('/repo')),
+        patch.object(simoc_sam_cli, 'run', return_value=True) as mock_run,
+        patch.object(simoc_sam_cli, 'setup_venv', return_value=True) as mock_setup_venv,
+        patch.object(simoc_sam_cli, 'setup_frontend',
+                     return_value=True) as mock_setup_frontend,
+    ):
+        assert simoc_sam_cli.update() is True
+
+    mock_run.assert_called_once_with(
+        ['git', 'pull', 'origin', 'main'], cwd=pathlib.Path('/repo'),
+    )
+    assert mock_check_output.call_args_list[-1] == call(
+        ['git', 'diff', '--name-only', 'ORIG_HEAD', 'HEAD'],
+        cwd=pathlib.Path('/repo'), text=True,
+    )
+    mock_setup_venv.assert_called_once_with()
+    mock_setup_frontend.assert_called_once_with()
+
+
+def test_update_skips_setup_when_pull_has_no_file_changes():
+    with (
+        patch.object(simoc_sam_cli.subprocess, 'check_output', side_effect=[
+            'main\n', '',
+        ]),
+        patch.object(simoc_sam_cli, 'run', return_value=True),
+        patch.object(simoc_sam_cli, 'setup_venv') as mock_setup_venv,
+        patch.object(simoc_sam_cli, 'setup_frontend') as mock_setup_frontend,
+    ):
+        assert simoc_sam_cli.update() is True
+
+    mock_setup_venv.assert_not_called()
+    mock_setup_frontend.assert_not_called()
+
+
+def test_update_reports_failure_but_attempts_both_setups(capsys):
+    with (
+        patch.object(simoc_sam_cli.subprocess, 'check_output', side_effect=[
+            'main\n', 'requirements.txt\nfrontend/app.js\n',
+        ]),
+        patch.object(simoc_sam_cli, 'run', return_value=True),
+        patch.object(simoc_sam_cli, 'setup_venv', return_value=False) as mock_setup_venv,
+        patch.object(simoc_sam_cli, 'setup_frontend',
+                     return_value=True) as mock_setup_frontend,
+    ):
+        assert simoc_sam_cli.update() is False
+
+    mock_setup_venv.assert_called_once_with()
+    mock_setup_frontend.assert_called_once_with()
+    assert 'Dependency update failed' in capsys.readouterr().out
+
+
 def test_parser_positional_args():
     """Test that positional args are parsed into named attributes."""
     parser = simoc_sam_cli.create_parser()

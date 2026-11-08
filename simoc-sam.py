@@ -42,6 +42,7 @@ VENV_DIR = SIMOC_SAM_DIR / 'venv'
 VENV_PY = str(VENV_DIR / 'bin' / 'python3')
 DEPS = SIMOC_SAM_DIR / 'requirements.txt'
 DEV_DEPS = SIMOC_SAM_DIR / 'dev-requirements.txt'
+PYPROJECT = SIMOC_SAM_DIR / 'pyproject.toml'
 TMUX_SNAME = 'SAM'  # tmux session name
 HOSTNAME = socket.gethostname()
 
@@ -125,21 +126,39 @@ def teardown_venv():
 
 @cmd
 def update():
-    """Update the code to the latest version."""
-    # get the current branch
+    """Update the code and apply setup changes from the latest version."""
+    check_output = subprocess.check_output
     try:
-        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                                         cwd=SIMOC_SAM_DIR, text=True).strip()
+        branch = check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                              cwd=SIMOC_SAM_DIR, text=True).strip()
     except subprocess.CalledProcessError:
-        print(f'Error: Failed to get the current branch.')
+        print('Error: Failed to get the current branch.')
         return False
-    # perform git pull
+
     print(f'Updating code to the latest version (current branch: {branch!r}).')
-    success = run(['git', 'pull', 'origin', branch], cwd=SIMOC_SAM_DIR)
+    if not run(['git', 'pull', 'origin', branch], cwd=SIMOC_SAM_DIR):
+        print('Update failed: see output above for details.')
+        return False
+    try:
+        changed = check_output(['git', 'diff', '--name-only', 'ORIG_HEAD', 'HEAD'],
+                               cwd=SIMOC_SAM_DIR, text=True).splitlines()
+    except subprocess.CalledProcessError:
+        print('Update was pulled, but failed to inspect the changed files.')
+        return False
+    success = True
+    if {DEPS.name, DEV_DEPS.name, PYPROJECT.name}.intersection(changed):
+        print('Dependency files changed; updating the virtual environment...')
+        if not setup_venv():
+            print('Dependency update failed; see output above for details.')
+            success = False
+    if any(path.startswith('frontend/') or path == 'configs/simoc_live.tmpl'
+           for path in changed):
+        print('Frontend files changed; updating the frontend deployment...')
+        if not setup_frontend():
+            print('Frontend update failed; see output above for details.')
+            success = False
     if success:
-        print('Code updated successfully.')
-    else:
-        print('Update failed: see error log above for details.')
+        print('Update performed successfully.')
     return success
 
 @cmd
