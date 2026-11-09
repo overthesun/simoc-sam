@@ -27,8 +27,7 @@ from simoc_sam import config as sam_config
 
 # ─── paths ────────────────────────────────────────────────────────────────────
 
-_HERE = pathlib.Path(__file__).resolve().parent
-SIMOC_SAM_DIR = _HERE.parents[1]           # repository root (src/simoc_sam → src → repo)
+SIMOC_SAM_DIR = pathlib.Path(__file__).resolve().parents[2]
 SIMOC_SAM_SCRIPT = SIMOC_SAM_DIR / 'simoc-sam.py'
 LOGGER = logging.getLogger(__name__)
 _LOGIN_LIMIT = 5
