@@ -68,6 +68,7 @@ def _load_commands():
             'doc': 'The command registry is unavailable.',
             'needs_root': False,
             'params': [],
+            'disabled': True,
         }}}
 
     ungrouped: dict = {}
@@ -110,6 +111,7 @@ _ALL_COMMANDS = {
     cmd_name: meta
     for group_cmds in COMMANDS.values()
     for cmd_name, meta in group_cmds.items()
+    if not meta.get('disabled', False)
 }
 
 

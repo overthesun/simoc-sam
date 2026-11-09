@@ -951,6 +951,7 @@ function renderCommandGroups(commands, groupOrder) {
       ? (cmd === 'reboot' ? 'Restart' : 'Shut down')
       : cmd;
     btn.title = meta.doc + (meta.args_hint ? `\nArgs: ${meta.args_hint}` : '');
+    btn.disabled = Boolean(meta.disabled);
     btn.addEventListener('click', () => isPowerCommand
       ? runAdminPower(cmd, btn)
       : runAdminCommand(cmd, meta, btn));

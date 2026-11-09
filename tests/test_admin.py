@@ -336,6 +336,28 @@ def test_post_run_rejects_unknown_command(client):
     assert response.get_json()['error'] == 'Unknown or disallowed command'
 
 
+def test_load_command_failure_is_not_executable():
+    with patch.object(admin.importlib.util, 'spec_from_file_location',
+                      side_effect=ImportError('registry unavailable')):
+        commands = admin._load_commands()
+
+    error_command = commands['Error']['load-error']
+    assert error_command['disabled'] is True
+    assert 'load-error' not in admin._ALL_COMMANDS
+
+
+def test_post_run_rejects_load_error_command(client):
+    test_client, _ = client
+
+    response = test_client.post('/api/admin/run', json={
+        'cmd': 'load-error',
+        'args': [],
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'Unknown or disallowed command'
+
+
 def test_get_commands_exposes_argument_metadata(client):
     test_client, _ = client
 
