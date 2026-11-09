@@ -773,7 +773,12 @@ function renderConfigForm() {
       const label = document.createElement('label');
       label.className = 'admin-config-label';
       label.append(field.name);
-      label.htmlFor = `cfg-${field.name}`;
+      const checkboxGroup = field.type === 'list' && field.options?.length;
+      if (checkboxGroup) {
+        label.id = `cfg-${field.name}-label`;
+      } else {
+        label.htmlFor = `cfg-${field.name}`;
+      }
       if (field.description) {
         const help = document.createElement('span');
         help.className = 'admin-config-help';
@@ -826,6 +831,8 @@ function makeConfigInput(field) {
   if (field.type === 'list' && field.options && field.options.length) {
     const div = document.createElement('div');
     div.className = 'admin-config-checkboxes'; div.id = id;
+    div.setAttribute('role', 'group');
+    div.setAttribute('aria-labelledby', `${id}-label`);
     const checked = new Set(Array.isArray(val) ? val : []);
     for (const opt of field.options) {
       const lbl = document.createElement('label');
