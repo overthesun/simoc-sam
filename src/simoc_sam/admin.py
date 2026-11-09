@@ -38,6 +38,7 @@ _LOGIN_LOCK = threading.Lock()
 _HIDDEN_CONFIG_FIELDS = {
     'location', 'humans', 'volume',
     'use_https', 'admin_enabled', 'admin_secure', 'admin_visible',
+    'sio_host', 'sio_port', 'data_source', 'simoc_web_dist_dir',
     'admin_allow_commands', 'admin_allow_power',
 }
 
