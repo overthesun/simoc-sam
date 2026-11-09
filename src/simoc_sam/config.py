@@ -484,23 +484,40 @@ def print_defaults(schema: dict) -> None:
             print(f'  {name:32}= {format_value(info["default"])}')
 
 
-# Maps config field names to the sam command(s) that apply the change.
-# Shown as a hint by `sam config KEY VALUE` after saving.
+# Maps config fields to setup commands that apply the change.
+# Used for apply hints by `sam config` and the web admin.
 RELATED_COMMANDS: dict[str, tuple[str, ...]] = {
     'sensors': ('setup-sensors',),
+    'sensor_read_delay': ('setup-sensors',),
     'display': ('setup-display',),
+    'display_refresh': ('setup-display',),
+    'display_format': ('setup-display',),
+    'use_https': ('setup-nginx', 'setup-flask'),
     # these are read by sensor-runner (MQTTWrapper) and siobridge, not by
     # the local Mosquitto broker started by setup-mosquitto
-    'mqtt_host': ('setup-sensors', 'setup-siobridge'),
-    'mqtt_port': ('setup-sensors', 'setup-siobridge'),
-    'mqtt_secure': ('setup-sensors', 'setup-siobridge'),
-    'mqtt_certs_dir': ('setup-sensors', 'setup-siobridge'),
+    'mqtt_host': ('setup-sensors', 'setup-display',
+                  'setup-csvwriter', 'setup-sqlwriter'),
+    'mqtt_port': ('setup-sensors', 'setup-display',
+                  'setup-csvwriter', 'setup-sqlwriter'),
+    'mqtt_secure': ('setup-sensors',),
+    'mqtt_certs_dir': ('setup-sensors',),
+    'mqtt_reconnect_delay': ('setup-display',),
+    'mqtt_topic_sub': ('setup-sensors', 'setup-display',
+                       'setup-csvwriter', 'setup-sqlwriter'),
     'data_source': ('setup-siobridge',),
     'sio_host': ('setup-siobridge',),
-    'sio_port': ('setup-siobridge',),
+    'sio_port': ('setup-siobridge', 'setup-nginx'),
     'api_host': ('setup-flask',),
-    'api_port': ('setup-flask',),
-    'simoc_web_dist_dir': ('setup-nginx',),
+    'api_port': ('setup-flask', 'setup-nginx'),
+    'simoc_web_dist_dir': ('setup-frontend',),
+    'verbose_sensor': ('setup-sensors',),
+    'verbose_mqtt': ('setup-sensors', 'setup-display'),
+    'enable_jsonl_logging': ('setup-sensors',),
+    'log_dir': ('setup-sensors',),
+    'data_dir': ('setup-csvwriter',),
+    'db_path': ('setup-sqlwriter', 'setup-flask'),
+    'bno085_default_err_value': ('setup-sensors',),
+    'bno085_enabled_features': ('setup-sensors',),
 }
 
 

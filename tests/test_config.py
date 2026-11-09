@@ -806,8 +806,29 @@ def test_print_one_shows_multiline_default_directly(user_config, capsys):
 def test_related_commands_mqtt_points_to_actual_consumers():
     # setup-mosquitto only manages the local broker daemon, not the client
     # settings used by sensor-runner/siobridge to connect to a broker
-    for key in ('mqtt_host', 'mqtt_port', 'mqtt_secure', 'mqtt_certs_dir'):
+    for key in ('mqtt_host', 'mqtt_port'):
         related = config.RELATED_COMMANDS[key]
         assert 'setup-mosquitto' not in related
         assert 'setup-sensors' in related
-        assert 'setup-siobridge' in related
+    for key in ('mqtt_secure', 'mqtt_certs_dir'):
+        related = config.RELATED_COMMANDS[key]
+        assert 'setup-mosquitto' not in related
+        assert related == ('setup-sensors',)
+
+
+def test_related_commands_use_https_restarts_nginx_and_flask():
+    assert config.RELATED_COMMANDS['use_https'] == ('setup-nginx', 'setup-flask')
+
+
+def test_related_commands_cover_configured_service_consumers():
+    assert config.RELATED_COMMANDS['mqtt_topic_sub'] == (
+        'setup-sensors', 'setup-display', 'setup-csvwriter', 'setup-sqlwriter',
+    )
+    assert config.RELATED_COMMANDS['mqtt_host'] == (
+        'setup-sensors', 'setup-display', 'setup-csvwriter', 'setup-sqlwriter',
+    )
+    assert config.RELATED_COMMANDS['mqtt_secure'] == ('setup-sensors',)
+    assert config.RELATED_COMMANDS['mqtt_certs_dir'] == ('setup-sensors',)
+    assert config.RELATED_COMMANDS['sio_port'] == ('setup-siobridge', 'setup-nginx')
+    assert config.RELATED_COMMANDS['simoc_web_dist_dir'] == ('setup-frontend',)
+    assert config.RELATED_COMMANDS['db_path'] == ('setup-sqlwriter', 'setup-flask')
