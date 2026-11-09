@@ -6,10 +6,12 @@ import sys
 import pathlib
 import tomllib
 import importlib
+import threading
 import subprocess
 import dataclasses
 from pathlib import Path
 from typing import Literal
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -510,6 +512,33 @@ def test_reset_config_value_rejects_unknown_name(user_config):
 def test_update_config_values_creates_directory(tmp_path):
     update_config_values({'mqtt_port': 9999})
     assert (tmp_path / '.config' / 'simoc-sam' / 'config.toml').exists()
+
+
+def test_admin_session_secret_is_created_atomically(monkeypatch):
+    real_link = os.link
+    barrier = threading.Barrier(2)
+
+    def synchronized_link(source, destination):
+        barrier.wait(timeout=5)
+        return real_link(source, destination)
+
+    monkeypatch.setattr(config.os, 'link', synchronized_link)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        created = list(pool.map(lambda _: config.get_admin_session_secret(), range(2)))
+
+    path = config.admin_session_secret_path()
+    assert created[0] == created[1] == path.read_bytes()
+    assert len(created[0]) == 32
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_admin_session_secret_rejects_invalid_length():
+    path = config.admin_session_secret_path()
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b'invalid')
+
+    with pytest.raises(config.InvalidConfig, match='exactly 32 bytes'):
+        config.get_admin_session_secret()
 
 
 def test_update_config_values_writes_full_template(user_config):

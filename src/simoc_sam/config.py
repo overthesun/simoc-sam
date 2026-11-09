@@ -8,6 +8,7 @@ User overrides are stored as TOML at ``~/.config/simoc-sam/config.toml``.
 Only changed fields are written; everything else falls back to defaults.
 """
 
+import os
 import sys
 import types
 import typing
@@ -15,6 +16,7 @@ import socket
 import pathlib
 import tomllib
 import secrets
+import tempfile
 import functools
 import dataclasses
 
@@ -321,13 +323,19 @@ def get_admin_session_secret() -> bytes:
     """Read or atomically create the Flask admin session secret."""
     path = admin_session_secret_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open('xb') as secret_file:
-            secret_file.write(secrets.token_bytes(32))
-        path.chmod(0o600)
-    except FileExistsError:
-        pass
-    return path.read_bytes()
+    if not path.exists():
+        with tempfile.NamedTemporaryFile(dir=path.parent) as temp:
+            temp.write(secrets.token_bytes(32))
+            temp.flush()
+            try:
+                os.link(temp.name, path)
+            except FileExistsError:
+                pass
+    secret = path.read_bytes()
+    if len(secret) != 32:
+        raise InvalidConfig('Admin session secret must be exactly 32 bytes')
+    path.chmod(0o600)
+    return secret
 
 
 def read_user_overrides() -> dict:
