@@ -708,6 +708,7 @@ async function logoutAdmin() {
   } finally {
     adminState.loaded = false;
     adminState.csrfToken = null;
+    setDirty(false);
     $('#btn-admin-logout').hidden = true;
     showSection('live');
   }
