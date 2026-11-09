@@ -143,6 +143,18 @@ def test_parser_positional_args():
     assert args.password == 'password123'
 
 
+def test_parser_setup_wifi_requires_ssid_and_password():
+    """Test that setup-wifi requires the SSID and password positionally."""
+    parser = simoc_sam_cli.create_parser()
+    args = parser.parse_args(['setup-wifi', 'MyNetwork', 'password123'])
+
+    assert args.ssid == 'MyNetwork'
+    assert args.password == 'password123'
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(['setup-wifi'])
+
+
 def test_parser_named_args():
     """Test that --flag=value args are accepted for optional params."""
     parser = simoc_sam_cli.create_parser()
