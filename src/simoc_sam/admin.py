@@ -8,6 +8,8 @@ Provides endpoints for:
 import re
 import sys
 import time
+import hmac
+import hashlib
 import inspect
 import logging
 import pathlib
@@ -18,7 +20,7 @@ import importlib.util
 
 from werkzeug.exceptions import BadRequest
 from werkzeug.security import check_password_hash
-from flask import Blueprint, abort, jsonify, request, session
+from flask import Blueprint, abort, current_app, jsonify, request, session
 
 from simoc_sam import config as sam_config
 
@@ -229,7 +231,16 @@ def _login_required():
         password_hash = sam_config.admin_password_path().read_text().strip()
     except OSError:
         return True
-    return session.get('admin_password_hash') != password_hash
+    expected_version = _admin_auth_version(password_hash)
+    session_version = session.get('admin_auth_version', '')
+    return not secrets.compare_digest(session_version, expected_version)
+
+
+def _admin_auth_version(password_hash):
+    key = current_app.secret_key
+    if isinstance(key, str):
+        key = key.encode()
+    return hmac.new(key, password_hash.encode(), hashlib.sha256).hexdigest()
 
 
 def _login_rate_limited(client_id):
@@ -315,7 +326,7 @@ def login():
     session.clear()
     session['admin_authenticated'] = True
     session['csrf_token'] = secrets.token_urlsafe(32)
-    session['admin_password_hash'] = password_hash
+    session['admin_auth_version'] = _admin_auth_version(password_hash)
     return jsonify({'success': True, 'csrf_token': session['csrf_token']})
 
 
