@@ -989,7 +989,8 @@ function renderCommandGroups(commands, groupOrder) {
 const CONFIRM_CMDS = new Set([
   'teardown-sensors', 'teardown-display', 'teardown-siobridge',
   'teardown-csvwriter', 'teardown-sqlwriter', 'teardown-mosquitto',
-  'teardown-frontend', 'teardown-nginx', 'teardown-hotspot', 'teardown-wifi',
+  'teardown-frontend', 'teardown-flask', 'teardown-nginx', 'teardown-hotspot',
+  'teardown-wifi',
 ]);
 
 function commandArgs(cmd, meta) {
