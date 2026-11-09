@@ -324,15 +324,12 @@ def teardown_hotspot():
 
 @cmd
 @needs_root
-def setup_wifi(ssid=None, password=None, interface='wlan0'):
+def setup_wifi(ssid, password, interface='wlan0'):
     """Setup a connection to an existing WiFi network."""
     wifi_nmconn = NM_DIR / f'{WIFI_CONN}.nmconnection'
     if wifi_nmconn.exists():
         print('WiFi connection already set up.  Use `teardown-wifi` to remove.')
         return True
-    if ssid is None or password is None:
-        print('Please provide the SSID and the password.')
-        return False
     repls = dict(
         conn_id=WIFI_CONN, conn_uuid=uuid.uuid4(), conn_interface=interface,
         wifi_mode='infrastructure', wifi_ssid=ssid, wifi_pass=password,
