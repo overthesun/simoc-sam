@@ -29,13 +29,13 @@ _GROUPS: list[tuple[str, list[str]]] = [
     ('HAB info', ['location', 'humans', 'volume']),
     ('Sensors', ['sensors', 'sensor_read_delay']),
     ('Display', ['display', 'display_refresh', 'display_format']),
-    ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure',
-              'mqtt_certs_dir', 'mqtt_reconnect_delay']),
+    ('MQTT', ['mqtt_host', 'mqtt_port', 'mqtt_secure', 'mqtt_certs_dir',
+              'mqtt_reconnect_delay', 'mqtt_topic_sub']),
     ('SIMOC Live frontend', ['live_refresh', 'use_https',
                              'admin_enabled', 'admin_secure', 'admin_visible',
                              'admin_allow_commands', 'admin_allow_power']),
     ('SIMOC Web', ['sio_host', 'sio_port', 'data_source',
-                   'mqtt_topic_sub', 'simoc_web_dist_dir']),
+                   'simoc_web_dist_dir']),
     ('Flask API', ['api_host', 'api_port']),
     ('Verbosity and logging', ['verbose_sensor', 'verbose_mqtt', 'enable_jsonl_logging',
                                'log_dir', 'data_dir', 'db_path']),
@@ -95,6 +95,7 @@ class SimocConfig:
     mqtt_certs_dir: pathlib.Path = f(pathlib.Path('~/.mqttcerts'),
                                      help='MQTT TLS certificates directory.')
     mqtt_reconnect_delay: float = f(5.0, help='MQTT reconnect delay in seconds.')
+    mqtt_topic_sub: str = f('#', help='MQTT topic to subscribe to.')
 
     # SIMOC Live frontend
     live_refresh: float = f(5.0, help='Seconds between live tab refreshes.')
@@ -109,7 +110,6 @@ class SimocConfig:
     sio_host: str = f('localhost', help='SIO bridge server hostname/IP.')
     sio_port: int = f(8081, help='SIO bridge server port.')
     data_source: typing.Literal['mqtt', 'logs'] = f('mqtt', help='Data source for the SIO bridge.')
-    mqtt_topic_sub: str = f('#', help='MQTT topic SIO bridge subscribes to.')
     simoc_web_dist_dir: pathlib.Path = f(pathlib.Path('/var/www/simoc'),
                                          help='Directory nginx serves the built frontend from.')
 
