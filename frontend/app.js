@@ -651,7 +651,7 @@ async function loadAdmin() {
     $('#admin-commands-panel').hidden = !showCommands;
     const tasks = [loadAdminConfig()];
     if (showCommands) tasks.push(loadAdminCommands());
-    await Promise.all(tasks);
+    if ((await Promise.all(tasks)).some((loaded) => !loaded)) return;
     adminState.loaded = true;
     $('#btn-admin-logout').hidden = !visibility.secure;
   } catch (err) {
@@ -727,8 +727,10 @@ async function loadAdminConfig() {
     $('#admin-no-config-hint').hidden = data.user_config_exists;
     setDirty(false);
     markActiveSensors();
+    return true;
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
+    return false;
   }
 }
 
@@ -934,8 +936,10 @@ async function loadAdminCommands() {
   try {
     const data = await fetchAdminJSON('/api/admin/commands');
     renderCommandGroups(data.commands, data.group_order);
+    return true;
   } catch (err) {
     $('#admin-commands-status').textContent = `Error loading commands: ${err.message}`;
+    return false;
   }
 }
 
