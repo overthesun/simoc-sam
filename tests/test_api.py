@@ -9,6 +9,14 @@ import pytest
 from simoc_sam.api import create_app, parse_timestamp, to_unix_ms
 
 
+@pytest.fixture(autouse=True)
+def patch_admin_session_secret(monkeypatch):
+    monkeypatch.setattr(
+        'simoc_sam.api.config.get_admin_session_secret',
+        lambda: b'test-secret',
+    )
+
+
 def test_session_cookie_secure_follows_use_https(tmp_path):
     # a Secure cookie is dropped by browsers over plain HTTP -- the admin
     # session/CSRF token must still work when use_https is off (the default)
@@ -31,7 +39,6 @@ def test_admin_uses_dedicated_session_cookie_name(tmp_path):
     )
     with patch('simoc_sam.api.config.use_https', False), \
          patch('simoc_sam.api.config.get_config', return_value=current_config), \
-         patch('simoc_sam.api.config.get_admin_session_secret', return_value=b'test-secret'), \
          patch('simoc_sam.api.config.db_path', tmp_path / 'test.db'):
         app = create_app()
         client = app.test_client()
