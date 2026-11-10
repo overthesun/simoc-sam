@@ -184,7 +184,7 @@ def test_secure_admin_can_save_after_login(client):
         csrf_token = login_response.get_json()['csrf_token']
         response = test_client.post(
             '/api/admin/config',
-            json={'fields': {'humans': 2}},
+            json={'fields': {'mqtt_port': 1234}},
             headers={'X-CSRF-Token': csrf_token},
         )
 
@@ -205,16 +205,17 @@ def test_post_config_structured_saves_valid_overrides(client):
     test_client, config_path = client
 
     response = test_client.post('/api/admin/config', json={
-        'fields': {'humans': 3, 'sensors': ['scd30']},
+        'fields': {'mqtt_port': 1234, 'sensors': ['scd30']},
     })
 
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
-    assert data['changed_fields'] == ['humans', 'sensors']
-    assert data['related_commands'] == ['setup-sensors']
+    assert data['changed_fields'] == ['sensors', 'mqtt_port']
+    assert data['related_commands'] == ['setup-csvwriter', 'setup-display',
+                                        'setup-sensors', 'setup-sqlwriter']
     assert admin.sam_config.read_user_overrides() == {
-        'humans': 3,
+        'mqtt_port': 1234,
         'sensors': ['scd30'],
     }
     assert config_path.exists()
@@ -224,17 +225,17 @@ def test_post_config_structured_preserves_existing_overrides(client):
     test_client, _ = client
 
     first = test_client.post('/api/admin/config', json={
-        'fields': {'humans': 3, 'sensors': ['scd30']},
+        'fields': {'mqtt_port': 1234, 'sensors': ['scd30']},
     })
     assert first.status_code == 200
 
     second = test_client.post('/api/admin/config', json={
-        'fields': {'humans': 4},
+        'fields': {'mqtt_port': 5678},
     })
 
     assert second.status_code == 200
     assert admin.sam_config.read_user_overrides() == {
-        'humans': 4,
+        'mqtt_port': 5678,
         'sensors': ['scd30'],
     }
 
@@ -243,33 +244,35 @@ def test_post_config_structured_removes_values_reset_to_defaults(client):
     test_client, _ = client
 
     response = test_client.post('/api/admin/config', json={
-        'fields': {'humans': 3, 'sensors': ['scd30']},
+        'fields': {'mqtt_port': 1234, 'sensors': ['scd30']},
     })
     assert response.status_code == 200
 
     response = test_client.post('/api/admin/config', json={
-        'fields': {'humans': 0, 'sensors': ['bme688', 'scd30', 'sgp30']},
+        'fields': {'mqtt_port': 1883, 'sensors': ['bme688', 'scd30', 'sgp30']},
     })
 
     assert response.status_code == 200
     data = response.get_json()
-    assert data['changed_fields'] == ['humans', 'sensors']
-    assert data['related_commands'] == ['setup-sensors']
+    assert data['changed_fields'] == ['sensors', 'mqtt_port']
+    assert data['related_commands'] == ['setup-csvwriter', 'setup-display',
+                                        'setup-sensors', 'setup-sqlwriter']
     assert admin.sam_config.read_user_overrides() == {}
 
 
 def test_post_config_updates_and_resets_related_fields_atomically(client):
     test_client, _ = client
-    admin.sam_config.update_config_values({'data_source': 'logs'})
+    admin.sam_config.update_config_values({'verbose_sensor': True})
 
     response = test_client.post('/api/admin/config', json={
         'fields': {
-            'data_source': 'mqtt',
+            'verbose_sensor': False,
             'enable_jsonl_logging': False,
         },
     })
 
     assert response.status_code == 200
+    assert response.get_json()['related_commands'] == ['setup-sensors']
     assert admin.sam_config.read_user_overrides() == {
         'enable_jsonl_logging': False,
     }
@@ -287,16 +290,37 @@ def test_post_config_structured_rejects_unknown_field(client):
     assert not config_path.exists()
 
 
-def test_post_config_structured_rejects_invalid_combination(client):
+@pytest.mark.parametrize(('field', 'value'), [
+    ('use_https', True),
+    ('admin_enabled', True),
+    ('admin_secure', False),
+    ('admin_visible', True),
+    ('admin_allow_commands', True),
+    ('admin_allow_power', True),
+])
+def test_post_config_rejects_admin_security_fields(client, field, value):
     test_client, config_path = client
 
     response = test_client.post('/api/admin/config', json={
-        'fields': {'data_source': 'logs', 'enable_jsonl_logging': False},
+        'fields': {field: value},
+    })
+
+    assert response.status_code == 400
+    assert 'cannot be changed through the admin interface' in response.get_json()['error']
+    assert not config_path.exists()
+
+
+def test_post_config_structured_rejects_invalid_combination(client):
+    test_client, config_path = client
+    admin.sam_config.update_config_values({'data_source': 'logs'})
+
+    response = test_client.post('/api/admin/config', json={
+        'fields': {'enable_jsonl_logging': False},
     })
 
     assert response.status_code == 400
     assert response.get_json()['error'] == 'Config values are invalid or inconsistent'
-    assert not config_path.exists()
+    assert admin.sam_config.read_user_overrides() == {'data_source': 'logs'}
 
 
 def test_post_config_rejects_invalid_existing_config(client):
@@ -304,7 +328,7 @@ def test_post_config_rejects_invalid_existing_config(client):
     config_path.write_text('mqtt_port = "not an integer"\n')
 
     response = test_client.post('/api/admin/config', json={
-        'fields': {'humans': 3},
+        'fields': {'mqtt_topic_sub': 'sensors/#'},
     })
 
     assert response.status_code == 400

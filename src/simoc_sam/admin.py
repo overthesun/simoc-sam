@@ -377,6 +377,8 @@ def post_config():
     for name, value in submitted.items():
         if name not in schema:
             return jsonify({'error': f'Unknown field: {name!r}'}), 400
+        if name in _HIDDEN_CONFIG_FIELDS:  # can't change hidden fields
+            return jsonify({'error': f'{name!r} cannot be changed through the admin interface'}), 400
         info = schema[name]
         if not sam_config.validate_field(name, value, info['type'], info['options']):
             return jsonify({'error': f'Invalid value for {name!r}: {value!r}'}), 400
