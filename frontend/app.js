@@ -889,8 +889,11 @@ function collectConfigFields() {
       fields[field.name] = el.value.split(',').map((s) => s.trim()).filter(Boolean);
     } else if (field.type === 'int') {
       if (!el.value.trim()) continue;
-      const v = parseInt(el.value, 10);
-      if (!isNaN(v)) fields[field.name] = v;
+      const v = Number(el.value);
+      if (!Number.isInteger(v)) {
+        throw new Error(`${field.name} must be a whole number.`);
+      }
+      fields[field.name] = v;
     } else if (field.type === 'float') {
       if (!el.value.trim()) continue;
       const v = parseFloat(el.value);
