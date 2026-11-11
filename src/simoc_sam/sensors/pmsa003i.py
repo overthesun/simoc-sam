@@ -13,18 +13,18 @@ class PMSA003I(AdafruitSensor):
         """Return particulate concentrations and particle counts."""
         data = self.sensor.read()
         reading = {
-            'pm1_0_standard': data['pm10 standard'],
-            'pm2_5_standard': data['pm25 standard'],
-            'pm10_standard': data['pm100 standard'],
-            'pm1_0_environmental': data['pm10 env'],
-            'pm2_5_environmental': data['pm25 env'],
-            'pm10_environmental': data['pm100 env'],
-            'particles_gt_0_3um': data['particles 03um'],
-            'particles_gt_0_5um': data['particles 05um'],
-            'particles_gt_1_0um': data['particles 10um'],
-            'particles_gt_2_5um': data['particles 25um'],
-            'particles_gt_5_0um': data['particles 50um'],
-            'particles_gt_10um': data['particles 100um'],
+            'pm10_standard': data['pm10 standard'],
+            'pm25_standard': data['pm25 standard'],
+            'pm100_standard': data['pm100 standard'],
+            'pm10_environmental': data['pm10 env'],
+            'pm25_environmental': data['pm25 env'],
+            'pm100_environmental': data['pm100 env'],
+            'particles_0_3um': data['particles 03um'],
+            'particles_0_5um': data['particles 05um'],
+            'particles_1_0um': data['particles 10um'],
+            'particles_2_5um': data['particles 25um'],
+            'particles_5_0um': data['particles 50um'],
+            'particles_10um': data['particles 100um'],
         }
         self.print_reading(reading)
         return reading
