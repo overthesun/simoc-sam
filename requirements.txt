@@ -13,6 +13,7 @@ hidapi==0.15.0
 Adafruit-Blinka==9.1.0
 adafruit-circuitpython-scd30==2.3.0
 adafruit-circuitpython-scd4x==1.4.13
+adafruit-circuitpython-pm25==2.1.24
 adafruit-circuitpython-sgp30==3.0.16
 adafruit-circuitpython-bme680==3.7.16
 adafruit-circuitpython-bmp3xx==1.3.27
