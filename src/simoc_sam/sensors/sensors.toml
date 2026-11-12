@@ -70,6 +70,78 @@ i2c_address = 0x62
     label = "Humidity"
     description = "Relative Humidity"
 
+[pmsa003i]
+name = "PMSA003I"
+description = "Particulate Matter Sensor"
+module = "simoc_sam.sensors.pmsa003i"
+i2c_address = 0x12
+
+    [pmsa003i.data.pm10_standard]
+    unit = "µg/m³"
+    label = "PM1.0 standard"
+    description = "PM1.0 concentration corrected to standard atmospheric conditions"
+
+    [pmsa003i.data.pm25_standard]
+    unit = "µg/m³"
+    label = "PM2.5 standard"
+    description = "PM2.5 concentration corrected to standard atmospheric conditions"
+
+    [pmsa003i.data.pm100_standard]
+    unit = "µg/m³"
+    label = "PM10 standard"
+    description = "PM10 concentration corrected to standard atmospheric conditions"
+
+    [pmsa003i.data.pm10_environmental]
+    unit = "µg/m³"
+    label = "PM1.0 env."
+    description = "PM1.0 concentration at current atmospheric conditions"
+
+    [pmsa003i.data.pm25_environmental]
+    unit = "µg/m³"
+    label = "PM2.5 env."
+    description = "PM2.5 concentration at current atmospheric conditions"
+
+    [pmsa003i.data.pm100_environmental]
+    unit = "µg/m³"
+    label = "PM10 env."
+    description = "PM10 concentration at current atmospheric conditions"
+
+    [pmsa003i.data.particles_0_3um]
+    unit = "#/0.1 L"
+    label = "Part. >0.3 µm"
+    description = "Count of particles larger than 0.3 µm per 0.1 L of air"
+    type = "int"
+
+    [pmsa003i.data.particles_0_5um]
+    unit = "#/0.1 L"
+    label = "Part. >0.5 µm"
+    description = "Count of particles larger than 0.5 µm per 0.1 L of air"
+    type = "int"
+
+    [pmsa003i.data.particles_1_0um]
+    unit = "#/0.1 L"
+    label = "Part. >1.0 µm"
+    description = "Count of particles larger than 1.0 µm per 0.1 L of air"
+    type = "int"
+
+    [pmsa003i.data.particles_2_5um]
+    unit = "#/0.1 L"
+    label = "Part. >2.5 µm"
+    description = "Count of particles larger than 2.5 µm per 0.1 L of air"
+    type = "int"
+
+    [pmsa003i.data.particles_5_0um]
+    unit = "#/0.1 L"
+    label = "Part. >5.0 µm"
+    description = "Count of particles larger than 5.0 µm per 0.1 L of air"
+    type = "int"
+
+    [pmsa003i.data.particles_10um]
+    unit = "#/0.1 L"
+    label = "Part. >10 µm"
+    description = "Count of particles larger than 10 µm per 0.1 L of air"
+    type = "int"
+
 [sgp30]
 name = "SGP30"
 description = "TVOC/eCO2 Gas Sensor"
