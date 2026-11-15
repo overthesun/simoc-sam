@@ -76,6 +76,16 @@ function formatTimeNow() {
   return new Date().toLocaleTimeString('en-GB');
 }
 
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
 
 /* ---------- navigation ---------- */
 
@@ -170,7 +180,7 @@ function renderLiveCards(sensors, latest) {
       const display = (value === null || value === undefined) ? '--'
         : (typeof value === 'number' ? value.toFixed(1) : value);
       const unit = meta.unit ? ` ${meta.unit}` : '';
-      return `<tr><td>${meta.label}</td>
+      return `<tr><td title="${escapeHTML(meta.description || '')}">${meta.label}</td>
               <td class="value">${display}${unit}</td></tr>`;
     }).join('');
     const ts = reading ? formatLocal(Date.parse(reading.timestamp)) : 'no data';
@@ -216,6 +226,7 @@ async function buildSelectionUI() {
       btn.type = 'button';
       btn.className = 'toggle';
       btn.textContent = meta.label;
+      btn.title = meta.description || '';
       btn.disabled = true;
       btn.addEventListener('click', () => {
         btn.classList.toggle('on');
@@ -448,6 +459,7 @@ function makeChartBox(sensor, metric, data, xMin, xMax) {
   const box = document.createElement('div');
   box.className = 'chart-box';
   box.innerHTML = `<h3>${info.name} — ${label}</h3><div class="chart-wrap"><canvas></canvas></div>`;
+  box.querySelector('h3').title = meta.description || '';
   const dataset = {
     label,
     data: prepareData(data.timestamps, data[metric]),
@@ -507,9 +519,9 @@ function makeTableBox(sensor, metrics, data) {
   const box = document.createElement('div');
   box.className = 'table-box';
   const headers = metrics.map((m) => {
-    const {label, unit} = info.metrics[m];
+    const {label, unit, description} = info.metrics[m];
     const text = unit ? `${label} (${unit})` : label;
-    return `<th>${text}</th>`;
+    return `<th title="${escapeHTML(description || '')}">${text}</th>`;
   }).join('');
   const rows = data.timestamps.map((ts, i) => {
     const cells = metrics.map((m) => `<td>${data[m][i] ?? ''}</td>`).join('');
