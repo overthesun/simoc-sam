@@ -153,7 +153,8 @@ def create_app(db_path=None):
                 'description': sensor_data.description,
                 'metrics': {
                     metric: {'label': info.get('label', metric),
-                             'unit': info.get('unit', '')}
+                             'unit': info.get('unit', ''),
+                             'description': info.get('description', '')}
                     for metric, info in sensor_data.data.items()
                 },
             }

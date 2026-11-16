@@ -124,6 +124,7 @@ def test_sensors_metric_metadata(client):
     co2 = data['sensors']['scd30']['metrics']['co2']
     assert co2['label'] == 'CO2'
     assert co2['unit'] == 'ppm'
+    assert co2['description'] == 'CO2 Concentration'
 
 def test_sensors_inactive_when_empty(client):
     data = client.get('/api/sensors').get_json()
