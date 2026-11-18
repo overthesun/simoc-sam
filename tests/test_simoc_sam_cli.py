@@ -52,6 +52,86 @@ def test_cmd_decorator(clean_commands):
     assert simoc_sam_cli.COMMANDS['test_func'] is test_func
 
 
+def test_setup_venv_installs_dependencies():
+    venv_dir = pathlib.Path('/repo/venv')
+    with (
+        patch.object(simoc_sam_cli, 'VENV_DIR', venv_dir),
+        patch.object(simoc_sam_cli, 'VENV_PY', '/repo/venv/bin/python3'),
+        patch.object(simoc_sam_cli, 'DEPS', pathlib.Path('/repo/requirements.txt')),
+        patch.object(simoc_sam_cli, 'DEV_DEPS', pathlib.Path('/repo/dev-requirements.txt')),
+        patch.object(simoc_sam_cli, 'SIMOC_SAM_DIR', pathlib.Path('/repo')),
+        patch.object(simoc_sam_cli.sys, 'executable', '/usr/bin/python3'),
+        patch.object(simoc_sam_cli, 'run', return_value=True) as mock_run,
+    ):
+        assert simoc_sam_cli.setup_venv() is True
+
+    assert mock_run.call_args_list == [
+        call(['/usr/bin/python3', '-m', 'venv', str(venv_dir)]),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '--upgrade', 'pip']),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '-r',
+              '/repo/requirements.txt']),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '-r',
+              '/repo/dev-requirements.txt']),
+        call(['/repo/venv/bin/python3', '-m', 'pip', 'install', '-e', '/repo']),
+    ]
+
+
+def test_update_applies_dependency_and_frontend_changes():
+    with (
+        patch.object(simoc_sam_cli.subprocess, 'check_output', side_effect=[
+            'main\n', 'requirements.txt\nfrontend/app.js\n',
+        ]) as mock_check_output,
+        patch.object(simoc_sam_cli, 'SIMOC_SAM_DIR', pathlib.Path('/repo')),
+        patch.object(simoc_sam_cli, 'run', return_value=True) as mock_run,
+        patch.object(simoc_sam_cli, 'setup_venv', return_value=True) as mock_setup_venv,
+        patch.object(simoc_sam_cli, 'setup_frontend',
+                     return_value=True) as mock_setup_frontend,
+    ):
+        assert simoc_sam_cli.update() is True
+
+    mock_run.assert_called_once_with(
+        ['git', 'pull', 'origin', 'main'], cwd=pathlib.Path('/repo'),
+    )
+    assert mock_check_output.call_args_list[-1] == call(
+        ['git', 'diff', '--name-only', 'ORIG_HEAD', 'HEAD'],
+        cwd=pathlib.Path('/repo'), text=True,
+    )
+    mock_setup_venv.assert_called_once_with()
+    mock_setup_frontend.assert_called_once_with()
+
+
+def test_update_skips_setup_when_pull_has_no_file_changes():
+    with (
+        patch.object(simoc_sam_cli.subprocess, 'check_output', side_effect=[
+            'main\n', '',
+        ]),
+        patch.object(simoc_sam_cli, 'run', return_value=True),
+        patch.object(simoc_sam_cli, 'setup_venv') as mock_setup_venv,
+        patch.object(simoc_sam_cli, 'setup_frontend') as mock_setup_frontend,
+    ):
+        assert simoc_sam_cli.update() is True
+
+    mock_setup_venv.assert_not_called()
+    mock_setup_frontend.assert_not_called()
+
+
+def test_update_reports_failure_but_attempts_both_setups(capsys):
+    with (
+        patch.object(simoc_sam_cli.subprocess, 'check_output', side_effect=[
+            'main\n', 'requirements.txt\nfrontend/app.js\n',
+        ]),
+        patch.object(simoc_sam_cli, 'run', return_value=True),
+        patch.object(simoc_sam_cli, 'setup_venv', return_value=False) as mock_setup_venv,
+        patch.object(simoc_sam_cli, 'setup_frontend',
+                     return_value=True) as mock_setup_frontend,
+    ):
+        assert simoc_sam_cli.update() is False
+
+    mock_setup_venv.assert_called_once_with()
+    mock_setup_frontend.assert_called_once_with()
+    assert 'Dependency update failed' in capsys.readouterr().out
+
+
 def test_parser_positional_args():
     """Test that positional args are parsed into named attributes."""
     parser = simoc_sam_cli.create_parser()
@@ -61,6 +141,18 @@ def test_parser_positional_args():
     assert args.interface == 'wlan0'
     assert args.ssid == 'MyNetwork'
     assert args.password == 'password123'
+
+
+def test_parser_setup_wifi_requires_ssid_and_password():
+    """Test that setup-wifi requires the SSID and password positionally."""
+    parser = simoc_sam_cli.create_parser()
+    args = parser.parse_args(['setup-wifi', 'MyNetwork', 'password123'])
+
+    assert args.ssid == 'MyNetwork'
+    assert args.password == 'password123'
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(['setup-wifi'])
 
 
 def test_parser_named_args():
@@ -100,10 +192,12 @@ def test_parser_help_shows_commands(capsys):
         parser.parse_args(['--help'])
     out = capsys.readouterr().out
     # Spot-check a few commands from different parts of the file
-    assert 'create-venv' in out
+    assert 'setup-venv' in out
+    assert 'teardown-venv' in out
     assert 'setup-hotspot' in out
     assert 'setup-sensors' in out
     assert 'services-info' in out
+    assert 'set-admin-password' in out
 
 
 def test_parser_bool_keyword_only_conversion():
@@ -122,6 +216,17 @@ def test_parser_bool_keyword_only_conversion():
 
     args = parser.parse_args(['copy-repo', 'pi@host', '--exclude-git=0'])
     assert args.exclude_git is False
+
+
+def test_parser_setup_admin_unsafe_flag():
+    args = simoc_sam_cli.create_parser().parse_args(['setup-admin', '--unsafe'])
+    assert args.unsafe is True
+
+
+def test_set_admin_password_command_registered():
+    assert simoc_sam_cli.COMMANDS['set_admin_password'] is simoc_sam_cli.set_admin_password
+    args = simoc_sam_cli.create_parser().parse_args(['set-admin-password'])
+    assert args.cmd == 'set-admin-password'
 
 
 def test_subcommand_help_shows_description(capsys):
@@ -401,6 +506,102 @@ def test_config_two_standalone_flags_rejected(mock_config):
     mock_config.read_user_overrides.assert_not_called()
 
 
+def test_setup_admin_unsafe_applies_requested_settings(mock_config, capsys):
+    assert simoc_sam_cli.setup_admin(unsafe=True) is True
+
+    mock_config.update_config_values.assert_called_once_with({
+        'admin_enabled': True,
+        'admin_secure': False,
+        'admin_visible': True,
+        'admin_allow_commands': True,
+        'admin_allow_power': True,
+    })
+    assert 'WARNING' in capsys.readouterr().out
+
+
+def test_setup_admin_interactive_saves_password_and_choices(
+        mock_config, tmp_path, capsys):
+    password_path = tmp_path / 'admin-password.hash'
+    mock_config.admin_password_path.return_value = password_path
+
+    with patch('builtins.input', side_effect=['y', 'y', 'y', 'y', 'n', 'y']), \
+            patch.object(simoc_sam_cli.getpass, 'getpass',
+                         side_effect=['secret', 'secret']), \
+            patch.object(simoc_sam_cli, 'setup_nginx', return_value=True) as setup_nginx:
+        assert simoc_sam_cli.setup_admin() is True
+    setup_nginx.assert_called_once_with()
+
+    mock_config.update_config_values.assert_called_once_with({
+        'admin_enabled': True,
+        'admin_secure': True,
+        'admin_visible': True,
+        'admin_allow_commands': True,
+        'admin_allow_power': False,
+        'use_https': True,
+    })
+    from werkzeug.security import check_password_hash
+    assert check_password_hash(password_path.read_text(), 'secret')
+    assert password_path.stat().st_mode & 0o777 == 0o600
+    assert 'Admin interface configured.' in capsys.readouterr().out
+
+
+def test_setup_admin_reports_nginx_setup_failure(mock_config, capsys):
+    with patch('builtins.input', side_effect=['y', 'y', 'n', 'n', 'n', 'y']), \
+            patch.object(simoc_sam_cli, 'setup_nginx', return_value=False) as setup_nginx:
+        assert simoc_sam_cli.setup_admin() is False
+
+    setup_nginx.assert_called_once_with()
+    mock_config.update_config_values.assert_called_once_with({
+        'admin_enabled': True,
+        'admin_secure': False,
+        'admin_visible': True,
+        'admin_allow_commands': False,
+        'admin_allow_power': False,
+        'use_https': True,
+    })
+    output = capsys.readouterr().out
+    assert 'Reloading nginx to apply HTTPS configuration:' in output
+    assert 'nginx setup failed' in output
+
+
+def test_set_admin_password_retries_after_mismatch(mock_config, tmp_path, capsys):
+    password_path = tmp_path / 'admin-password.hash'
+    mock_config.admin_password_path.return_value = password_path
+
+    with patch.object(simoc_sam_cli.getpass, 'getpass',
+                      side_effect=['wrong', 'different', 'secret', 'secret']):
+        assert simoc_sam_cli.set_admin_password() is True
+
+    from werkzeug.security import check_password_hash
+    assert check_password_hash(password_path.read_text(), 'secret')
+    assert 'Please try again' in capsys.readouterr().out
+
+
+def test_setup_admin_password_mismatch_after_three_attempts_does_not_save(
+        mock_config, tmp_path, capsys):
+    mock_config.admin_password_path.return_value = tmp_path / 'admin-password.hash'
+    with patch('builtins.input', side_effect=['y', 'y', 'y']), \
+            patch.object(simoc_sam_cli.getpass, 'getpass',
+                         side_effect=[
+                             'secret', 'different',
+                             'secret', 'different',
+                             'secret', 'different',
+                         ]):
+        assert simoc_sam_cli.setup_admin() is False
+
+    mock_config.update_config_values.assert_not_called()
+    mock_config.admin_password_path.assert_not_called()
+    assert 'after 3 attempts' in capsys.readouterr().out
+
+
+def test_setup_admin_can_leave_interface_disabled(mock_config, capsys):
+    with patch('builtins.input', return_value='n'):
+        assert simoc_sam_cli.setup_admin() is True
+
+    mock_config.update_config_values.assert_called_once_with({'admin_enabled': False})
+    assert 'Admin interface disabled' in capsys.readouterr().out
+
+
 def test_config_standalone_flag_with_reset_rejected(mock_config):
     with pytest.raises(SystemExit) as exc_info:
         simoc_sam_cli.config(path=True, reset=True)
@@ -541,7 +742,7 @@ def test_config_reset_when_overridden(mock_config, capsys):
     mock_config.read_user_overrides.return_value = {'mqtt_port': 9999}
     mock_config.format_value.return_value = '1883'
     simoc_sam_cli.config(key='mqtt_port', reset=True)
-    mock_config.save_user_config.assert_called_once_with({})  # key removed
+    mock_config.reset_config_value.assert_called_once_with('mqtt_port')
     assert 'Reset mqtt_port to default: 1883' in capsys.readouterr().out
 
 
@@ -549,7 +750,7 @@ def test_config_reset_when_not_overridden(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_port': {'default': 1883}}
     mock_config.read_user_overrides.return_value = {}
     simoc_sam_cli.config(key='mqtt_port', reset=True)
-    mock_config.save_user_config.assert_not_called()
+    mock_config.reset_config_value.assert_not_called()
     assert 'already at its default value' in capsys.readouterr().out
 
 
@@ -560,7 +761,7 @@ def test_config_set_value_success(mock_config, capsys):
     mock_config.format_value.return_value = '9999'
     mock_config.RELATED_COMMANDS = {'mqtt_port': ('setup-sensors', 'setup-siobridge')}
     simoc_sam_cli.config(key='mqtt_port', value='9999')
-    mock_config.save_user_config.assert_called_once_with({'mqtt_port': 9999})
+    mock_config.update_config_values.assert_called_once_with({'mqtt_port': 9999})
     out = capsys.readouterr().out
     assert 'mqtt_port = 9999' in out
     assert 'sam setup-sensors' in out
@@ -573,7 +774,7 @@ def test_config_set_value_parse_error_returns_false(mock_config, capsys):
     mock_config.parse_value.side_effect = ValueError('not an int')
     result = simoc_sam_cli.config(key='mqtt_port', value='not_a_number')
     assert result is False
-    mock_config.save_user_config.assert_not_called()
+    mock_config.update_config_values.assert_not_called()
     assert 'Error: not an int' in capsys.readouterr().out
 
 
@@ -583,7 +784,7 @@ def test_config_save_error_reported_without_crashing(mock_config, capsys):
     mock_config.get_schema.return_value = {'mqtt_secure': {'default': False}}
     mock_config.read_user_overrides.return_value = {}
     mock_config.parse_value.return_value = True
-    mock_config.save_user_config.side_effect = InvalidConfig("Set 'mqtt_certs_dir'")
+    mock_config.update_config_values.side_effect = InvalidConfig("Set 'mqtt_certs_dir'")
     result = simoc_sam_cli.config(key='mqtt_secure', value='true')
     assert result is False
     assert "Error: Set 'mqtt_certs_dir'" in capsys.readouterr().out
