@@ -6,10 +6,12 @@ import sys
 import pathlib
 import tomllib
 import importlib
+import threading
 import subprocess
 import dataclasses
 from pathlib import Path
 from typing import Literal
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -327,6 +329,12 @@ def test_get_schema_entries_have_required_keys():
         assert 'type' in info, f'{name}: missing type'
         assert 'group' in info, f'{name}: missing group'
         assert 'options' in info, f'{name}: missing options'
+        assert 'description' in info, f'{name}: missing description'
+
+
+def test_get_schema_entries_have_nonempty_description():
+    for name, info in get_schema().items():
+        assert info['description'], f'{name}: missing description text'
 
 
 def test_get_schema_literal_fields_have_options():
@@ -422,7 +430,7 @@ def test_save_and_load_roundtrip(user_config):
     assert loaded['mqtt_host'] == 'remote.host'
     assert loaded['mqtt_port'] == 1884
     assert loaded['sensors'] == ['scd30', 'bme688']
-    assert loaded['mqtt_secure'] is False
+    assert 'mqtt_secure' not in loaded
 
 
 def test_update_config_values_updates_module_vars(user_config):
@@ -437,6 +445,22 @@ def test_update_config_values_updates_module_vars(user_config):
     assert config.mqtt_port == 123456
     assert config.sio_port == 654321
     assert read_user_overrides() == {'mqtt_port': 123456, 'sio_port': 654321}
+
+
+def test_update_config_values_returns_fields_changed_from_previous_config(user_config):
+    assert update_config_values({'mqtt_port': 1884}) == ['mqtt_port']
+    assert update_config_values({'mqtt_port': 1884}) == []
+    assert update_config_values({'mqtt_port': 1883}) == ['mqtt_port']
+    assert read_user_overrides() == {}
+
+
+def test_update_config_values_rejects_invalid_existing_config(user_config):
+    user_config.write_text('mqtt_port = "invalid"\n')
+
+    with pytest.raises(config.InvalidConfig):
+        update_config_values({'mqtt_port': 1884})
+
+    assert read_user_overrides() == {'mqtt_port': 'invalid'}
 
 
 def test_update_config_values_merges_existing_file_overrides(user_config):
@@ -454,14 +478,29 @@ def test_update_config_values_merges_existing_file_overrides(user_config):
     assert config.sio_port == 8082
 
 
+def test_update_config_values_removes_values_equal_to_defaults(user_config):
+    update_config_values({'mqtt_port': 1884, 'mqtt_host': 'custom.host'})
+
+    update_config_values({'mqtt_port': get_schema()['mqtt_port']['default']})
+
+    assert read_user_overrides() == {'mqtt_host': 'custom.host'}
+    assert config.mqtt_port == get_schema()['mqtt_port']['default']
+
+
 def test_reset_config_value_removes_existing_override(user_config):
     update_config_values({'mqtt_host': 'custom.host', 'mqtt_port': 9999})
 
-    reset_config_value('mqtt_host')
+    assert reset_config_value('mqtt_host') is True
+    assert reset_config_value('mqtt_port') is True
 
-    assert read_user_overrides() == {'mqtt_port': 9999}
+    assert read_user_overrides() == {}
     assert config.mqtt_host == get_schema()['mqtt_host']['default']
-    assert config.mqtt_port == 9999
+    assert config.mqtt_port == get_schema()['mqtt_port']['default']
+
+
+def test_reset_config_value_returns_false_when_already_default(user_config):
+    assert reset_config_value('mqtt_port') is False
+    assert not user_config.exists()
 
 
 def test_reset_config_value_rejects_unknown_name(user_config):
@@ -473,6 +512,33 @@ def test_reset_config_value_rejects_unknown_name(user_config):
 def test_update_config_values_creates_directory(tmp_path):
     update_config_values({'mqtt_port': 9999})
     assert (tmp_path / '.config' / 'simoc-sam' / 'config.toml').exists()
+
+
+def test_admin_session_secret_is_created_atomically(monkeypatch):
+    real_link = os.link
+    barrier = threading.Barrier(2)
+
+    def synchronized_link(source, destination):
+        barrier.wait(timeout=5)
+        return real_link(source, destination)
+
+    monkeypatch.setattr(config.os, 'link', synchronized_link)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        created = list(pool.map(lambda _: config.get_admin_session_secret(), range(2)))
+
+    path = config.admin_session_secret_path()
+    assert created[0] == created[1] == path.read_bytes()
+    assert len(created[0]) == 32
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_admin_session_secret_rejects_invalid_length():
+    path = config.admin_session_secret_path()
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b'invalid')
+
+    with pytest.raises(config.InvalidConfig, match='exactly 32 bytes'):
+        config.get_admin_session_secret()
 
 
 def test_update_config_values_writes_full_template(user_config):
@@ -769,8 +835,29 @@ def test_print_one_shows_multiline_default_directly(user_config, capsys):
 def test_related_commands_mqtt_points_to_actual_consumers():
     # setup-mosquitto only manages the local broker daemon, not the client
     # settings used by sensor-runner/siobridge to connect to a broker
-    for key in ('mqtt_host', 'mqtt_port', 'mqtt_secure', 'mqtt_certs_dir'):
+    for key in ('mqtt_host', 'mqtt_port'):
         related = config.RELATED_COMMANDS[key]
         assert 'setup-mosquitto' not in related
         assert 'setup-sensors' in related
-        assert 'setup-siobridge' in related
+    for key in ('mqtt_secure', 'mqtt_certs_dir'):
+        related = config.RELATED_COMMANDS[key]
+        assert 'setup-mosquitto' not in related
+        assert related == ('setup-sensors',)
+
+
+def test_related_commands_use_https_restarts_nginx_and_flask():
+    assert config.RELATED_COMMANDS['use_https'] == ('setup-nginx', 'setup-flask')
+
+
+def test_related_commands_cover_configured_service_consumers():
+    assert config.RELATED_COMMANDS['mqtt_topic_sub'] == (
+        'setup-sensors', 'setup-display', 'setup-csvwriter', 'setup-sqlwriter',
+    )
+    assert config.RELATED_COMMANDS['mqtt_host'] == (
+        'setup-sensors', 'setup-display', 'setup-csvwriter', 'setup-sqlwriter',
+    )
+    assert config.RELATED_COMMANDS['mqtt_secure'] == ('setup-sensors',)
+    assert config.RELATED_COMMANDS['mqtt_certs_dir'] == ('setup-sensors',)
+    assert config.RELATED_COMMANDS['sio_port'] == ('setup-siobridge', 'setup-nginx')
+    assert config.RELATED_COMMANDS['simoc_web_dist_dir'] == ('setup-frontend',)
+    assert config.RELATED_COMMANDS['db_path'] == ('setup-sqlwriter', 'setup-flask')
