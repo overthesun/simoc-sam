@@ -1,3 +1,4 @@
+import csv
 import json
 from types import SimpleNamespace
 
@@ -308,10 +309,36 @@ def test_export_csv(client, db_conn):
                                          'bme688': ['pressure']}, format='csv')
     assert response.status_code == 200
     assert response.mimetype == 'text/csv'
-    lines = response.data.decode().strip().splitlines()
-    assert lines[0] == 'sensor,timestamp,co2,pressure'
-    assert 'scd30,2026-01-15T12:00:00+00:00,700.0,' in lines
-    assert 'bme688,2026-01-15T12:00:00+00:00,,1013.2' in lines
+    rows = list(csv.reader(response.data.decode().splitlines()))
+    assert rows == [
+        ['sensor', 'timestamp_utc', 'co2', 'pressure'],
+        ['bme688', '2026-01-15 12:00:00.000', '', '1013.200000'],
+        ['scd30', '2026-01-15 12:00:00.000', '700.000000', ''],
+    ]
+
+def test_export_csv_sorts_rows_and_rounds_decimals(client, db_conn):
+    insert_row(db_conn, 'scd30',
+               timestamp='2026-01-15T14:00:00+00:00', co2=700.123456789)
+    insert_row(db_conn, 'bme688',
+               timestamp='2026-01-15T12:00:00.125+00:00',
+               pressure=1013.23456789)
+    insert_row(db_conn, 'scd30',
+               timestamp='2026-01-15T13:00:00+00:00', co2=701.987654321)
+
+    response = export(client, selection={'scd30': ['co2'],
+                                         'bme688': ['pressure']}, format='csv')
+
+    rows = list(csv.reader(response.data.decode().splitlines()))
+    assert [row[:2] for row in rows[1:]] == [
+        ['bme688', '2026-01-15 12:00:00.125'],
+        ['scd30', '2026-01-15 13:00:00.000'],
+        ['scd30', '2026-01-15 14:00:00.000'],
+    ]
+    assert [row[2:] for row in rows[1:]] == [
+        ['', '1013.234568'],
+        ['701.987654', ''],
+        ['700.123457', ''],
+    ]
 
 def test_export_defaults_to_csv(client, db_conn):
     insert_row(db_conn, 'scd30', co2=700)

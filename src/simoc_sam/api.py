@@ -246,15 +246,26 @@ def create_app(db_path=None):
                               for m in metrics})
         buffer = io.StringIO()
         writer = csv.writer(buffer)
-        writer.writerow(['sensor', 'timestamp', *all_metrics])
+        writer.writerow(['sensor', 'timestamp_utc', *all_metrics])
+        rows = []
         for sensor, data in result.items():
             metrics = selection[sensor]
             for i, ts_ms in enumerate(data['timestamps']):
-                ts = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
-                row = [sensor, ts.isoformat(timespec='seconds')]
+                values = []
                 for metric in all_metrics:
-                    row.append(data[metric][i] if metric in metrics else '')
-                writer.writerow(row)
+                    value = data[metric][i] if metric in metrics else ''
+                    if isinstance(value, (int, float)):
+                        value = f'{value:.6f}'
+                    values.append(value)
+                rows.append((ts_ms, sensor, values))
+        for ts_ms, sensor, values in sorted(rows, key=lambda row: (row[0], row[1])):
+            ts = datetime.fromtimestamp(
+                ts_ms / 1000, tz=timezone.utc
+            ).replace(tzinfo=None)
+            timestamp = ts.isoformat(sep=' ', timespec='milliseconds')
+            writer.writerow([
+                sensor, timestamp, *values,
+            ])
         return Response(
             buffer.getvalue(),
             mimetype='text/csv',
