@@ -259,10 +259,8 @@ def create_app(db_path=None):
                     values.append(value)
                 rows.append((ts_ms, sensor, values))
         for ts_ms, sensor, values in sorted(rows, key=lambda row: (row[0], row[1])):
-            ts = datetime.fromtimestamp(
-                ts_ms / 1000, tz=timezone.utc
-            ).replace(tzinfo=None)
-            timestamp = ts.isoformat(sep=' ', timespec='milliseconds')
+            ts = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).replace(tzinfo=None)
+            timestamp = ts.isoformat(sep=' ', timespec='seconds')
             writer.writerow([
                 sensor, timestamp, *values,
             ])

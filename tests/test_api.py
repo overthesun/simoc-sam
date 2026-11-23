@@ -312,11 +312,11 @@ def test_export_csv(client, db_conn):
     rows = list(csv.reader(response.data.decode().splitlines()))
     assert rows == [
         ['sensor', 'timestamp_utc', 'co2', 'pressure'],
-        ['bme688', '2026-01-15 12:00:00.000', '', '1013.200000'],
-        ['scd30', '2026-01-15 12:00:00.000', '700.000000', ''],
+        ['bme688', '2026-01-15 12:00:00', '', '1013.200000'],
+        ['scd30', '2026-01-15 12:00:00', '700.000000', ''],
     ]
 
-def test_export_csv_sorts_rows_and_rounds_decimals(client, db_conn):
+def test_export_csv_sorts_rows_rounds_decimals_and_drops_subseconds(client, db_conn):
     insert_row(db_conn, 'scd30',
                timestamp='2026-01-15T14:00:00+00:00', co2=700.123456789)
     insert_row(db_conn, 'bme688',
@@ -330,9 +330,9 @@ def test_export_csv_sorts_rows_and_rounds_decimals(client, db_conn):
 
     rows = list(csv.reader(response.data.decode().splitlines()))
     assert [row[:2] for row in rows[1:]] == [
-        ['bme688', '2026-01-15 12:00:00.125'],
-        ['scd30', '2026-01-15 13:00:00.000'],
-        ['scd30', '2026-01-15 14:00:00.000'],
+        ['bme688', '2026-01-15 12:00:00'],
+        ['scd30', '2026-01-15 13:00:00'],
+        ['scd30', '2026-01-15 14:00:00'],
     ]
     assert [row[2:] for row in rows[1:]] == [
         ['', '1013.234568'],

@@ -621,7 +621,7 @@ function exportVisible() {
     (a.sensor < b.sensor ? -1 : a.sensor > b.sensor ? 1 : 0));
   for (const {timestampMs, sensor, values} of rows) {
     const timestamp = new Date(timestampMs).toISOString()
-      .replace('T', ' ').replace(/Z$/, '');
+      .replace('T', ' ').replace(/\.\d{3}Z$/, '');
     lines.push([sensor, timestamp, ...values].map(formatCsvCell).join(','));
   }
   downloadBlob(lines.join('\n'), 'sensor_data.csv', 'text/csv');
