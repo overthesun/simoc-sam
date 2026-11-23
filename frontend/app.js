@@ -583,6 +583,14 @@ function downloadBlob(content, filename, mimetype) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function formatCsvCell(value) {
+  // escape CSV delimiters and round numeric values to six decimal places
+  const text = value == null ? '' :
+    typeof value === 'number' && Number.isFinite(value) ?
+      value.toFixed(6) : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function exportVisible() {
   // export the currently displayed (decimated) data, client-side
   if (!state.lastResult) {
@@ -598,15 +606,23 @@ function exportVisible() {
     return;
   }
   const allMetrics = [...new Set(Object.values(selection).flat())].sort();
-  const lines = [['sensor', 'timestamp', ...allMetrics].join(',')];
+  const lines = [['sensor', 'timestamp_utc', ...allMetrics].join(',')];
+  const rows = [];
   for (const [sensor, metrics] of Object.entries(selection)) {
     const data = state.lastResult[sensor];
     if (!data) continue;
     data.timestamps.forEach((ts, i) => {
       const values = allMetrics.map(
         (m) => metrics.includes(m) ? (data[m][i] ?? '') : '');
-      lines.push([sensor, new Date(ts).toISOString(), ...values].join(','));
+      rows.push({timestampMs: ts, sensor, values});
     });
+  }
+  rows.sort((a, b) => a.timestampMs - b.timestampMs ||
+    (a.sensor < b.sensor ? -1 : a.sensor > b.sensor ? 1 : 0));
+  for (const {timestampMs, sensor, values} of rows) {
+    const timestamp = new Date(timestampMs).toISOString()
+      .replace('T', ' ').replace(/\.\d{3}Z$/, '');
+    lines.push([sensor, timestamp, ...values].map(formatCsvCell).join(','));
   }
   downloadBlob(lines.join('\n'), 'sensor_data.csv', 'text/csv');
 }
