@@ -65,7 +65,7 @@ class BaseSensor(ABC):
 
     def get_timestamp(self):
         """Return the current timestamp as a UTC ISO 8601 string."""
-        return datetime.now(timezone.utc).isoformat(timespec='seconds')
+        return datetime.now(timezone.utc).isoformat(timespec='milliseconds')
 
     def sensor_info(self):
         """Return information about the sensor and the value it returns."""

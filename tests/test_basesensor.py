@@ -3,6 +3,7 @@ import pathlib
 import importlib
 
 from unittest.mock import patch
+from datetime import datetime, timezone
 
 import pytest
 
@@ -105,6 +106,13 @@ def test_name_type():
     with MySensor(description='HAL 9000') as sensor:
         assert sensor.type == 'TestSensor'
         assert sensor.description == 'HAL 9000'
+
+def test_get_timestamp_uses_millisecond_precision(sensor):
+    with patch('simoc_sam.sensors.basesensor.datetime') as mock_datetime:
+        mock_datetime.now.return_value = datetime(
+            2026, 1, 15, 12, 0, 0, 123456, tzinfo=timezone.utc,
+        )
+        assert sensor.get_timestamp() == '2026-01-15T12:00:00.123+00:00'
 
 def test_board_busio_not_imported_for_plain_sensors():
     # MockSensor/VernierX sensors don't need board/busio -- only AdafruitSensor does

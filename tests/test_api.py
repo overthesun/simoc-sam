@@ -99,6 +99,12 @@ def test_parse_timestamp_naive_assumed_utc():
     dt = parse_timestamp('2026-01-15T12:00:00')
     assert dt.tzinfo == timezone.utc
 
+def test_to_unix_ms_preserves_milliseconds():
+    second = to_unix_ms('2026-01-15T12:00:00+00:00')
+    for milliseconds in (1, 123, 999):
+        timestamp = f'2026-01-15T12:00:00.{milliseconds:03}+00:00'
+        assert to_unix_ms(timestamp) == second + milliseconds
+
 def test_to_unix_ms():
     assert to_unix_ms('1970-01-01T00:00:01+00:00') == 1000
 

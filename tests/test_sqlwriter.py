@@ -8,7 +8,7 @@ from simoc_sam import sqlwriter
 
 @pytest.fixture
 def mock_msg():
-    payload = json.dumps(dict(n=0, timestamp='2024-03-06 12:00:00',
+    payload = json.dumps(dict(n=0, timestamp='2024-03-06T12:00:00.123+00:00',
                               co2=450.0, temperature=23.5, humidity=45.2))
     return mock.Mock(payload=payload.encode('utf-8'), topic='sam/testhost/scd30')
 
@@ -19,7 +19,7 @@ def test_on_message_inserts_row(mock_msg, db_conn):
         'SELECT sensor_id, location, host, n, timestamp, co2, temperature, humidity FROM scd30'
     ).fetchone()
     assert row == ('sam.testhost.scd30', 'sam', 'testhost', 0,
-                   '2024-03-06 12:00:00', 450.0, 23.5, 45.2)
+                   '2024-03-06T12:00:00.123+00:00', 450.0, 23.5, 45.2)
 
 
 _valid_msg = b'{"n": 0, "timestamp": "2024-03-06 12:00:00"}'
