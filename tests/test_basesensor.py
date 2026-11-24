@@ -167,6 +167,29 @@ def test_reading_delay(sensor):
     te = time.time()
     assert te-ts > 0.1
 
+def test_reading_delay_accounts_for_read_time(sensor, monkeypatch):
+    clock = [0]
+    sleeps = []
+
+    def monotonic():
+        return clock[0]
+
+    def sleep(delay):
+        sleeps.append(delay)
+        clock[0] += delay
+
+    def read_sensor_data():
+        clock[0] += 0.4
+        return dict(READING)
+
+    monkeypatch.setattr(basesensor.time, 'monotonic', monotonic)
+    monkeypatch.setattr(basesensor.time, 'sleep', sleep)
+    monkeypatch.setattr(sensor, 'read_sensor_data', read_sensor_data)
+
+    list(sensor.iter_readings(delay=1, n=3))
+
+    assert sleeps == pytest.approx([0.6, 0.6])
+
 def test_reading_num(sensor):
     assert sensor.reading_num == 0
     readings = list(sensor.iter_readings(delay=0, n=1))
