@@ -117,7 +117,7 @@ async def register_client(sid):
 
 def get_timestamp():
     """Return the current timestamp as a UTC ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat(timespec='seconds')
+    return datetime.now(timezone.utc).isoformat(timespec='milliseconds')
 
 async def emit_to_subscribers(*args, **kwargs):
     # TODO: replace with a namespace

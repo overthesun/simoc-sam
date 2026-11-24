@@ -18,6 +18,8 @@ def test_delay():
     # Test that command line args override config defaults
     args = utils.parse_args(['-d', '5'])
     assert args.delay == 5.0
+    args = utils.parse_args(['--read-delay', '0.5'])
+    assert args.delay == 0.5
     args = utils.parse_args(['--read-delay', '5.5'])
     assert args.delay == 5.5
 

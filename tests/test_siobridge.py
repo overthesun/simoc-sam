@@ -3,6 +3,7 @@ import asyncio
 
 from copy import deepcopy
 from contextlib import ExitStack
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,6 +14,13 @@ from conftest import wait_until, terminate_task
 
 
 # fixtures
+
+def test_get_timestamp_uses_millisecond_precision():
+    with patch('simoc_sam.siobridge.datetime') as mock_datetime:
+        mock_datetime.now.return_value = datetime(
+            2026, 1, 15, 12, 0, 0, 123456, tzinfo=timezone.utc,
+        )
+        assert siobridge.get_timestamp() == '2026-01-15T12:00:00.123+00:00'
 
 @pytest.fixture
 def global_vars():

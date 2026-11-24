@@ -612,6 +612,8 @@ def test_post_init_wrong_type_int_from_bool():
 def test_post_init_wrong_type_float_accepts_int():
     cfg = SimocConfig(sensor_read_delay=5)  # int is acceptable for a float field
     assert cfg.sensor_read_delay == 5
+    cfg = SimocConfig(sensor_read_delay=0.5)
+    assert cfg.sensor_read_delay == 0.5
 
 
 def test_post_init_wrong_type_list():
