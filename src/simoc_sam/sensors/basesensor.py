@@ -117,13 +117,14 @@ class BaseSensor(ABC):
         """
         read_forever = not n
         while True:
+            read_start = time.monotonic()
             try:
                 data = self.read_sensor_data()
             except RuntimeError as err:
                 self.print(f'Error reading data: {err}')
                 data = None
             if not data:
-                time.sleep(delay)
+                time.sleep(max(0, delay - (time.monotonic() - read_start)))
                 continue  # keep trying until we get a reading
             if add_timestamp:
                 data['timestamp'] = self.get_timestamp()
@@ -137,7 +138,7 @@ class BaseSensor(ABC):
                 n -= 1
                 if n == 0:
                     break
-            time.sleep(delay)
+            time.sleep(max(0, delay - (time.monotonic() - read_start)))
 
 
 class AdafruitSensor(BaseSensor):
